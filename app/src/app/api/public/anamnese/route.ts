@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { getDatabase, IDS } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
 import { unifyClientRecordsByIdentity } from '@/lib/repository';
 
 export async function POST(request: Request) {
@@ -31,7 +30,6 @@ export async function POST(request: Request) {
       sleepQuality,
       stressLevel,
       consentAgreed,
-      password,
     } = body ?? {};
 
     // Validações essenciais
@@ -69,7 +67,6 @@ export async function POST(request: Request) {
 
     const cleanEmail = email && typeof email === 'string' && email.includes('@') ? email.trim().toLowerCase() : null;
     const cleanPhone = phone.trim();
-    const passwordHash = password && typeof password === 'string' && password.trim().length >= 6 ? hashPassword(password.trim()) : null;
     const now = new Date().toISOString();
 
     const database = getDatabase();
@@ -118,7 +115,6 @@ export async function POST(request: Request) {
         SET name = ?,
             phone = ?,
             email = COALESCE(?, email),
-            password_hash = COALESCE(?, password_hash),
             status = 'ativo',
             updated_at = ?
         WHERE id = ?
@@ -126,7 +122,6 @@ export async function POST(request: Request) {
         name.trim(),
         cleanPhone,
         cleanEmail,
-        passwordHash,
         now,
         targetClientId
       );
@@ -135,14 +130,13 @@ export async function POST(request: Request) {
       targetClientId = randomUUID();
       await database.prepare(`
         INSERT INTO clients (id, clinic_id, name, phone, email, status, password_hash, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'ativo', ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, 'ativo', NULL, ?, ?)
       `).run(
         targetClientId,
         IDS.clinic,
         name.trim(),
         cleanPhone,
         cleanEmail,
-        passwordHash,
         now,
         now
       );

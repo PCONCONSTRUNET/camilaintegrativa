@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   Lock,
   ArrowRight,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
 
@@ -35,6 +36,10 @@ export default function PublicAnamnesePage() {
   const [occupation, setOccupation] = useState('');
   const [rg, setRg] = useState('');
 
+  // CPF Auto-lookup
+  const [cpfAutofilled, setCpfAutofilled] = useState(false);
+  const [cpfSearching, setCpfSearching] = useState(false);
+
   // Emergency contact
   const [emergencyContactName, setEmergencyContactName] = useState('');
   const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
@@ -53,9 +58,8 @@ export default function PublicAnamnesePage() {
   const [sleepQuality, setSleepQuality] = useState('Boa');
   const [stressLevel, setStressLevel] = useState<number>(5);
 
-  // Consent & Optional Password
+  // Consent
   const [consentAgreed, setConsentAgreed] = useState(false);
-  const [createAccountPassword, setCreateAccountPassword] = useState('');
 
   // Input masks helpers
   function maskCpfInput(v: string) {
@@ -80,6 +84,55 @@ export default function PublicAnamnesePage() {
     if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
   }
+
+  function toBrDate(v: string) {
+    if (!v) return '';
+    if (v.includes('/')) return v;
+    const parts = v.split('-');
+    if (parts.length === 3) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    return v;
+  }
+
+  // Consulta automática de CPF no banco interno
+  useEffect(() => {
+    const clean = cpf.replace(/\D/g, '');
+    if (clean.length === 11) {
+      let isMounted = true;
+      setCpfSearching(true);
+      fetch(`/api/public/check-cpf?cpf=${clean}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isMounted) return;
+          setCpfSearching(false);
+          if (data && data.found) {
+            setCpfAutofilled(true);
+            if (!name && data.name) setName(data.name);
+            if (!phone && data.phone) setPhone(maskPhoneInput(data.phone));
+            if (!email && data.email) setEmail(data.email);
+            if (!birthDate && data.birthDate) setBirthDate(toBrDate(data.birthDate));
+            if (data.gender) setGender(data.gender);
+            if (!occupation && data.occupation) setOccupation(data.occupation);
+            if (!rg && data.rg) setRg(data.rg);
+            if (!emergencyContactName && data.emergencyContactName) setEmergencyContactName(data.emergencyContactName);
+            if (!emergencyContactPhone && data.emergencyContactPhone) setEmergencyContactPhone(maskPhoneInput(data.emergencyContactPhone));
+            if (!emergencyContactRelationship && data.emergencyContactRelationship) setEmergencyContactRelationship(data.emergencyContactRelationship);
+          } else {
+            setCpfAutofilled(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setCpfSearching(false);
+        });
+      return () => {
+        isMounted = false;
+      };
+    } else {
+      setCpfAutofilled(false);
+      setCpfSearching(false);
+    }
+  }, [cpf]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -117,11 +170,6 @@ export default function PublicAnamnesePage() {
       return;
     }
 
-    if (createAccountPassword && createAccountPassword.length < 6) {
-      setErrorMsg('A senha para acesso ao portal deve ter no mínimo 6 caracteres.');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -152,7 +200,6 @@ export default function PublicAnamnesePage() {
           sleepQuality,
           stressLevel,
           consentAgreed: true,
-          password: createAccountPassword ? createAccountPassword.trim() : undefined,
         }),
       });
 
@@ -292,10 +339,10 @@ export default function PublicAnamnesePage() {
             </a>
 
             <Link
-              href="/cliente/entrar"
+              href={`/cliente/entrar?modo=cadastro&cpf=${encodeURIComponent(cpf.replace(/\D/g, ''))}`}
               style={{
                 width: '100%',
-                padding: '12px 20px',
+                padding: '13px 20px',
                 borderRadius: '14px',
                 background: '#1a3a4a',
                 color: '#ffffff',
@@ -306,10 +353,14 @@ export default function PublicAnamnesePage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
+                boxShadow: '0 4px 14px rgba(26, 58, 74, 0.25)',
               }}
             >
-              Acessar Área do Cliente <ArrowRight size={16} />
+              <Lock size={15} /> Ativar Minha Senha no Portal <ArrowRight size={16} />
             </Link>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block', margin: '-4px 0 2px' }}>
+              Para ver recibos, agendamentos e faturas no portal, basta definir sua senha.
+            </span>
 
             <button
               type="button"
@@ -331,7 +382,6 @@ export default function PublicAnamnesePage() {
                 setMedications('');
                 setPreviousHypnosisDetails('');
                 setConsentAgreed(false);
-                setCreateAccountPassword('');
               }}
               style={{
                 background: 'transparent',
@@ -498,9 +548,16 @@ export default function PublicAnamnesePage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                  CPF * (identificador único)
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
+                    CPF * (identificador único)
+                  </label>
+                  {cpfSearching && (
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Buscando...
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
@@ -511,11 +568,18 @@ export default function PublicAnamnesePage() {
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
+                    border: cpfAutofilled ? '1.5px solid #16a34a' : '1.5px solid #cbd5e1',
                     fontSize: '0.88rem',
                     outline: 'none',
+                    background: cpfAutofilled ? '#f0fdf4' : '#ffffff',
                   }}
                 />
+                {cpfAutofilled && (
+                  <div style={{ marginTop: '5px', fontSize: '0.72rem', color: '#15803d', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={12} color="#15803d" />
+                    Identificamos seu cadastro! Dados preenchidos automaticamente.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1013,34 +1077,6 @@ export default function PublicAnamnesePage() {
                 Declaro que as informações acima são verdadeiras e estou ciente de que as sessões constituem terapia integrativa e hipnoterapia clínica voltadas ao bem-estar e desenvolvimento emocional, não substituindo diagnósticos ou tratamentos médicos tradicionais.
               </label>
             </div>
-          </div>
-
-          {/* SEÇÃO 5: SENHA PARA ÁREA DO CLIENTE (OPCIONAL) */}
-          <div style={{ padding: '20px 24px', background: '#fafbfc', borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <Lock size={16} color="#64748b" />
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155' }}>
-                Criar Senha para Acessar a Área do Cliente (Opcional)
-              </span>
-            </div>
-            <p style={{ margin: '0 0 10px', fontSize: '0.74rem', color: '#64748b', lineHeight: 1.4 }}>
-              Se desejar, crie uma senha agora para poder acessar sua Área do Cliente (para visualizar horários, faturas e recibos). Caso prefira, você também poderá criar sua senha depois pelo portal utilizando seu mesmo CPF.
-            </p>
-            <input
-              type="password"
-              placeholder="Criar senha de acesso (mínimo 6 caracteres)"
-              value={createAccountPassword}
-              onChange={(e) => setCreateAccountPassword(e.target.value)}
-              style={{
-                width: '100%',
-                maxWidth: '320px',
-                padding: '9px 12px',
-                borderRadius: '10px',
-                border: '1.5px solid #cbd5e1',
-                fontSize: '0.84rem',
-                background: '#ffffff',
-              }}
-            />
           </div>
 
           {/* BOTÃO DE ENVIO */}
