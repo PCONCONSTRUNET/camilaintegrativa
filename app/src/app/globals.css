@@ -3129,7 +3129,7 @@ a:hover { color: var(--color-primary-hover); }
   align-items: flex-start;
   flex-direction: column;
   gap: 1px;
-  padding: 3px 5px 3px;
+  padding: 2px 5px 4px;
   border: 0;
   border-radius: inherit;
   color: inherit;
@@ -3141,23 +3141,23 @@ a:hover { color: var(--color-primary-hover); }
   outline: 2px solid rgba(47, 117, 103, .7);
   outline-offset: 1px;
 }
-.gcal-time-event-content strong,
-.gcal-time-event-content span {
+.gcal-time-event-content > strong,
+.gcal-time-event-content > span {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.gcal-time-event-content strong {
+.gcal-time-event-content > strong {
   font-size: 11.5px;
   font-weight: 750;
-  line-height: 1.2;
+  line-height: 1.18;
   letter-spacing: -0.01em;
 }
-.gcal-time-event-content span {
+.gcal-time-event-content > span {
   font-size: 10px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.15;
   opacity: .92;
 }
 .gcal-event-footer-row {
@@ -3181,19 +3181,21 @@ a:hover { color: var(--color-primary-hover); }
 }
 .gcal-event-package-pill {
   flex-shrink: 0;
+  width: auto !important;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 8.5px;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.1;
   padding: 1px 4px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.1);
   color: inherit;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   gap: 2px;
 }
@@ -3201,9 +3203,9 @@ a:hover { color: var(--color-primary-hover); }
   position: absolute;
   z-index: 4;
   right: 0;
-  bottom: -6px;
+  bottom: 0px;
   left: 0;
-  height: 14px;
+  height: 8px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -3214,12 +3216,12 @@ a:hover { color: var(--color-primary-hover); }
 .gcal-event-resize-handle span {
   position: absolute;
   right: 50%;
-  bottom: 5px;
-  width: 28px;
-  height: 3px;
+  bottom: 2px;
+  width: 24px;
+  height: 2px;
   border-radius: 999px;
   background: currentColor;
-  opacity: .24;
+  opacity: .22;
   transform: translateX(50%);
   transition: opacity .12s ease, width .12s ease;
 }

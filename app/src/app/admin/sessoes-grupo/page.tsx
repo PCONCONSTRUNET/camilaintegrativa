@@ -1974,7 +1974,26 @@ export default function AdminSessoesGrupoPage() {
                 {enrollments.map((enr, index) => {
                   const isCancelled = enr.status === 'cancelado';
                   const cleanDigits = enr.clientPhone.replace(/\D/g, '');
-                  const waHref = `https://wa.me/${cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`}`;
+                  const clientFirstName = (enr.clientName || '').trim().split(' ')[0] || 'Cliente';
+                  const sessionDateFmt = participantsSession ? formatDatePtBr(participantsSession.date) : '';
+                  const sessionTimeFmt = participantsSession
+                    ? `${participantsSession.startTime}${participantsSession.endTime ? ` às ${participantsSession.endTime}` : ''}`
+                    : '';
+                  const sessionLocation =
+                    participantsSession?.modality === 'online'
+                      ? 'Online (Ao Vivo)'
+                      : (participantsSession?.locationNotes || 'Espaço Terapêutico Camila Machado - Urussanga / SC');
+
+                  const waText =
+                    `Olá, *${clientFirstName}*! 🌿✨\n\n` +
+                    `Passando para confirmar sua vaga na nossa sessão em grupo:\n\n` +
+                    `🌸 *${participantsSession?.title || 'Sessão em Grupo'}*\n` +
+                    `📅 *Data:* ${sessionDateFmt}\n` +
+                    `⏰ *Horário:* ${sessionTimeFmt}\n` +
+                    `📍 *Local:* ${sessionLocation}\n\n` +
+                    `Estamos preparando um momento muito especial para todos os participantes! Se tiver alguma dúvida ou necessidade especial, estou à disposição. Até breve! 🕊️💫`;
+
+                  const waHref = `https://wa.me/${cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`}?text=${encodeURIComponent(waText)}`;
                   return (
                     <div
                       key={enr.id}

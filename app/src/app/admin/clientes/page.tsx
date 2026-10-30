@@ -28,6 +28,7 @@ import {
   HeartHandshake,
   Clock,
   ClipboardList,
+  AlertTriangle,
 } from 'lucide-react';
 import type { ClientSummary } from '@/lib/domain';
 import { formatPhone, maskPhone, maskCpf, formatCurrency } from '@/lib/utils';
@@ -35,7 +36,15 @@ import { QuickDocumentsModal, type QuickDocumentPrefill } from '@/components/qui
 import { WhatsappIcon } from '@/components/whatsapp-icon';
 import { getInstantCache, setInstantCache } from '@/lib/client-cache';
 
-type QuickFilter = 'todos' | 'ativo' | 'pendente' | 'inativo' | 'pacote' | 'saldo';
+function formatDatePtBr(isoOrDateStr: string | null | undefined): string {
+  if (!isoOrDateStr) return '-';
+  const cleanStr = isoOrDateStr.split('T')[0];
+  const parts = cleanStr.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return isoOrDateStr;
+}
+
+type QuickFilter = 'todos' | 'ativo' | 'pendente' | 'inativo' | 'pacote' | 'saldo' | 'inadimplente';
 
 type ClientFormState = {
   name: string;
@@ -179,6 +188,8 @@ export default function ClientesPage() {
     const anamneseOk = clients.filter((c) => c.hasAnamnese).length;
     const comSaldoAberto = clients.filter((c) => (c.openBalanceCents ?? 0) > 0).length;
     const totalSaldoAbertoCents = clients.reduce((acc, c) => acc + (c.openBalanceCents ?? 0), 0);
+    const inadimplentes = clients.filter((c) => Boolean(c.isInadimplente)).length;
+    const totalInadimplenteCents = clients.reduce((acc, c) => acc + (c.overdueBalanceCents ?? 0), 0);
 
     return {
       total,
@@ -190,8 +201,27 @@ export default function ClientesPage() {
       anamneseOk,
       comSaldoAberto,
       totalSaldoAbertoCents,
+      inadimplentes,
+      totalInadimplenteCents,
     };
   }, [clients]);
+
+  function buildWaChargeUrl(client: ClientSummary) {
+    const clientFirstName = (client.name || 'Cliente').split(' ')[0];
+    const overdueVal = formatCurrency(client.overdueBalanceCents ?? client.openBalanceCents ?? 0);
+    const oldestDate = client.oldestOverdueDate ? formatDatePtBr(client.oldestOverdueDate) : 'em aberto';
+    const daysText = client.daysOverdue ? ` (${client.daysOverdue} dias de atraso)` : '';
+    const cleanDigits = (client.phone || '').replace(/\D/g, '');
+    const phoneFull = cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`;
+    const waText =
+      `Olá, *${clientFirstName}*! 📄\n\n` +
+      `Passando para lembrar do seu saldo em aberto com vencimento em *${oldestDate}*${daysText}:\n\n` +
+      `💰 *Valor Pendente:* ${overdueVal}\n` +
+      `🔑 *Chave PIX para Pagamento:*\n(48) 99691-5303 (Chave Telefone)\n*Favorecida:* Camila Machado\n\n` +
+      `Por gentileza, após efetuar o pagamento nos envie o *comprovante por aqui* para registrarmos a baixa no sistema. 🌿\n\n` +
+      `Caso já tenha efetuado o pagamento, por favor desconsidere este aviso. Muito obrigada! ✨`;
+    return `https://wa.me/${phoneFull}?text=${encodeURIComponent(waText)}`;
+  }
 
   // Lista filtrada por busca + filtro rápido (suporta CPF com ou sem pontuação)
   const filteredClients = useMemo(() => {
@@ -203,6 +233,7 @@ export default function ClientesPage() {
       if (quickFilter === 'inativo' && c.status !== 'inativo') return false;
       if (quickFilter === 'pacote' && !(c.activePackagesCount && c.activePackagesCount > 0)) return false;
       if (quickFilter === 'saldo' && !(c.openBalanceCents && c.openBalanceCents > 0)) return false;
+      if (quickFilter === 'inadimplente' && !c.isInadimplente) return false;
 
       if (!q) return true;
       const matchName = c.name.toLowerCase().includes(q);
@@ -644,6 +675,49 @@ export default function ClientesPage() {
             </div>
           </div>
         </button>
+
+        {/* KPI 5: Inadimplentes (Faturas Vencidas) */}
+        <button
+          type="button"
+          onClick={() => setQuickFilter(quickFilter === 'inadimplente' ? 'todos' : 'inadimplente')}
+          style={{
+            textAlign: 'left',
+            background: stats.inadimplentes > 0 ? '#fff5f5' : '#ffffff',
+            border: quickFilter === 'inadimplente' ? '2px solid #dc2626' : stats.inadimplentes > 0 ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+            borderRadius: '18px',
+            padding: '1rem 1.15rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.9rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '13px',
+              background: stats.inadimplentes > 0 ? '#fee2e2' : '#f1f5f9',
+              color: stats.inadimplentes > 0 ? '#dc2626' : '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <AlertTriangle size={21} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '1.22rem', fontWeight: 800, color: stats.inadimplentes > 0 ? '#b91c1c' : '#0f172a', lineHeight: 1.1 }}>
+              {formatCurrency(stats.totalInadimplenteCents)}
+            </div>
+            <div style={{ fontSize: '0.77rem', color: stats.inadimplentes > 0 ? '#dc2626' : '#64748b', fontWeight: 700, marginTop: '0.2rem' }}>
+              {stats.inadimplentes} cliente(s) inadimplente(s)
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* ══════════════════════════════════════════════════════════
@@ -736,8 +810,10 @@ export default function ClientesPage() {
               { id: 'inativo', label: `Inativos (${stats.inativos})` },
               { id: 'pacote', label: `✨ Pacotes (${stats.comPacote})` },
               { id: 'saldo', label: `💳 Em Aberto (${stats.comSaldoAberto})` },
+              { id: 'inadimplente', label: `⚠️ Inadimplentes (${stats.inadimplentes})` },
             ] as Array<{ id: QuickFilter; label: string }>).map((tab) => {
               const active = quickFilter === tab.id;
+              const isDangerTab = tab.id === 'inadimplente';
               return (
                 <button
                   key={tab.id}
@@ -745,9 +821,19 @@ export default function ClientesPage() {
                   onClick={() => setQuickFilter(tab.id)}
                   style={{
                     border: 'none',
-                    background: active ? '#ffffff' : 'transparent',
-                    color: active ? '#0f172a' : '#64748b',
-                    fontWeight: active ? 700 : 600,
+                    background: active
+                      ? isDangerTab
+                        ? '#dc2626'
+                        : '#ffffff'
+                      : 'transparent',
+                    color: active
+                      ? isDangerTab
+                        ? '#ffffff'
+                        : '#0f172a'
+                      : isDangerTab && stats.inadimplentes > 0
+                      ? '#b91c1c'
+                      : '#64748b',
+                    fontWeight: active ? 700 : isDangerTab && stats.inadimplentes > 0 ? 700 : 600,
                     fontSize: '0.76rem',
                     padding: '0.36rem 0.78rem',
                     borderRadius: '999px',
@@ -1021,7 +1107,26 @@ export default function ClientesPage() {
                               </span>
                             ) : null}
 
-                            {(client.openBalanceCents ?? 0) > 0 && (
+                            {client.isInadimplente ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 800,
+                                  background: '#fef2f2',
+                                  color: '#b91c1c',
+                                  padding: '2px 9px',
+                                  borderRadius: '9999px',
+                                  border: '1.5px solid #fca5a5',
+                                }}
+                                title={`Vencimento mais antigo: ${client.oldestOverdueDate ? formatDatePtBr(client.oldestOverdueDate) : '-'}`}
+                              >
+                                ⚠️ Inadimplente: {formatCurrency(client.overdueBalanceCents ?? 0)}
+                                {client.daysOverdue ? ` (${client.daysOverdue}d de atraso)` : ''}
+                              </span>
+                            ) : (client.openBalanceCents ?? 0) > 0 ? (
                               <span
                                 style={{
                                   display: 'inline-flex',
@@ -1035,8 +1140,26 @@ export default function ClientesPage() {
                                   borderRadius: '9999px',
                                   border: '1px solid #fcd34d',
                                 }}
+                                title={client.nextDueDate ? `Próximo vencimento: ${formatDatePtBr(client.nextDueDate)}` : 'A vencer'}
                               >
-                                ⏳ Em aberto: {formatCurrency(client.openBalanceCents ?? 0)}
+                                ⏳ A vencer: {formatCurrency(client.openBalanceCents ?? 0)}
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  background: '#f0fdf4',
+                                  color: '#15803d',
+                                  padding: '2px 7px',
+                                  borderRadius: '9999px',
+                                  border: '1px solid #bbf7d0',
+                                }}
+                              >
+                                ✅ Em dia
                               </span>
                             )}
 
@@ -1228,6 +1351,31 @@ export default function ClientesPage() {
                           <FileText size={13} /> Prontuário
                         </Link>
 
+                        {client.isInadimplente && (
+                          <a
+                            href={buildWaChargeUrl(client)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Cobrar fatura vencida no WhatsApp"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.76rem',
+                              borderRadius: '999px',
+                              fontWeight: 800,
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1.5px solid #f87171',
+                              textDecoration: 'none',
+                              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
+                            }}
+                          >
+                            <WhatsappIcon size={14} color="#b91c1c" /> Cobrar
+                          </a>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => setDeletingClient(client)}
@@ -1403,7 +1551,23 @@ export default function ClientesPage() {
                       </span>
                     ) : null}
 
-                    {(client.openBalanceCents ?? 0) > 0 && (
+                    {client.isInadimplente ? (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '999px',
+                          background: '#fef2f2',
+                          color: '#b91c1c',
+                          border: '1.5px solid #fca5a5',
+                        }}
+                        title={`Vencimento: ${client.oldestOverdueDate ? formatDatePtBr(client.oldestOverdueDate) : '-'}`}
+                      >
+                        ⚠️ Inadimplente: {formatCurrency(client.overdueBalanceCents ?? 0)}
+                        {client.daysOverdue ? ` (${client.daysOverdue}d de atraso)` : ''}
+                      </span>
+                    ) : (client.openBalanceCents ?? 0) > 0 ? (
                       <span
                         style={{
                           fontSize: '0.72rem',
@@ -1416,6 +1580,20 @@ export default function ClientesPage() {
                         }}
                       >
                         ⏳ Falta {formatCurrency(client.openBalanceCents ?? 0)}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '0.18rem 0.5rem',
+                          borderRadius: '999px',
+                          background: '#f0fdf4',
+                          color: '#15803d',
+                          border: '1px solid #bbf7d0',
+                        }}
+                      >
+                        ✅ Em dia
                       </span>
                     )}
                   </div>
@@ -1451,7 +1629,30 @@ export default function ClientesPage() {
                     gap: '0.4rem',
                   }}
                 >
-                  <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                  <div style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {client.isInadimplente && (
+                      <a
+                        href={buildWaChargeUrl(client)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          padding: '0.36rem 0.7rem',
+                          borderRadius: '999px',
+                          background: '#fee2e2',
+                          color: '#b91c1c',
+                          border: '1.5px solid #f87171',
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          textDecoration: 'none',
+                          boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
+                        }}
+                      >
+                        <WhatsappIcon size={14} color="#b91c1c" /> Cobrar
+                      </a>
+                    )}
                     {waUrl && (
                       <a
                         href={waUrl}
@@ -1735,6 +1936,58 @@ export default function ClientesPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Banner de Inadimplência do Cliente */}
+              {viewingClient.isInadimplente && (
+                <div
+                  style={{
+                    background: '#fef2f2',
+                    border: '2px solid #f87171',
+                    borderLeft: '5px solid #dc2626',
+                    borderRadius: '14px',
+                    padding: '0.95rem 1.1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertTriangle size={18} color="#dc2626" />
+                      <strong style={{ fontSize: '0.92rem', color: '#991b1b' }}>
+                        Cliente Inadimplente — {formatCurrency(viewingClient.overdueBalanceCents ?? 0)} em atraso
+                      </strong>
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#7f1d1d' }}>
+                      {viewingClient.overdueInvoicesCount} fatura(s) vencida(s) · Vencimento mais antigo: {viewingClient.oldestOverdueDate ? formatDatePtBr(viewingClient.oldestOverdueDate) : '-'} ({viewingClient.daysOverdue} dias de atraso).
+                    </p>
+                  </div>
+
+                  <a
+                    href={buildWaChargeUrl(viewingClient)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      borderRadius: '999px',
+                      background: '#dc2626',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 10px rgba(220, 38, 38, 0.3)',
+                    }}
+                  >
+                    <WhatsappIcon size={16} color="#ffffff" />
+                    Cobrar Fatura no WhatsApp
+                  </a>
+                </div>
+              )}
 
               {/* Contato de Emergência & Observações */}
               {(viewingClient.emergencyContactName || viewingClient.administrativeNotes) && (

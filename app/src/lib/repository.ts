@@ -393,7 +393,7 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
-function nextDateKey(date: string) {
+export function nextDateKey(date: string) {
   const nextDate = new Date(`${date}T12:00:00Z`);
   nextDate.setUTCDate(nextDate.getUTCDate() + 1);
   return nextDate.toISOString().slice(0, 10);
@@ -833,7 +833,11 @@ export async function createPublicBooking(input: BookingInput) {
           input.serviceId,
           packageId,
           packageId ? 'pacote_tratamento' : 'sessao_avulsa',
-          `${svcRow?.name ?? 'Atendimento'}${selectedTier ? ` — ${selectedTier.name}` : ''} (agendamento online)`,
+          selectedTier
+            ? (selectedTier.name.toLowerCase().includes((svcRow?.name ?? '').toLowerCase().trim())
+                ? `${selectedTier.name} (agendamento online)`
+                : `${svcRow?.name ?? 'Atendimento'} — ${selectedTier.name} (agendamento online)`)
+            : `${svcRow?.name ?? 'Atendimento'} (agendamento online)`,
           priceCents,
           priceCents,
           method,
@@ -989,7 +993,10 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
   const cleanSearch = search.trim();
   const term = `%${cleanSearch}%`;
   const digitsTerm = cleanSearch.replace(/\D/g, '') ? `%${cleanSearch.replace(/\D/g, '')}%` : term;
-  return (await database.prepare(`
+  const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const sqlStatus = status === 'inadimplente' || status === 'em_dia' ? 'todos' : status;
+
+  const rows = (await database.prepare(`
     SELECT c.id, c.name, c.phone, c.email, c.status, c.administrative_notes, c.created_at,
       MIN(CASE WHEN a.start_at >= ? AND a.status NOT IN ('cancelado', 'nao_compareceu') THEN a.start_at END) AS next_appointment_at,
       SUM(CASE WHEN a.status = 'concluido' THEN 1 ELSE 0 END) AS completed_appointments,
@@ -1005,7 +1012,12 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
       (SELECT cr.emergency_contact_relationship FROM client_records cr WHERE cr.client_id = c.id) AS emergency_contact_relationship,
       (SELECT CASE WHEN cr.consent_agreed = 1 OR COALESCE(cr.chief_complaint, '') != '' OR COALESCE(cr.cpf, '') != '' THEN 1 ELSE 0 END FROM client_records cr WHERE cr.client_id = c.id) AS has_anamnese,
       (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado') AS open_balance_cents,
-      (SELECT COALESCE(SUM(p.paid_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado') AS total_paid_cents
+      (SELECT COALESCE(SUM(p.paid_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado') AS total_paid_cents,
+      (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS overdue_balance_cents,
+      (SELECT COUNT(*) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS overdue_invoices_count,
+      (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS oldest_overdue_due_at,
+      (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) >= ?) AS next_due_at,
+      (SELECT COUNT(*) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0) AS pending_invoices_count
     FROM clients c
     LEFT JOIN appointments a ON a.client_id = c.id
     LEFT JOIN client_records cr_search ON cr_search.client_id = c.id
@@ -1021,8 +1033,38 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
       AND (? = 'todos' OR c.status = ?)
     GROUP BY c.id
     ORDER BY c.name COLLATE NOCASE
-  `).all(new Date().toISOString(), IDS.clinic, cleanSearch, term, term, term, term, digitsTerm, status, status)).map((row) => {
+  `).all(
+    new Date().toISOString(),
+    todaySimpleStr,
+    todaySimpleStr,
+    todaySimpleStr,
+    todaySimpleStr,
+    IDS.clinic,
+    cleanSearch,
+    term,
+    term,
+    term,
+    term,
+    digitsTerm,
+    sqlStatus,
+    sqlStatus
+  )).map((row) => {
     const item = row as Record<string, unknown>;
+    const overdueBalanceCents = Number(item.overdue_balance_cents ?? 0);
+    const overdueInvoicesCount = Number(item.overdue_invoices_count ?? 0);
+    const oldestOverdueDate = item.oldest_overdue_due_at ? String(item.oldest_overdue_due_at) : null;
+    const nextDueDate = item.next_due_at ? String(item.next_due_at) : null;
+    const pendingInvoicesCount = Number(item.pending_invoices_count ?? 0);
+    const isInadimplente = overdueBalanceCents > 0;
+
+    const daysOverdue = (() => {
+      if (!oldestOverdueDate) return 0;
+      const dOld = new Date(`${oldestOverdueDate}T12:00:00-03:00`);
+      const dNow = new Date(`${todaySimpleStr}T12:00:00-03:00`);
+      const diffMs = dNow.getTime() - dOld.getTime();
+      return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    })();
+
     return {
       id: String(item.id),
       name: String(item.name),
@@ -1046,8 +1088,23 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
       hasAnamnese: Boolean(item.has_anamnese),
       openBalanceCents: Number(item.open_balance_cents ?? 0),
       totalPaidCents: Number(item.total_paid_cents ?? 0),
+      isInadimplente,
+      overdueBalanceCents,
+      overdueInvoicesCount,
+      oldestOverdueDate,
+      daysOverdue,
+      nextDueDate,
+      pendingInvoicesCount,
     };
   });
+
+  if (status === 'inadimplente') {
+    return rows.filter((c) => c.isInadimplente);
+  }
+  if (status === 'em_dia') {
+    return rows.filter((c) => !c.isInadimplente);
+  }
+  return rows;
 }
 
 export async function updateClient(clientId: string, input: ClientInput) {
@@ -1276,6 +1333,17 @@ function mapAppointmentSummary(row: unknown): AppointmentSummary {
   const item = row as Record<string, unknown>;
   const total = item.package_total_sessions != null ? Number(item.package_total_sessions) : null;
   const used = item.package_used_sessions != null ? Number(item.package_used_sessions) : null;
+  const overdueBalanceCents = Number(item.client_overdue_balance_cents ?? 0);
+  const oldestOverdueDate = item.client_oldest_overdue_due_at ? String(item.client_oldest_overdue_due_at) : null;
+  const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const daysOverdue = (() => {
+    if (!oldestOverdueDate) return 0;
+    const dOld = new Date(`${oldestOverdueDate}T12:00:00-03:00`);
+    const dNow = new Date(`${todaySimpleStr}T12:00:00-03:00`);
+    const diffMs = dNow.getTime() - dOld.getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  })();
+
   return {
     id: String(item.id),
     clientId: String(item.client_id),
@@ -1299,6 +1367,11 @@ function mapAppointmentSummary(row: unknown): AppointmentSummary {
       usedSessions: used || 0,
       status: String(item.package_status || 'ativo'),
     } : null,
+    clientPhone: item.client_phone ? String(item.client_phone) : null,
+    clientOverdueBalanceCents: overdueBalanceCents,
+    clientDaysOverdue: daysOverdue,
+    clientIsInadimplente: overdueBalanceCents > 0,
+    clientOldestOverdueDate: oldestOverdueDate,
     updatedAt: String(item.updated_at),
   };
 }
@@ -1453,18 +1526,22 @@ export async function listAppointmentsInRange(from: string, to: string): Promise
   const endDate = new Date(`${to}T12:00:00Z`);
   endDate.setUTCDate(endDate.getUTCDate() + 1);
   const end = localDateBounds(endDate.toISOString().slice(0, 10)).start;
+  const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
   return (await database.prepare(`
-    SELECT a.id, a.client_id, c.name AS client_name, a.service_id, s.name AS service_name,
+    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone, a.service_id, s.name AS service_name,
            a.modality, a.start_at, a.end_at, a.status, a.source, a.booking_kind, a.fit_in_reason,
            a.administrative_notes, a.client_package_id, a.session_number, a.updated_at,
-           cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status
+           cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status,
+           (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_overdue_balance_cents,
+           (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_oldest_overdue_due_at
     FROM appointments a
     JOIN clients c ON c.id = a.client_id
     JOIN services s ON s.id = a.service_id
     LEFT JOIN client_packages cp ON cp.id = a.client_package_id
     WHERE a.clinic_id = ? AND a.start_at < ? AND a.end_at > ?
     ORDER BY a.start_at
-  `).all(IDS.clinic, end.toISOString(), start.toISOString())).map(mapAppointmentSummary);
+  `).all(todaySimpleStr, todaySimpleStr, IDS.clinic, end.toISOString(), start.toISOString())).map(mapAppointmentSummary);
 }
 
 export async function listAppointments(date = dateKeyInClinicTimeZone()): Promise<AppointmentSummary[]> {

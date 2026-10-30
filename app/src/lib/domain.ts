@@ -76,6 +76,13 @@ export type ClientSummary = {
   hasAnamnese?: boolean;
   openBalanceCents?: number;
   totalPaidCents?: number;
+  isInadimplente?: boolean;
+  overdueInvoicesCount?: number;
+  overdueBalanceCents?: number;
+  oldestOverdueDate?: string | null;
+  daysOverdue?: number;
+  nextDueDate?: string | null;
+  pendingInvoicesCount?: number;
 };
 
 export type AppointmentStatus =
@@ -111,6 +118,11 @@ export type AppointmentSummary = {
   clientPackageId?: string | null;
   sessionNumber?: number | null;
   packageSummary?: AppointmentPackageSummary | null;
+  clientPhone?: string | null;
+  clientOverdueBalanceCents?: number;
+  clientDaysOverdue?: number;
+  clientIsInadimplente?: boolean;
+  clientOldestOverdueDate?: string | null;
   updatedAt: string;
 };
 

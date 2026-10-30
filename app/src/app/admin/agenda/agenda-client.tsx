@@ -37,10 +37,11 @@ import {
   Trash2,
   Users,
   WalletCards,
+  AlertTriangle,
   X,
 } from 'lucide-react';
 import type { AppointmentStatus, AppointmentSummary, TimeBlock } from '@/lib/domain';
-import { STATUS_COLORS, STATUS_LABELS } from '@/lib/utils';
+import { STATUS_COLORS, STATUS_LABELS, formatCurrency } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { AdminNotificationBell } from '@/components/admin-notification-bell';
 import { QuickDocumentsModal, type QuickDocumentPrefill } from '@/components/quick-documents-modal';
@@ -2229,6 +2230,59 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
               </span>
             )}
           </div>
+
+          {/* ⚠️ Alerta de Inadimplência do Cliente na Agenda */}
+          {selectedAppointment.clientIsInadimplente && (
+            <div
+              style={{
+                margin: '8px 0',
+                padding: '8px 10px',
+                borderRadius: '10px',
+                background: '#fef2f2',
+                border: '1.5px solid #fca5a5',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+              }}
+            >
+              <div>
+                <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AlertTriangle size={14} color="#dc2626" />
+                  Cliente Inadimplente
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: '#b91c1c', display: 'block', marginTop: '2px' }}>
+                  {formatCurrency(selectedAppointment.clientOverdueBalanceCents || 0)} em atraso
+                  {selectedAppointment.clientDaysOverdue ? ` (${selectedAppointment.clientDaysOverdue}d de atraso)` : ''}
+                </span>
+              </div>
+              {selectedAppointment.clientPhone && (
+                <a
+                  href={`https://wa.me/${selectedAppointment.clientPhone.replace(/\D/g, '').startsWith('55') ? selectedAppointment.clientPhone.replace(/\D/g, '') : `55${selectedAppointment.clientPhone.replace(/\D/g, '')}`}?text=${encodeURIComponent(
+                    `Olá, ${selectedAppointment.clientName.split(' ')[0]}! 📄 Passando para lembrar do seu saldo em aberto de ${formatCurrency(selectedAppointment.clientOverdueBalanceCents || 0)} referente ao seu atendimento. Chave PIX: (48) 99691-5303 (Camila Machado). Qualquer dúvida, estou à disposição! ✨`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: '999px',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    flexShrink: 0,
+                  }}
+                >
+                  Cobrar
+                </a>
+              )}
+            </div>
+          )}
 
           <div className="gcal-popover-meta">
             <span><Clock3 size={16} /> {formatCompactDate(eventDateKey(selectedAppointment.startAt))}, {formatTime(selectedAppointment.startAt)} – {formatTime(selectedAppointment.endAt)}</span>

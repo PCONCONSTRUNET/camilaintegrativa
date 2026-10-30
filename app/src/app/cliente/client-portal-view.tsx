@@ -4324,13 +4324,13 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                     onClick={() => handleSendComprovanteWhatsappAndConfirm(portalPixModal)}
                     style={{
                       width: '100%',
-                      padding: '12px 18px',
+                      padding: '13px 18px',
                       borderRadius: '14px',
-                      background: '#16a34a',
+                      background: 'linear-gradient(135deg, #15803d 0%, #16a34a 100%)',
                       color: '#ffffff',
                       border: 'none',
                       fontWeight: 800,
-                      fontSize: '0.88rem',
+                      fontSize: '0.9rem',
                       cursor: portalPayLoading ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -4342,25 +4342,6 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                   >
                     <WhatsappIcon size={18} color="#ffffff" />
                     {portalPayLoading ? 'Identificando pagamento...' : 'Enviar Comprovante no WhatsApp'}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={portalPayLoading}
-                    onClick={() => handleClientPayInvoice(portalPixModal, 'Pagamento confirmado pelo cliente após PIX')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: 'transparent',
-                      color: '#166534',
-                      border: '1px solid #86efac',
-                      fontSize: '0.73rem',
-                      fontWeight: 700,
-                      cursor: portalPayLoading ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    Já realizei o pagamento (Confirmar Baixa)
                   </button>
                 </div>
               </div>

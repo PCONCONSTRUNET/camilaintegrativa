@@ -994,6 +994,38 @@ export async function processOverdueInvoiceReminders(options?: {
   }
 }
 
+export function cleanInvoiceDescription(serviceName?: string | null, description?: string | null): string {
+  const s = (serviceName || '').trim();
+  const d = (description || '').trim();
+  if (!d && !s) return 'Atendimento Clínico';
+
+  const norm = (t: string) =>
+    t
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[\s\-_—–]+/g, ' ')
+      .trim();
+
+  const combined = !d ? s : !s ? d : (norm(d).includes(norm(s)) ? d : `${s} — ${d}`);
+
+  const segments = combined.split(/\s*[—–-]\s*/);
+  const uniqueSegments: string[] = [];
+  const seenNorms = new Set<string>();
+
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    if (!trimmed) continue;
+    const n = norm(trimmed);
+    if (!seenNorms.has(n)) {
+      seenNorms.add(n);
+      uniqueSegments.push(trimmed);
+    }
+  }
+
+  return uniqueSegments.length > 0 ? uniqueSegments.join(' — ') : combined;
+}
+
 export async function triggerPaymentIdentifiedReminder(params: {
   paymentId: string;
   clientId?: string | null;
@@ -1014,25 +1046,7 @@ export async function triggerPaymentIdentifiedReminder(params: {
   const saldoLabel =
     params.remainingCents <= 0 ? 'R$ 0,00 (Quitado ✅)' : formatCurrency(params.remainingCents);
 
-  const faturaDesc = (() => {
-    const s = (params.serviceName || '').trim();
-    const d = (params.description || '').trim();
-    if (!d && !s) return 'Atendimento Clínico';
-    if (!d) return s;
-    if (!s) return d;
-    const normalize = (text: string) =>
-      text
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[\s\-_—–]+/g, ' ')
-        .trim();
-    const sNorm = normalize(s);
-    const dNorm = normalize(d);
-    if (sNorm === dNorm || dNorm.includes(sNorm)) return d;
-    if (sNorm.includes(dNorm)) return s;
-    return `${s} — ${d}`;
-  })();
+  const faturaDesc = cleanInvoiceDescription(params.serviceName, params.description);
 
   return dispatchWhatsappReminder({
     triggerType: 'pagamento_identificado',
