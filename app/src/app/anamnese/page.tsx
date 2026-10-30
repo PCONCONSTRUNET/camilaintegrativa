@@ -13,7 +13,6 @@ import {
   Calendar,
   Lock,
   ArrowRight,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
@@ -414,28 +413,6 @@ export default function PublicAnamnesePage() {
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         {/* Cabeçalho de Destaque */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: '#ffffff',
-              border: '1.5px solid #d4b896',
-              padding: '6px 14px',
-              borderRadius: '999px',
-              fontSize: '0.74rem',
-              fontWeight: 800,
-              color: '#855e32',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '12px',
-              boxShadow: '0 2px 8px rgba(212, 184, 150, 0.2)',
-            }}
-          >
-            <Sparkles size={14} color="#d4b896" />
-            Espaço Camila Machado • CRT-SBHP/SC 805
-          </div>
-
           <h1
             style={{
               fontSize: 'clamp(1.5rem, 4vw, 2.1rem)',
