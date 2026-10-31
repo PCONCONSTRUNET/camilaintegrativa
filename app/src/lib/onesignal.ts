@@ -84,16 +84,18 @@ export async function sendOneSignalPush(payload: SendPushPayload): Promise<{
 
   const titleClean = payload.title.trim() || 'Clínica Camila Machado';
   const messageClean = payload.message.trim();
-  const urlClean = payload.url?.trim() || '/';
+  const rawUrl = payload.url?.trim() || '';
+  // OneSignal exige URL completa com http:// ou https://; relativa não é aceita
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://camilaintegrativa.vercel.app';
+  const urlClean = rawUrl.startsWith('http') ? rawUrl : `${baseUrl}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
 
   const body: Record<string, unknown> = {
     app_id: ONESIGNAL_APP_ID,
     headings: { en: titleClean, pt: titleClean },
     contents: { en: messageClean, pt: messageClean },
-    url: urlClean,
     web_url: urlClean,
-    chrome_web_icon: '/icone-c.png',
-    chrome_web_badge: '/icone-c.png',
+    chrome_web_icon: `${baseUrl}/icone-c.png`,
+    chrome_web_badge: `${baseUrl}/icone-c.png`,
     data: {
       ...payload.data,
       sentAt: now,
