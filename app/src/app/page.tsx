@@ -38,6 +38,36 @@ function HomeContent() {
   const [groupSessions, setGroupSessions] = useState<GroupSession[]>([]);
   const [expandedDescIds, setExpandedDescIds] = useState<Record<string, boolean>>({});
 
+  // Redirecionamento inteligente ao abrir PWA instalado (Standalone)
+  useEffect(() => {
+    try {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        // @ts-expect-error - navigator.standalone específico do iOS Safari
+        window.navigator.standalone === true;
+
+      if (!isStandalone) return;
+
+      // Se o usuário quer explicitamente ver a landing page pública dentro do PWA (ex: ?site=1 ou ?home=1)
+      const stayOnSite = searchParams.get('site') === '1' || searchParams.get('home') === '1';
+      if (stayOnSite) return;
+
+      const hasAdminCookie = document.cookie.includes('clinica_session=');
+      const hasClientCookie = document.cookie.includes('clinica_client_session=');
+      const preferredPortal = localStorage.getItem('clinica_pwa_portal');
+
+      if (hasAdminCookie || preferredPortal === 'admin') {
+        router.replace('/admin');
+        return;
+      }
+
+      if (hasClientCookie || preferredPortal === 'cliente') {
+        router.replace('/cliente');
+        return;
+      }
+    } catch {}
+  }, [router, searchParams]);
+
   // Load Services on Mount
   useEffect(() => {
     fetch('/api/public/services')

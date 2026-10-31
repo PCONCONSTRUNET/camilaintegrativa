@@ -78,6 +78,9 @@ export default function AdminShell({
 
   // Checagem periódica em segundo plano de alertas para a administração (30min antes, faturas vencidas)
   useEffect(() => {
+    try {
+      window.localStorage.setItem('clinica_pwa_portal', 'admin');
+    } catch {}
     function checkAlerts() {
       fetch('/api/admin/onesignal/check-alerts').catch(() => null);
     }

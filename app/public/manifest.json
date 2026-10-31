@@ -1,15 +1,17 @@
 {
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "id": "/",
   "name": "Camila Machado | Espaço Integrativo",
   "short_name": "Camila Machado",
   "description": "Espaço de Atendimento Integrativo, Hipnose Clínica, Agendamentos e Acompanhamento de Sessões.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#245D80",
   "categories": ["medical", "health", "lifestyle"],
   "lang": "pt-BR",
-  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -42,7 +44,7 @@
       "name": "Área do Paciente",
       "short_name": "Meu Portal",
       "description": "Acesse seus agendamentos e histórico",
-      "url": "/cliente/login",
+      "url": "/cliente",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
@@ -54,4 +56,3 @@
     }
   ]
 }
-

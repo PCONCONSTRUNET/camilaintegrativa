@@ -636,6 +636,9 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('clinica_pwa_portal', 'cliente');
+    } catch {}
     let dismissed = false;
     try {
       dismissed = window.localStorage.getItem('clinica_client_push_dismissed') === 'true';

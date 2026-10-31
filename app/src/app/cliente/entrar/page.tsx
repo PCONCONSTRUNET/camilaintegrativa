@@ -51,6 +51,10 @@ function ClientAuthContent() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem('clinica_pwa_portal', 'cliente');
+    } catch {}
+
     const modo = searchParams.get('modo');
     if (modo === 'cadastro') {
       setTab('cadastro');

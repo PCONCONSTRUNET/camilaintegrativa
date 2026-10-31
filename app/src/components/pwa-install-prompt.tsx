@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Share2, PlusSquare, X, Smartphone } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Download, Share2, PlusSquare, X, Smartphone, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -9,11 +10,27 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname() || '/';
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
+
+  const isCliente = pathname.startsWith('/cliente');
+  const isAdmin = pathname.startsWith('/admin') || pathname === '/entrar';
+  const portalType = isCliente ? 'cliente' : isAdmin ? 'admin' : 'root';
+
+  // Registrar a preferência do portal para inicialização inteligente do PWA
+  useEffect(() => {
+    try {
+      if (isCliente) {
+        localStorage.setItem('clinica_pwa_portal', 'cliente');
+      } else if (isAdmin) {
+        localStorage.setItem('clinica_pwa_portal', 'admin');
+      }
+    } catch {}
+  }, [isCliente, isAdmin]);
 
   useEffect(() => {
     // Verificar se já está rodando como PWA instalado (Standalone)
@@ -27,8 +44,9 @@ export function PwaInstallPrompt() {
       return;
     }
 
-    // Verificar se foi dispensado recentemente nos últimos 7 dias
-    const dismissedAt = localStorage.getItem('pwa_prompt_dismissed_at');
+    // Verificar se foi dispensado recentemente nos últimos 7 dias para este portal
+    const dismissKey = `pwa_prompt_dismissed_at_${portalType}`;
+    const dismissedAt = localStorage.getItem(dismissKey);
     if (dismissedAt) {
       const elapsed = Date.now() - parseInt(dismissedAt, 10);
       if (elapsed < 7 * 24 * 60 * 60 * 1000) {
@@ -64,7 +82,7 @@ export function PwaInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     };
-  }, []);
+  }, [portalType]);
 
   if (isStandalone || !showPrompt) {
     return null;
@@ -94,9 +112,33 @@ export function PwaInstallPrompt() {
     setShowPrompt(false);
     setShowIOSModal(false);
     try {
-      localStorage.setItem('pwa_prompt_dismissed_at', Date.now().toString());
+      localStorage.setItem(`pwa_prompt_dismissed_at_${portalType}`, Date.now().toString());
     } catch {}
   };
+
+  const title = isCliente
+    ? 'Instalar App do Paciente'
+    : isAdmin
+    ? 'Instalar Painel da Clínica'
+    : 'Instalar App Camila Machado';
+
+  const subtitle = isCliente
+    ? 'Consultas, sessões e lembretes na tela inicial'
+    : isAdmin
+    ? 'Agenda, prontuários e pacientes na tela inicial'
+    : 'Acesso rápido e notificações no seu celular';
+
+  const modalTitle = isCliente
+    ? 'Instalar Portal do Paciente no iPhone'
+    : isAdmin
+    ? 'Instalar Painel Clínico no iPhone'
+    : 'Instalar no seu iPhone';
+
+  const modalSubtitle = isCliente
+    ? 'Abra direto seu portal de consultas e receba lembretes de atendimento no celular:'
+    : isAdmin
+    ? 'Abra direto a agenda do dia, prontuários e gestão da clínica com um toque:'
+    : 'Para instalar este aplicativo na sua tela de início e receber notificações instantâneas:';
 
   return (
     <>
@@ -109,9 +151,13 @@ export function PwaInstallPrompt() {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9998,
-          maxWidth: '420px',
+          maxWidth: '430px',
           width: 'calc(100% - 32px)',
-          background: 'linear-gradient(135deg, #182B38 0%, #245D80 100%)',
+          background: isCliente
+            ? 'linear-gradient(135deg, #1e4a64 0%, #245D80 100%)'
+            : isAdmin
+            ? 'linear-gradient(135deg, #0f172a 0%, #182B38 100%)'
+            : 'linear-gradient(135deg, #182B38 0%, #245D80 100%)',
           color: '#ffffff',
           borderRadius: '16px',
           padding: '12px 14px',
@@ -146,10 +192,10 @@ export function PwaInstallPrompt() {
           </div>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Instalar App Camila Machado
+              {title}
             </p>
             <p style={{ margin: 0, fontSize: '0.70rem', color: '#B8D5E5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Acesso rápido e notificações no seu celular
+              {subtitle}
             </p>
           </div>
         </div>
@@ -258,10 +304,10 @@ export function PwaInstallPrompt() {
               style={{ width: '56px', height: '56px', borderRadius: '14px', margin: '0 auto 12px' }}
             />
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 6px', color: '#182B38' }}>
-              Instalar no seu iPhone
+              {modalTitle}
             </h2>
             <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 18px', lineHeight: 1.45 }}>
-              Para instalar este aplicativo na sua tela de início e receber notificações instantâneas:
+              {modalSubtitle}
             </p>
 
             <div
@@ -289,6 +335,12 @@ export function PwaInstallPrompt() {
                 </div>
                 <span><strong>2.</strong> Role para baixo e selecione <strong>&quot;Adicionar à Tela de Início&quot;</strong>.</span>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: '#ecfdf5', color: '#047857', padding: '6px', borderRadius: '8px' }}>
+                  {isCliente ? <Sparkles size={16} /> : <ShieldCheck size={16} />}
+                </div>
+                <span><strong>3.</strong> Toque em <strong>Adicionar</strong>. O app abrirá direto no seu portal!</span>
+              </div>
             </div>
 
             <button
@@ -298,7 +350,7 @@ export function PwaInstallPrompt() {
                 marginTop: '18px',
                 width: '100%',
                 padding: '11px',
-                background: '#245D80',
+                background: isCliente ? '#245D80' : isAdmin ? '#182B38' : '#245D80',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
@@ -315,4 +367,3 @@ export function PwaInstallPrompt() {
     </>
   );
 }
-
