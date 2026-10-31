@@ -78,6 +78,7 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -233,7 +234,7 @@ a:hover { color: var(--color-primary-hover); }
   padding: 10px 14px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: 16px; /* 16px previne zoom automático indesejado no iOS Safari / mobile */
   font-family: 'Inter', sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
@@ -253,6 +254,18 @@ a:hover { color: var(--color-primary-hover); }
 .form-error { font-size: 12px; color: var(--color-error); margin-top: 4px; }
 .form-hint { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 .form-group { margin-bottom: 16px; }
+
+/* Previne zoom automático indesejado no iOS Safari / mobile ao focar em inputs */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select,
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px !important;
+  }
+}
 .form-row { display: grid; gap: 16px; }
 .form-row-2 { grid-template-columns: 1fr 1fr; }
 .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
