@@ -39,11 +39,29 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'Camila Machado | Espaço de atendimento integrativo',
-    description: 'Conheça os serviços e solicite um horário.',
+    title: 'Camila Machado | Espaço de Atendimento Integrativo',
+    description:
+      'Hipnose Clínica Integrativa, Agendamentos Online e Presenciais, Acompanhamento Terapêutico e Sessões Coletivas.',
+    url: 'https://camilaintegrativa.vercel.app',
+    siteName: 'Camila Machado Integrativa',
     type: 'website',
     locale: 'pt_BR',
-    images: [{ url: '/icon-512.png', width: 512, height: 512, alt: 'Camila Machado' }],
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Camila Machado | Espaço de Atendimento Integrativo',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Camila Machado | Espaço de Atendimento Integrativo',
+    description:
+      'Hipnose Clínica Integrativa, Agendamentos Online e Presenciais e Sessões Coletivas.',
+    images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },
 };
