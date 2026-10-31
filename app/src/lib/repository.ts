@@ -643,6 +643,7 @@ export async function createPublicBooking(input: BookingInput) {
   const start = zonedDateTimeToUtc(input.date, input.time);
   let end = new Date(start.getTime() + service.duration_minutes * 60_000);
   const appointmentId = randomUUID();
+  let createdClientId: string | null = null;
   let packageSummary: { id: string; name: string; totalSessions: number; usedSessions: number; remainingSessions: number } | null = null;
   (await database.exec('BEGIN IMMEDIATE'));
   try {
@@ -677,6 +678,7 @@ export async function createPublicBooking(input: BookingInput) {
       (await database.prepare(`UPDATE clients SET name = ?, email = COALESCE(?, email), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`)
         .run(input.name, input.email || null, client.id));
     }
+    createdClientId = client.id;
 
     if (input.cpf || input.birthDate) {
       const cleanCpf = input.cpf ? input.cpf.replace(/\D/g, '') : null;
@@ -859,6 +861,7 @@ export async function createPublicBooking(input: BookingInput) {
   };
   return {
     id: appointmentId,
+    clientId: createdClientId,
     status: created.status,
     startAt: start.toISOString(),
     package: packageSummary,
@@ -4787,7 +4790,17 @@ export async function enrollInGroupSession(
     paymentMethod?: string | null;
     notes?: string | null;
   }
-): Promise<{ ok: boolean; enrollmentId?: string; sessionTitle?: string; date?: string; startTime?: string; error?: string }> {
+): Promise<{
+  ok: boolean;
+  enrollmentId?: string;
+  clientId?: string | null;
+  paymentId?: string | null;
+  priceCents?: number;
+  sessionTitle?: string;
+  date?: string;
+  startTime?: string;
+  error?: string;
+}> {
   await ensureGroupSessionTables();
   const database = getDatabase();
   const session = (await database.prepare(`
@@ -4921,6 +4934,9 @@ export async function enrollInGroupSession(
   return {
     ok: true,
     enrollmentId,
+    clientId,
+    paymentId,
+    priceCents,
     sessionTitle: String(session.title),
     date: String(session.date),
     startTime: String(session.start_time),

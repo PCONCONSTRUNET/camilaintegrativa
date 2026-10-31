@@ -10,11 +10,13 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  Copy,
   LoaderCircle,
   LockKeyhole,
   MapPin,
   Monitor,
   Phone,
+  QrCode,
   ShieldCheck,
   Sparkles,
   UserRound,
@@ -23,6 +25,7 @@ import {
 import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
+import { generatePixCopiaECola, getPixQrCodeImageUrl, CLINIC_PIX_CONFIG } from '@/lib/pix';
 
 type Slot = { time: string; startAt: string };
 type Step = 'servico' | 'horario' | 'dados' | 'revisao' | 'sucesso';
@@ -84,6 +87,8 @@ function AgendarContent() {
     privacyAccepted: false,
   });
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro' | 'cartao' | ''>('');
+  const [copiedPix, setCopiedPix] = useState(false);
+  const [copiedPixKey, setCopiedPixKey] = useState(false);
   const [activePackage, setActivePackage] = useState<{
     id: string;
     serviceId: string | null;
@@ -301,6 +306,13 @@ function AgendarContent() {
   }
 
   if (bookingMode === 'grupo' && groupStep === 'sucesso' && selectedGroup) {
+    const groupPriceReais = (selectedGroup.priceCents || 0) / 100;
+    const groupPixPayload =
+      paymentMethod === 'pix' && groupPriceReais > 0
+        ? generatePixCopiaECola({ amount: groupPriceReais, txid: reference || 'GRUPO' })
+        : null;
+    const groupPixQr = groupPixPayload ? getPixQrCodeImageUrl(groupPixPayload, 220) : null;
+
     return (
       <main className="booking-page">
         <BookingHeader />
@@ -308,12 +320,12 @@ function AgendarContent() {
           <div className="booking-success-head">
             <span className="success-seal"><Check size={22} /></span>
             <div>
-              <span className="eyebrow">Inscrição confirmada</span>
-              <h1>Vaga garantida no grupo!</h1>
+              <span className="eyebrow">Inscrição registrada</span>
+              <h1>Vaga reservada no grupo!</h1>
             </div>
           </div>
           <p className="booking-success-sub">
-            Sua vaga está reservada. Acompanhe os detalhes no seu Portal do Cliente.
+            Sua vaga está reservada. O pedido já entrou no sistema com status <strong>Pendente</strong>.
           </p>
 
           <div className="booking-success-summary">
@@ -335,11 +347,108 @@ function AgendarContent() {
                 {selectedGroup.locationNotes ? ` (${selectedGroup.locationNotes})` : ''}
               </span>
             </div>
+            {selectedGroup.priceCents != null && selectedGroup.priceCents > 0 && (
+              <div className="summary-row">
+                <strong>Valor</strong>
+                <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(selectedGroup.priceCents)}</span>
+              </div>
+            )}
             <div className="summary-row">
-              <strong>Código</strong>
+              <strong>Status do Pagamento</strong>
+              <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
+            </div>
+            <div className="summary-row">
+              <strong>Código do Pedido</strong>
               <span className="summary-code">#{reference}</span>
             </div>
           </div>
+
+          {/* CARD DE PAGAMENTO PIX */}
+          {groupPixPayload && groupPixQr && (
+            <div
+              style={{
+                marginTop: '18px',
+                padding: '20px',
+                borderRadius: '16px',
+                background: '#f0fdf4',
+                border: '1.5px solid #86efac',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.92rem' }}>
+                <QrCode size={20} /> Pague via PIX para Garantir sua Vaga
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#15803d', margin: 0, maxWidth: '420px', lineHeight: 1.4 }}>
+                Escaneie o QR Code abaixo no app do seu banco ou use a chave PIX / Copia e Cola:
+              </p>
+
+              {/* QR Code */}
+              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={groupPixQr}
+                  alt="QR Code PIX"
+                  width={200}
+                  height={200}
+                  style={{ display: 'block', borderRadius: '8px' }}
+                />
+              </div>
+
+              {/* Botão Copiar Código PIX Copia e Cola */}
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(groupPixPayload);
+                  setCopiedPix(true);
+                  setTimeout(() => setCopiedPix(false), 3000);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '11px 18px',
+                  borderRadius: '10px',
+                  background: copiedPix ? '#15803d' : '#0f766e',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  maxWidth: '380px',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)',
+                }}
+              >
+                {copiedPix ? <Check size={16} /> : <Copy size={16} />}
+                {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
+              </button>
+
+              {/* Chave PIX Alternativa */}
+              <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span><strong>Chave Celular:</strong> {CLINIC_PIX_CONFIG.keyDisplay} (Camila Machado)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(CLINIC_PIX_CONFIG.key);
+                    setCopiedPixKey(true);
+                    setTimeout(() => setCopiedPixKey(false), 2500);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 800, fontSize: '0.74rem' }}
+                >
+                  {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                </button>
+              </div>
+
+              <span style={{ fontSize: '0.74rem', color: '#166534', fontStyle: 'italic' }}>
+                💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
+              </span>
+            </div>
+          )}
 
           <div className="button-row booking-success-actions">
             <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
@@ -354,6 +463,13 @@ function AgendarContent() {
 
   if (step === 'sucesso') {
     const confirmed = bookingStatus === 'confirmado';
+    const indPriceCents = selectedTier?.priceCents ?? service?.priceCents ?? 0;
+    const indPriceReais = indPriceCents / 100;
+    const indPixPayload =
+      paymentMethod === 'pix' && indPriceReais > 0
+        ? generatePixCopiaECola({ amount: indPriceReais, txid: reference || 'SESSAO' })
+        : null;
+    const indPixQr = indPixPayload ? getPixQrCodeImageUrl(indPixPayload, 220) : null;
 
     return (
       <main className="booking-page">
@@ -369,7 +485,7 @@ function AgendarContent() {
           <p className="booking-success-sub">
             {confirmed
               ? 'Seu atendimento foi confirmado. Acompanhe tudo pelo Portal do Cliente.'
-              : 'Sua reserva foi registrada e você pode acompanhar o status no Portal do Cliente.'}
+              : 'Sua reserva entrou no sistema. O status atual do pagamento é Pendente.'}
           </p>
 
           {selectedTier && selectedTier.isPackage && selectedTier.sessionCount && selectedTier.sessionCount > 1 && (
@@ -397,11 +513,108 @@ function AgendarContent() {
               <strong>Data e Horário</strong>
               <span>{date.split('-').reverse().join('/')} às {time} ({modality === 'online' ? 'Online' : 'Presencial'})</span>
             </div>
+            {indPriceCents > 0 && (
+              <div className="summary-row">
+                <strong>Valor Total</strong>
+                <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(indPriceCents)}</span>
+              </div>
+            )}
             <div className="summary-row">
-              <strong>Código</strong>
+              <strong>Status do Pagamento</strong>
+              <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
+            </div>
+            <div className="summary-row">
+              <strong>Código do Agendamento</strong>
               <span className="summary-code">#{reference}</span>
             </div>
           </div>
+
+          {/* CARD DE PAGAMENTO PIX */}
+          {indPixPayload && indPixQr && (
+            <div
+              style={{
+                marginTop: '18px',
+                padding: '20px',
+                borderRadius: '16px',
+                background: '#f0fdf4',
+                border: '1.5px solid #86efac',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.92rem' }}>
+                <QrCode size={20} /> Pague via PIX para Confirmar o Atendimento
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#15803d', margin: 0, maxWidth: '420px', lineHeight: 1.4 }}>
+                Escaneie o QR Code abaixo no app do seu banco ou use a chave PIX / Copia e Cola:
+              </p>
+
+              {/* QR Code */}
+              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={indPixQr}
+                  alt="QR Code PIX"
+                  width={200}
+                  height={200}
+                  style={{ display: 'block', borderRadius: '8px' }}
+                />
+              </div>
+
+              {/* Botão Copiar Código PIX Copia e Cola */}
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(indPixPayload);
+                  setCopiedPix(true);
+                  setTimeout(() => setCopiedPix(false), 3000);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '11px 18px',
+                  borderRadius: '10px',
+                  background: copiedPix ? '#15803d' : '#0f766e',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  maxWidth: '380px',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)',
+                }}
+              >
+                {copiedPix ? <Check size={16} /> : <Copy size={16} />}
+                {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
+              </button>
+
+              {/* Chave PIX Alternativa */}
+              <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span><strong>Chave Celular:</strong> {CLINIC_PIX_CONFIG.keyDisplay} (Camila Machado)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(CLINIC_PIX_CONFIG.key);
+                    setCopiedPixKey(true);
+                    setTimeout(() => setCopiedPixKey(false), 2500);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 800, fontSize: '0.74rem' }}
+                >
+                  {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                </button>
+              </div>
+
+              <span style={{ fontSize: '0.74rem', color: '#166534', fontStyle: 'italic' }}>
+                💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
+              </span>
+            </div>
+          )}
 
           <div className="button-row booking-success-actions">
             <Link href="/" className="btn btn-secondary">Voltar ao início</Link>

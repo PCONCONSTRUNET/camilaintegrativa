@@ -318,3 +318,4 @@ export function renderPushTemplate(template: string, vars: Record<string, string
   }
   return result;
 }
+

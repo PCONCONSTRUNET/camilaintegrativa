@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
 import { triggerPaymentIdentifiedReminder } from '@/lib/whatsapp-reminders';
 import { notifyAdminConfirmedPayment } from '@/lib/admin-push-alerts';
+import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
+import { sendOneSignalPush } from '@/lib/onesignal';
 
 export async function POST(
   request: Request,
@@ -128,6 +130,36 @@ export async function POST(
       paymentMethod,
       serviceName: payment.service_name || payment.description,
     }).catch(() => null);
+
+    // 3. Notificação Push para o Paciente (se tiver push ativo no PWA e regra ligada)
+    if (payment.client_id) {
+      try {
+        const clientPushCfg = await getPushConfig('client_payment_confirmed');
+        if (clientPushCfg.enabled) {
+          const amountStr = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payAmount / 100);
+          const methodClean = (paymentMethod || 'PIX').toUpperCase();
+          const title = renderPushTemplate(clientPushCfg.title, {
+            paciente: (payment.client_name || 'Paciente').split(' ')[0],
+            valor: amountStr,
+            metodo: methodClean,
+          });
+          const message = renderPushTemplate(clientPushCfg.message, {
+            paciente: (payment.client_name || 'Paciente').split(' ')[0],
+            valor: amountStr,
+            metodo: methodClean,
+          });
+          await sendOneSignalPush({
+            title,
+            message,
+            url: '/cliente?tab=financeiro',
+            target: { type: 'client', clientId: payment.client_id },
+            data: { type: 'payment_confirmed', paymentId },
+          }).catch(() => null);
+        }
+      } catch {
+        // non-blocking
+      }
+    }
 
     return NextResponse.json({
       success: true,
