@@ -1,9 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/admin/onesignal/check-alerts",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
-
