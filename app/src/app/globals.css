@@ -5984,34 +5984,34 @@ a:hover { color: var(--color-primary-hover); }
   }
 }
 
-/* Landing Footer com Alta Legibilidade e Destaque Refinado */
-.landing-footer-card {
+/* Landing Footer Normal (Sem card/modal, fundo transparente, alta legibilidade) */
+.landing-footer-normal {
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   margin: 32px auto 16px auto;
-  padding: 22px 18px 20px 18px;
+  padding: 12px 16px 20px 16px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(36, 93, 128, 0.18);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px -2px rgba(36, 93, 128, 0.07);
-  backdrop-filter: blur(8px);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
-.landing-footer-brand {
+.footer-brand-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  line-height: 1.45;
-  margin-bottom: 10px;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
 }
 
 .footer-brand-name {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #0d1e2b;
+  color: #11222f;
 }
 
 .footer-brand-sep {
@@ -6021,54 +6021,46 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 .footer-brand-role {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: #1a5173;
 }
 
-.landing-footer-links {
+.footer-links-line {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 10px 0;
+  gap: 10px;
+  margin: 0 0 10px 0;
 }
 
-.footer-pill-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 14px;
-  background: #edf5fa;
-  color: #134665;
-  border: 1px solid rgba(36, 93, 128, 0.22);
-  border-radius: 999px;
-  font-size: 0.8rem;
+.footer-text-link {
+  color: #164e63;
+  font-size: 0.84rem;
   font-weight: 700;
-  text-decoration: none;
-  transition: all 0.2s ease;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
 }
 
-.footer-pill-link:hover {
-  background: #245d80;
-  color: #ffffff;
-  border-color: #245d80;
-  transform: translateY(-1px);
+.footer-text-link:hover {
+  color: #0891b2;
 }
 
 .footer-dot-sep {
-  color: #8da6b6;
+  color: #64748b;
   font-size: 0.85rem;
 }
 
-.landing-footer-security {
+.footer-security-line {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 12px;
-  font-size: 0.78rem;
+  margin: 0 0 14px 0;
+  font-size: 0.80rem;
   font-weight: 600;
-  color: #203c4f;
+  color: #334155;
   line-height: 1.45;
 }
 
@@ -6077,10 +6069,10 @@ a:hover { color: var(--color-primary-hover); }
   flex-shrink: 0;
 }
 
-.landing-footer-dev {
-  margin-top: 16px;
+.footer-dev-line {
+  margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid rgba(36, 93, 128, 0.12);
+  border-top: 1px solid rgba(24, 43, 56, 0.12);
 }
 
 .footer-dev-link {
@@ -6091,7 +6083,7 @@ a:hover { color: var(--color-primary-hover); }
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
-  color: #3b5567;
+  color: #475569;
   transition: opacity 0.2s ease;
 }
 
@@ -6100,7 +6092,7 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 .footer-dev-link strong {
-  color: #07131b;
+  color: #0f172a;
   font-weight: 900;
 }
 

@@ -16,3 +16,4 @@ export async function GET() {
     return NextResponse.json({ error: 'Manifest not found' }, { status: 404 });
   }
 }
+

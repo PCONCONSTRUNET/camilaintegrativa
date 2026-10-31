@@ -878,30 +878,30 @@ function HomeContent() {
           )}
         </section>
 
-        {/* Footer com Alta Legibilidade e Destaque Refinado */}
-        <footer className="landing-footer-card">
-          <div className="landing-footer-brand">
+        {/* Footer Normal com Alta Legibilidade */}
+        <footer className="landing-footer-normal">
+          <p className="footer-brand-line">
             <span className="footer-brand-name">© 2026 Camila Machado</span>
             <span className="footer-brand-sep">•</span>
             <span className="footer-brand-role">Hipnose Clínica Multidimensional Integrativa</span>
-          </div>
+          </p>
 
-          <div className="landing-footer-links">
-            <Link href="/termos" className="footer-pill-link">
+          <p className="footer-links-line">
+            <Link href="/termos" className="footer-text-link">
               Termos de Uso
             </Link>
             <span className="footer-dot-sep">•</span>
-            <Link href="/privacidade" className="footer-pill-link">
+            <Link href="/privacidade" className="footer-text-link">
               Política de Privacidade (LGPD)
             </Link>
-          </div>
+          </p>
 
-          <p className="landing-footer-security">
+          <p className="footer-security-line">
             <ShieldCheck size={16} className="footer-security-icon" />
             <span>Ambiente seguro com agendamento online e proteção de dados LGPD. Urussanga - SC.</span>
           </p>
 
-          <div className="landing-footer-dev">
+          <div className="footer-dev-line">
             <a
               href="https://www.instagram.com/pconconstrunet/"
               target="_blank"
