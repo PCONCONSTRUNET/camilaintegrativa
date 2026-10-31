@@ -1,5 +1,6 @@
 import { getDatabase, IDS } from '@/lib/db';
 import { sendOneSignalPush } from '@/lib/onesignal';
+import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 
 let tableEnsured = false;
 
@@ -100,6 +101,9 @@ export async function notifyAdminNewAppointment(params: {
   const dedupKey = `new_appt_${params.appointmentId}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_new_appointment');
+  if (!cfg.enabled) return;
+
   const dateStr = formatDatePtBr(params.startAt);
   const timeStr = formatTimePtBr(params.startAt);
   const dateKey = dateKeyFromIso(params.startAt);
@@ -107,9 +111,27 @@ export async function notifyAdminNewAppointment(params: {
   const serviceLabel = params.serviceName || 'Sessão Individual';
   const originLabel = params.source === 'publico' ? 'pelo site' : 'na clínica';
 
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    servico: serviceLabel,
+    modalidade: modalityLabel,
+    origem: originLabel,
+    data: dateStr,
+    horario: timeStr,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    servico: serviceLabel,
+    modalidade: modalityLabel,
+    origem: originLabel,
+    data: dateStr,
+    horario: timeStr,
+  });
+
   await sendOneSignalPush({
-    title: `📅 Novo Agendamento: ${params.clientName}`,
-    message: `${serviceLabel} (${modalityLabel}) agendado ${originLabel} para ${dateStr} às ${timeStr}.`,
+    title,
+    message,
     url: `/admin/agenda?date=${dateKey}`,
     target: { type: 'admins' },
     data: {
@@ -135,15 +157,34 @@ export async function notifyAdminCancelledAppointment(params: {
   const dedupKey = `cancel_appt_${params.appointmentId}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_appointment_cancelled');
+  if (!cfg.enabled) return;
+
   const dateStr = formatDatePtBr(params.startAt);
   const timeStr = formatTimePtBr(params.startAt);
   const dateKey = dateKeyFromIso(params.startAt);
   const reasonText = params.reason ? ` Motivo: "${params.reason}".` : '';
   const whoText = params.cancelledBy || 'Cancelado';
 
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    data: dateStr,
+    horario: timeStr,
+    cancelado_por: whoText,
+    motivo: reasonText,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    data: dateStr,
+    horario: timeStr,
+    cancelado_por: whoText,
+    motivo: reasonText,
+  });
+
   await sendOneSignalPush({
-    title: `❌ Agendamento Cancelado: ${params.clientName}`,
-    message: `A consulta de ${dateStr} às ${timeStr} foi cancelada (${whoText}).${reasonText}`,
+    title,
+    message,
     url: `/admin/agenda?date=${dateKey}`,
     target: { type: 'admins' },
     data: {
@@ -168,13 +209,30 @@ export async function notifyAdminConfirmedPayment(params: {
   const dedupKey = `paid_pmt_${params.paymentId}_${params.amountCents}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_payment_confirmed');
+  if (!cfg.enabled) return;
+
   const methodClean = (params.paymentMethod || 'PIX').toUpperCase();
   const amountStr = formatCurrency(params.amountCents);
   const serviceText = params.serviceName ? ` ref. a ${params.serviceName}` : '';
 
+  const title = renderPushTemplate(cfg.title, {
+    valor: amountStr,
+    paciente: params.clientName,
+    metodo: methodClean,
+    servico: serviceText,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    valor: amountStr,
+    paciente: params.clientName,
+    metodo: methodClean,
+    servico: serviceText,
+  });
+
   await sendOneSignalPush({
-    title: `💰 Pagamento Confirmado: ${amountStr}`,
-    message: `Recebido de ${params.clientName} via ${methodClean}${serviceText}.`,
+    title,
+    message,
     url: '/admin/financeiro',
     target: { type: 'admins' },
     data: {
@@ -199,13 +257,30 @@ export async function notifyAdminPendingPayment(params: {
   const dedupKey = `pending_pmt_${params.paymentId}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_payment_pending');
+  if (!cfg.enabled) return;
+
   const amountStr = formatCurrency(params.amountCents);
   const dueText = params.dueDate ? ` Vencimento: ${formatDatePtBr(params.dueDate)}.` : '';
   const serviceText = params.serviceName ? ` (${params.serviceName})` : '';
 
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    valor: amountStr,
+    servico: serviceText,
+    vencimento: dueText,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    valor: amountStr,
+    servico: serviceText,
+    vencimento: dueText,
+  });
+
   await sendOneSignalPush({
-    title: `⏳ Pagamento Pendente: ${params.clientName}`,
-    message: `Fatura de ${amountStr}${serviceText} gerada e aguardando quitação.${dueText}`,
+    title,
+    message,
     url: '/admin/financeiro',
     target: { type: 'admins' },
     data: {
@@ -232,13 +307,30 @@ export async function notifyAdminOverdueInvoice(params: {
   const dedupKey = `overdue_pmt_${params.paymentId}_${todayStr}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_invoice_overdue');
+  if (!cfg.enabled) return;
+
   const amountStr = formatCurrency(params.amountCents);
   const dueStr = formatDatePtBr(params.dueDate);
   const serviceText = params.serviceName ? ` (${params.serviceName})` : '';
 
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    valor: amountStr,
+    servico: serviceText,
+    data_vencimento: dueStr,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    valor: amountStr,
+    servico: serviceText,
+    data_vencimento: dueStr,
+  });
+
   await sendOneSignalPush({
-    title: `⚠️ Fatura Vencida: ${params.clientName}`,
-    message: `A cobrança de ${amountStr}${serviceText} venceu em ${dueStr} e ainda não foi paga.`,
+    title,
+    message,
     url: '/admin/financeiro?status=vencido',
     target: { type: 'admins' },
     data: {
@@ -263,13 +355,30 @@ export async function notifyAdminUpcomingAppointment30m(params: {
   const dedupKey = `upcoming_30m_${params.appointmentId}`;
   if (await isAlertAlreadySent(dedupKey)) return;
 
+  const cfg = await getPushConfig('admin_upcoming_30m');
+  if (!cfg.enabled) return;
+
   const timeStr = formatTimePtBr(params.startAt);
   const modalityLabel = params.modality === 'online' ? 'Online' : 'Presencial';
   const serviceLabel = params.serviceName || 'Consulta';
 
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    horario: timeStr,
+    servico: serviceLabel,
+    modalidade: modalityLabel,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    horario: timeStr,
+    servico: serviceLabel,
+    modalidade: modalityLabel,
+  });
+
   await sendOneSignalPush({
-    title: `⏰ Próximo Atendimento em ~30 min!`,
-    message: `${params.clientName} às ${timeStr} · ${serviceLabel} (${modalityLabel}).`,
+    title,
+    message,
     url: '/admin/agenda',
     target: { type: 'admins' },
     data: {
