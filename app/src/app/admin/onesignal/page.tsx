@@ -71,27 +71,31 @@ export default function OneSignalAdminPage() {
   // Carregar dados
   const loadData = useCallback(async () => {
     try {
-      const [res, clientsRes] = await Promise.all([
+      const [res, clientsRes] = await Promise.allSettled([
         fetch('/api/admin/onesignal'),
         fetch('/api/admin/clients?status=todos'),
       ]);
-      const data = await res.json();
-      if (res.ok) {
+
+      if (res.status === 'fulfilled' && res.value.ok) {
+        const data = await res.value.json().catch(() => ({}));
         setAppId(data.appId || 'd1a83484-dce6-45f0-880f-15f3d8235d4c');
         setApiKeyPreview(data.apiKeyPreview || '');
         setLogs(data.logs || []);
         if (data.stats) setStats(data.stats);
       }
-      const clientsData = await clientsRes.json();
-      if (clientsRes.ok && clientsData.clients) {
-        setClients(clientsData.clients);
+
+      if (clientsRes.status === 'fulfilled' && clientsRes.value.ok) {
+        const clientsData = await clientsRes.value.json().catch(() => ({}));
+        if (clientsData.clients) {
+          setClients(clientsData.clients);
+        }
       }
-    } catch {
-      showToast('error', 'Falha ao conectar com o serviço OneSignal.');
+    } catch (err) {
+      console.warn('[OneSignal Admin] Aviso ao atualizar dados:', err);
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     void loadData();

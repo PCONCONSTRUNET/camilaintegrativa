@@ -5,6 +5,7 @@ import {
   ONESIGNAL_APP_ID,
   ONESIGNAL_REST_API_KEY,
   ONESIGNAL_SAFARI_WEB_ID,
+  type PushNotificationLog,
 } from '@/lib/onesignal';
 import { getDatabase, IDS } from '@/lib/db';
 
@@ -15,13 +16,23 @@ export async function GET() {
   }
 
   try {
-    const logs = await listPushNotificationLogs(50);
-    const db = getDatabase();
+    let logs: PushNotificationLog[] = [];
+    try {
+      logs = await listPushNotificationLogs(50);
+    } catch (err) {
+      console.warn('[api/admin/onesignal] Aviso ao buscar logs:', err);
+    }
 
-    // Buscar total de clientes cadastrados para referência
-    const clientCountRow = (await db
-      .prepare('SELECT COUNT(*) as total FROM clients WHERE clinic_id = ?')
-      .get(IDS.clinic)) as { total: number } | undefined;
+    let totalClients = 0;
+    try {
+      const db = getDatabase();
+      const clientCountRow = (await db
+        .prepare('SELECT COUNT(*) as total FROM clients WHERE clinic_id = ?')
+        .get(IDS.clinic)) as { total: number } | undefined;
+      totalClients = clientCountRow?.total || 0;
+    } catch (err) {
+      console.warn('[api/admin/onesignal] Aviso ao contar clientes:', err);
+    }
 
     const totalSent = logs.filter((l) => l.status === 'enviado').length;
     const totalFailed = logs.filter((l) => l.status === 'erro').length;
@@ -34,7 +45,7 @@ export async function GET() {
       apiKeyPreview: ONESIGNAL_REST_API_KEY
         ? `${ONESIGNAL_REST_API_KEY.slice(0, 14)}...${ONESIGNAL_REST_API_KEY.slice(-6)}`
         : '',
-      totalClients: clientCountRow?.total || 0,
+      totalClients,
       stats: {
         totalDispatches: logs.length,
         totalSent,
@@ -45,10 +56,15 @@ export async function GET() {
     });
   } catch (err) {
     console.error('[api/admin/onesignal] error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Erro ao consultar OneSignal.' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      appId: ONESIGNAL_APP_ID,
+      safariWebId: ONESIGNAL_SAFARI_WEB_ID,
+      hasApiKey: Boolean(ONESIGNAL_REST_API_KEY),
+      apiKeyPreview: '',
+      totalClients: 0,
+      stats: { totalDispatches: 0, totalSent: 0, totalFailed: 0, totalRecipients: 0 },
+      logs: [],
+    });
   }
 }
 
