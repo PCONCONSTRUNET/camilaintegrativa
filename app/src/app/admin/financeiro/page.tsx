@@ -3821,18 +3821,14 @@ export default function AdminFinanceiroPage() {
             {drePrintModalOpen && (
               <div
                 id="dre-print-modal-backdrop"
+                className="fin-modal-overlay"
                 style={{
-                  position: 'fixed',
-                  inset: 0,
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  backdropFilter: 'blur(4px)',
                   zIndex: 120,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  padding: '20px 14px',
-                  overflowY: 'auto',
                 }}
+                onClick={(e) => { if (e.target === e.currentTarget) setDrePrintModalOpen(false); }}
               >
                 {/* Barra Superior Flutuante do Modal (Não sai na impressão) */}
                 <div
@@ -4437,12 +4433,36 @@ export default function AdminFinanceiroPage() {
         .fin-mobile-cards-list {
           display: none;
         }
+        .fin-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.65);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          z-index: 1000;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          padding: 24px 14px 48px 14px;
+          box-sizing: border-box;
+        }
         .fin-modal, #printable-receipt {
-          border: 2px solid #64748b !important;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 4px rgba(148, 163, 184, 0.18) !important;
+          margin: auto 0;
+          width: 100%;
+          box-sizing: border-box;
+          background: #ffffff;
+          border-radius: 20px;
+          border: 1.5px solid #cbd5e1 !important;
+          box-shadow: 0 25px 60px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+          max-height: calc(100dvh - 48px);
+          max-height: min(92vh, calc(100dvh - 48px));
+          overflow-y: auto;
+          overflow-x: hidden;
           scrollbar-width: thin;
           scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
-          overflow-x: hidden;
+          padding: 22px;
         }
         .fin-modal::-webkit-scrollbar, #printable-receipt::-webkit-scrollbar {
           width: 5px;
@@ -4635,13 +4655,26 @@ export default function AdminFinanceiroPage() {
           .fin-installment-grid {
             grid-template-columns: 1fr !important;
           }
+          .fin-modal-overlay {
+            padding: 12px 10px max(40px, env(safe-area-inset-bottom, 40px)) 10px !important;
+            align-items: flex-start !important;
+          }
+          .fin-modal, #printable-receipt {
+            max-height: calc(100dvh - 24px) !important;
+            border-radius: 16px !important;
+            padding: 18px 14px 36px 14px !important;
+            margin: 0 0 auto 0 !important;
+          }
+          .fin-billing-segmented {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
 
       {/* ================= MODAL: NOVO LANÇAMENTO (ENTRADA OU SAÍDA) ================= */}
       {newModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.52)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: '12px' }}>
-          <div className="fin-modal" style={{ background: '#ffffff', borderRadius: '18px', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxShadow: '0 20px 48px -12px rgba(15,23,42,0.32)', border: '1px solid #e2e8f0' }}>
+        <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setNewModalOpen(false); }}>
+          <div className="fin-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', gap: '10px' }}>
               <div>
@@ -4760,6 +4793,7 @@ export default function AdminFinanceiroPage() {
 
             {/* SELETOR DE MODALIDADE: À VISTA | PARCIAL | PARCELADO (Estilo iOS Segmented Control) */}
             <div
+              className="fin-billing-segmented"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
@@ -5490,7 +5524,7 @@ export default function AdminFinanceiroPage() {
               </label>
 
               {/* Botões do Rodapé */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingBottom: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setNewModalOpen(false)}
@@ -5522,8 +5556,8 @@ export default function AdminFinanceiroPage() {
 
       {/* ================= MODAL: FICHA DO PAGAMENTO & BAIXA DE SALDO RESTANTE ================= */}
       {payModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.52)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: '12px' }}>
-          <div className="fin-modal" style={{ background: '#ffffff', borderRadius: '18px', maxWidth: '480px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxShadow: '0 20px 48px -12px rgba(15,23,42,0.32)', border: '1px solid #e2e8f0' }}>
+        <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setPayModalOpen(null); }}>
+          <div className="fin-modal" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
@@ -5831,7 +5865,7 @@ export default function AdminFinanceiroPage() {
                 />
               </label>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingBottom: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setPayModalOpen(null)}
@@ -5852,8 +5886,8 @@ export default function AdminFinanceiroPage() {
 
       {/* ================= MODAL: FICHA COMPLETA DO LANÇAMENTO & HISTÓRICO DE TRANSAÇÕES ================= */}
       {viewTransactionsModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.52)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: '12px' }}>
-          <div className="fin-modal" style={{ background: '#ffffff', borderRadius: '18px', maxWidth: '470px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxShadow: '0 20px 48px -12px rgba(15,23,42,0.32)', border: '1px solid #e2e8f0' }}>
+        <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setViewTransactionsModal(null); }}>
+          <div className="fin-modal" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -6044,8 +6078,8 @@ export default function AdminFinanceiroPage() {
 
       {/* ================= MODAL: PARCELAR SALDO EM ABERTO ================= */}
       {managePaymentModal && manageModalTab === 'parcelar' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.52)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: '12px' }}>
-          <form onSubmit={handleRenegotiateInstallment} className="fin-modal" style={{ background: '#ffffff', borderRadius: '18px', maxWidth: '450px', width: '100%', padding: '20px', boxShadow: '0 20px 48px -12px rgba(15,23,42,0.32)', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #e2e8f0' }}>
+        <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setManagePaymentModal(null); }}>
+          <form onSubmit={handleRenegotiateInstallment} className="fin-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Parcelamento</span>
@@ -6117,7 +6151,7 @@ export default function AdminFinanceiroPage() {
 
             {errorMsg && <div style={{ marginTop: '10px', color: '#dc2626', fontSize: '0.84rem' }}>{errorMsg}</div>}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '16px', paddingBottom: '10px', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setManagePaymentModal(null)}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Processando...' : 'Confirmar Parcelamento'}</button>
             </div>
@@ -6191,8 +6225,8 @@ export default function AdminFinanceiroPage() {
           : 'Quitado Integralmente (À Vista)';
 
         return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.52)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100, padding: '12px' }}>
-            <div style={{ background: '#ffffff', borderRadius: '18px', maxWidth: '450px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxShadow: '0 20px 48px -12px rgba(15,23,42,0.32)', border: '1px solid #e2e8f0' }} id="printable-receipt">
+          <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setReceiptModal(null); }}>
+            <div className="fin-modal" style={{ maxWidth: '500px' }} id="printable-receipt" onClick={(e) => e.stopPropagation()}>
               
               <div style={{ textAlign: 'center', borderBottom: '1.5px solid #d4b896', paddingBottom: '16px', marginBottom: '18px' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1a3a4a', margin: '0 0 2px' }}>
@@ -6400,7 +6434,7 @@ export default function AdminFinanceiroPage() {
                   .no-print, .no-print * { display: none !important; }
                 }
               `}</style>
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginTop: '16px', paddingBottom: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setReceiptModal(null)}
@@ -6426,31 +6460,16 @@ export default function AdminFinanceiroPage() {
       {/* ================= MODAL: COBRAR FATURA VIA WHATSAPP ================= */}
       {whatsappChargeModal && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(5px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
+          className="fin-modal-overlay"
           onClick={() => !whatsappChargeLoading && setWhatsappChargeModal(null)}
         >
           <div
+            className="fin-modal"
             style={{
-              background: '#ffffff',
-              borderRadius: '24px',
-              width: '100%',
               maxWidth: '560px',
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              borderRadius: '24px',
               border: '1.5px solid #bbf7d0',
-              display: 'flex',
-              flexDirection: 'column',
+              padding: 0,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -6699,7 +6718,7 @@ export default function AdminFinanceiroPage() {
               </div>
 
               {/* Botões de Ação */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '14px', paddingBottom: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setWhatsappChargeModal(null)}
