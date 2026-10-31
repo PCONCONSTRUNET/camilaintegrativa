@@ -156,6 +156,11 @@ export default function QuickAppointmentDialog({
   const [error, setError] = useState('');
   const firstFieldRef = useRef<HTMLSelectElement>(null);
 
+  // Modo de seleção ou digitação livre de serviço
+  const [serviceMode, setServiceMode] = useState<'list' | 'custom'>('list');
+  const [customServiceName, setCustomServiceName] = useState('');
+  const customServiceInputRef = useRef<HTMLInputElement>(null);
+
   // Busca e seleção rápida de clientes (Nome, CPF, Telefone)
   const [clientSearch, setClientSearch] = useState('');
   const [isSearchingClient, setIsSearchingClient] = useState(false);
@@ -206,7 +211,7 @@ export default function QuickAppointmentDialog({
       })()
     : selectedService
       ? `Em branco: termina automaticamente às ${automaticEndLabel(form.time, selectedService.durationMinutes)} (${selectedService.durationMinutes} min).`
-      : 'Em branco: usa automaticamente a duração cadastrada no serviço.';
+      : 'Em branco: duração padrão de 60 minutos.';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -303,8 +308,16 @@ export default function QuickAppointmentDialog({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.clientId || !form.serviceId) {
-      setError('Selecione o cliente e o serviço.');
+    if (!form.clientId) {
+      setError('Selecione ou busque o cliente.');
+      return;
+    }
+    if (serviceMode === 'list' && !form.serviceId) {
+      setError('Selecione um serviço ou clique em "Digitar outro".');
+      return;
+    }
+    if (serviceMode === 'custom' && !customServiceName.trim()) {
+      setError('Digite o nome do serviço personalizado.');
       return;
     }
     if (form.bookingKind === 'encaixe' && form.fitInReason.trim().length < 3) {
@@ -330,6 +343,47 @@ export default function QuickAppointmentDialog({
     setSubmitting(true);
     setError('');
 
+    let finalServiceId = form.serviceId;
+
+    if (serviceMode === 'custom') {
+      const cleanCustomName = customServiceName.trim();
+      const existingMatch = services.find(
+        (s) => s.name.trim().toLowerCase() === cleanCustomName.toLowerCase(),
+      );
+
+      if (existingMatch) {
+        finalServiceId = existingMatch.id;
+      } else {
+        try {
+          const calcDuration = form.endTime ? durationBetweenTimes(form.time, form.endTime) : 60;
+          const svcRes = await fetch('/api/admin/services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: cleanCustomName,
+              description: 'Serviço personalizado da agenda',
+              durationMinutes: calcDuration >= 15 && calcDuration <= 480 ? calcDuration : 60,
+              intervalMinutes: 15,
+              priceCents: null,
+              priceVisible: false,
+              published: false,
+              modalities: ['presencial', 'online'],
+            }),
+          });
+          const svcData = await svcRes.json();
+          if (!svcRes.ok || !svcData.service?.id) {
+            throw new Error(svcData.error || 'Não foi possível cadastrar o serviço personalizado.');
+          }
+          finalServiceId = svcData.service.id;
+          setServices((prev) => [...prev, svcData.service]);
+        } catch (err) {
+          setSubmitting(false);
+          setError(err instanceof Error ? err.message : 'Erro ao cadastrar serviço personalizado.');
+          return;
+        }
+      }
+    }
+
     const selectedTier = selectedService?.pricingTiers?.find((t) => t.id === selectedTierId);
     let finalNotes = form.notes.trim();
     if (selectedTier && !finalNotes.includes(selectedTier.name)) {
@@ -343,6 +397,7 @@ export default function QuickAppointmentDialog({
         body: JSON.stringify(appointment ? {
           operation: 'edit',
           ...form,
+          serviceId: finalServiceId,
           notes: finalNotes,
           clientPackageId: selectedPackageId || null,
           ...(!allowFitIn ? { bookingKind: undefined, fitInReason: undefined } : {
@@ -351,6 +406,7 @@ export default function QuickAppointmentDialog({
           expectedUpdatedAt: appointment.updatedAt,
         } : {
           ...form,
+          serviceId: finalServiceId,
           notes: finalNotes,
           clientPackageId: selectedPackageId || null,
           fitInReason: form.bookingKind === 'encaixe' ? form.fitInReason.trim() : null,
@@ -768,13 +824,123 @@ export default function QuickAppointmentDialog({
                   </div>
                 )}
 
-                <label className="gcal-quick-field">
-                  <span>Serviço</span>
-                  <select name="serviceId" value={form.serviceId} onChange={(event) => chooseService(event.target.value)} required>
-                    <option value="">Selecione um serviço</option>
-                    {services.map((service) => <option value={service.id} key={service.id}>{service.name} · {service.durationMinutes} min</option>)}
-                  </select>
-                </label>
+                <div className="gcal-quick-field">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1e293b' }}>
+                      <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', color: '#245d80' }} /> Serviço *
+                    </span>
+                    <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '6px', padding: '2px', gap: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceMode('list');
+                          setCustomServiceName('');
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          fontWeight: serviceMode === 'list' ? 700 : 500,
+                          background: serviceMode === 'list' ? '#ffffff' : 'transparent',
+                          color: serviceMode === 'list' ? '#0f766e' : '#64748b',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          boxShadow: serviceMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        }}
+                      >
+                        📋 Da lista
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceMode('custom');
+                          setTimeout(() => customServiceInputRef.current?.focus(), 50);
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          fontWeight: serviceMode === 'custom' ? 700 : 500,
+                          background: serviceMode === 'custom' ? '#ffffff' : 'transparent',
+                          color: serviceMode === 'custom' ? '#0f766e' : '#64748b',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          boxShadow: serviceMode === 'custom' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        }}
+                      >
+                        ✏️ Digitar outro
+                      </button>
+                    </div>
+                  </div>
+
+                  {serviceMode === 'list' ? (
+                    <select
+                      name="serviceId"
+                      value={form.serviceId}
+                      onChange={(event) => {
+                        if (event.target.value === '__custom__') {
+                          setServiceMode('custom');
+                          setTimeout(() => customServiceInputRef.current?.focus(), 50);
+                        } else {
+                          chooseService(event.target.value);
+                        }
+                      }}
+                      required={serviceMode === 'list'}
+                    >
+                      <option value="">Selecione um serviço</option>
+                      {services.map((service) => (
+                        <option value={service.id} key={service.id}>
+                          {service.name} · {service.durationMinutes} min
+                        </option>
+                      ))}
+                      <option value="__custom__">✏️ Outro (digitar serviço personalizado)...</option>
+                    </select>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        ref={customServiceInputRef}
+                        type="text"
+                        value={customServiceName}
+                        onChange={(e) => setCustomServiceName(e.target.value)}
+                        placeholder="Digite o nome do serviço (ex.: Conversa inicial, Retorno, Avaliação...)"
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          fontSize: '0.86rem',
+                          fontWeight: 600,
+                          border: '1.5px solid #0f766e',
+                          borderRadius: '8px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                        }}
+                        required={serviceMode === 'custom'}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setServiceMode('list');
+                          setCustomServiceName('');
+                        }}
+                        title="Voltar para a lista de serviços cadastrados"
+                        style={{
+                          padding: '0 10px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          background: '#f1f5f9',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Ver lista
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {selectedService?.pricingTiers && selectedService.pricingTiers.length > 0 && (
                   <label className="gcal-quick-field">
