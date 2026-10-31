@@ -98,10 +98,41 @@ function HomeContent() {
             Um espaço de escuta, cuidado e presença para sua transformação emocional e autoconhecimento.
           </p>
 
-          <div className="linktree-pill-features">
-            <span><MapPin size={13} /> Atendimento Presencial</span>
-            <span><Video size={13} /> Atendimento Online</span>
-            <span><ShieldCheck size={13} /> Sigilo & LGPD</span>
+          {/* Faixa de Credenciais e Modalidades de Atendimento */}
+          <div className="linktree-trust-strip">
+            <div className="trust-strip-item">
+              <div className="trust-strip-icon-box">
+                <MapPin size={15} />
+              </div>
+              <div className="trust-strip-text">
+                <span className="trust-strip-title">Presencial</span>
+                <span className="trust-strip-subtitle">Urussanga · SC</span>
+              </div>
+            </div>
+
+            <div className="trust-strip-divider" />
+
+            <div className="trust-strip-item">
+              <div className="trust-strip-icon-box">
+                <Video size={15} />
+              </div>
+              <div className="trust-strip-text">
+                <span className="trust-strip-title">Online</span>
+                <span className="trust-strip-subtitle">Brasil e Exterior</span>
+              </div>
+            </div>
+
+            <div className="trust-strip-divider" />
+
+            <div className="trust-strip-item">
+              <div className="trust-strip-icon-box">
+                <ShieldCheck size={15} />
+              </div>
+              <div className="trust-strip-text">
+                <span className="trust-strip-title">Sigilo & LGPD</span>
+                <span className="trust-strip-subtitle">100% Protegido</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -817,40 +848,38 @@ function HomeContent() {
           )}
         </section>
 
-        {/* Footer */}
-        <footer style={{ textAlign: 'center', marginTop: 24, fontSize: '0.8rem', color: '#8496a3', lineHeight: 1.6 }}>
-          <p>© 2026 Camila Machado • Hipnose Clínica Multidimensional Integrativa</p>
-          <p style={{ marginTop: '4px' }}>
-            <Link href="/termos" style={{ color: '#245d80', textDecoration: 'underline', margin: '0 8px' }}>
+        {/* Footer com Alta Legibilidade e Destaque Refinado */}
+        <footer className="landing-footer-card">
+          <div className="landing-footer-brand">
+            <span className="footer-brand-name">© 2026 Camila Machado</span>
+            <span className="footer-brand-sep">•</span>
+            <span className="footer-brand-role">Hipnose Clínica Multidimensional Integrativa</span>
+          </div>
+
+          <div className="landing-footer-links">
+            <Link href="/termos" className="footer-pill-link">
               Termos de Uso
             </Link>
-            •
-            <Link href="/privacidade" style={{ color: '#245d80', textDecoration: 'underline', margin: '0 8px' }}>
+            <span className="footer-dot-sep">•</span>
+            <Link href="/privacidade" className="footer-pill-link">
               Política de Privacidade (LGPD)
             </Link>
+          </div>
+
+          <p className="landing-footer-security">
+            <ShieldCheck size={16} className="footer-security-icon" />
+            <span>Ambiente seguro com agendamento online e proteção de dados LGPD. Urussanga - SC.</span>
           </p>
-          <p style={{ marginTop: '4px', fontSize: '0.75rem', color: '#94a3b8' }}>
-            Ambiente seguro com agendamento online e proteção de dados LGPD. Urussanga - SC.
-          </p>
-          <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+
+          <div className="landing-footer-dev">
             <a
               href="https://www.instagram.com/pconconstrunet/"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.7rem',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-                color: '#94a3b8',
-                transition: 'opacity 0.2s ease',
-              }}
+              className="footer-dev-link"
             >
               <span>DESENVOLVIDO POR</span>
-              <strong style={{ color: '#0f172a', fontWeight: 800 }}>P-CON CONSTRUNET</strong>
+              <strong>P-CON CONSTRUNET</strong>
             </a>
           </div>
         </footer>

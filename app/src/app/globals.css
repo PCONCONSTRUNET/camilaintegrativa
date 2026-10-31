@@ -5896,6 +5896,214 @@ a:hover { color: var(--color-primary-hover); }
   border-radius: 6px;
 }
 
+/* Faixa de Credenciais e Modalidades de Atendimento (Bespoke Human-Crafted) */
+.linktree-trust-strip {
+  width: 100%;
+  max-width: 490px;
+  margin: 8px auto 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 248, 252, 0.94) 100%);
+  border: 1px solid rgba(36, 93, 128, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 4px 18px -2px rgba(36, 93, 128, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(8px);
+  gap: 4px;
+}
+
+.trust-strip-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 5px;
+  padding: 4px 2px;
+  transition: transform 0.2s ease;
+}
+
+.trust-strip-item:hover {
+  transform: translateY(-1px);
+}
+
+.trust-strip-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e7f3f9 0%, #d6ebf6 100%);
+  color: #1a5173;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(36, 93, 128, 0.2);
+  box-shadow: 0 2px 6px rgba(36, 93, 128, 0.08);
+  flex-shrink: 0;
+}
+
+.trust-strip-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.trust-strip-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f2433;
+  letter-spacing: -0.01em;
+}
+
+.trust-strip-subtitle {
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: #426175;
+  margin-top: 1px;
+}
+
+.trust-strip-divider {
+  width: 1px;
+  height: 36px;
+  background: linear-gradient(to bottom, transparent, rgba(36, 93, 128, 0.2), transparent);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+@media (min-width: 440px) {
+  .trust-strip-item {
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    text-align: left;
+    padding: 4px 6px;
+  }
+  .trust-strip-text {
+    align-items: flex-start;
+  }
+}
+
+/* Landing Footer com Alta Legibilidade e Destaque Refinado */
+.landing-footer-card {
+  width: 100%;
+  max-width: 520px;
+  margin: 32px auto 16px auto;
+  padding: 22px 18px 20px 18px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(36, 93, 128, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(36, 93, 128, 0.07);
+  backdrop-filter: blur(8px);
+}
+
+.landing-footer-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.footer-brand-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0d1e2b;
+}
+
+.footer-brand-sep {
+  color: #b8860b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.footer-brand-role {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1a5173;
+}
+
+.landing-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.footer-pill-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  background: #edf5fa;
+  color: #134665;
+  border: 1px solid rgba(36, 93, 128, 0.22);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.footer-pill-link:hover {
+  background: #245d80;
+  color: #ffffff;
+  border-color: #245d80;
+  transform: translateY(-1px);
+}
+
+.footer-dot-sep {
+  color: #8da6b6;
+  font-size: 0.85rem;
+}
+
+.landing-footer-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #203c4f;
+  line-height: 1.45;
+}
+
+.footer-security-icon {
+  color: #245d80;
+  flex-shrink: 0;
+}
+
+.landing-footer-dev {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(36, 93, 128, 0.12);
+}
+
+.footer-dev-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #3b5567;
+  transition: opacity 0.2s ease;
+}
+
+.footer-dev-link:hover {
+  opacity: 0.8;
+}
+
+.footer-dev-link strong {
+  color: #07131b;
+  font-weight: 900;
+}
+
 /* Links / Cards Stack */
 .linktree-links-stack {
   display: flex;
