@@ -148,7 +148,7 @@ function HomeContent() {
               </div>
               <div className="trust-strip-text">
                 <span className="trust-strip-title">Online</span>
-                <span className="trust-strip-subtitle">Brasil e Exterior</span>
+                <span className="trust-strip-subtitle">Todo o Brasil</span>
               </div>
             </div>
 
