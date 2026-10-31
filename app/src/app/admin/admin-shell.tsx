@@ -30,7 +30,6 @@ import { AdminNotificationBell } from '@/components/admin-notification-bell';
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Visão geral', href: '/admin' },
   { icon: CalendarDays, label: 'Agenda', href: '/admin/agenda' },
-  { icon: Clock, label: 'Horários', href: '/admin/horarios' },
   { icon: Users, label: 'Clientes', href: '/admin/clientes' },
   { icon: FileText, label: 'Prontuários', href: '/admin/prontuarios' },
   { icon: NotebookPen, label: 'Anotações', href: '/admin/anotacoes' },
@@ -38,6 +37,7 @@ const NAV_ITEMS = [
   { icon: Sparkles, label: 'Serviços', href: '/admin/servicos' },
   { icon: CalendarRange, label: 'Sessões em Grupo', href: '/admin/sessoes-grupo' },
   { icon: Bell, label: 'Notificações', href: '/admin/notificacoes' },
+  { icon: Clock, label: 'Horários', href: '/admin/horarios' },
   { icon: Settings, label: 'Configurações', href: '/admin/configuracoes' },
 ];
 
