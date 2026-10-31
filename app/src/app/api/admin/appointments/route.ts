@@ -25,37 +25,42 @@ function isValidDateKey(value: string) {
 }
 
 export async function GET(request: Request) {
-  if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
-  const params = new URL(request.url).searchParams;
-  const from = params.get('from');
-  const to = params.get('to');
+  try {
+    if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
+    const params = new URL(request.url).searchParams;
+    const from = params.get('from');
+    const to = params.get('to');
 
-  if (from || to) {
-    if (!from || !to || !isValidDateKey(from) || !isValidDateKey(to)) {
-      return Response.json({ error: 'Período inválido.' }, { status: 422 });
+    if (from || to) {
+      if (!from || !to || !isValidDateKey(from) || !isValidDateKey(to)) {
+        return Response.json({ error: 'Período inválido.' }, { status: 422 });
+      }
+
+      const start = new Date(`${from}T12:00:00Z`);
+      const end = new Date(`${to}T12:00:00Z`);
+      const rangeInDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000);
+      if (rangeInDays < 0 || rangeInDays > 62) {
+        return Response.json({ error: 'O período deve ter no máximo 63 dias.' }, { status: 422 });
+      }
+
+      const [appointments, pendingRequests] = await Promise.all([
+        listAppointmentsInRange(from, to),
+        listPendingAppointments(),
+      ]);
+      return Response.json({ appointments, pendingRequests, from, to });
     }
 
-    const start = new Date(`${from}T12:00:00Z`);
-    const end = new Date(`${to}T12:00:00Z`);
-    const rangeInDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000);
-    if (rangeInDays < 0 || rangeInDays > 62) {
-      return Response.json({ error: 'O período deve ter no máximo 63 dias.' }, { status: 422 });
-    }
-
+    const date = params.get('date') ?? dateKeyInClinicTimeZone();
+    if (!isValidDateKey(date)) return Response.json({ error: 'Data inválida.' }, { status: 422 });
     const [appointments, pendingRequests] = await Promise.all([
-      listAppointmentsInRange(from, to),
+      listAppointments(date),
       listPendingAppointments(),
     ]);
-    return Response.json({ appointments, pendingRequests, from, to });
+    return Response.json({ appointments, pendingRequests, date });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erro ao listar agendamentos.';
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const date = params.get('date') ?? dateKeyInClinicTimeZone();
-  if (!isValidDateKey(date)) return Response.json({ error: 'Data inválida.' }, { status: 422 });
-  const [appointments, pendingRequests] = await Promise.all([
-    listAppointments(date),
-    listPendingAppointments(),
-  ]);
-  return Response.json({ appointments, pendingRequests, date });
 }
 
 export async function POST(request: Request) {

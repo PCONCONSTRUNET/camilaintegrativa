@@ -382,26 +382,41 @@ function scheduleMinute(date: string, time: string) {
 async function fetchAppointments(from: string, to: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ from, to });
   const response = await fetch('/api/admin/appointments?' + params, { cache: 'no-store', signal });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? 'Não foi possível carregar a agenda.');
+  let body: { appointments?: AppointmentSummary[]; pendingRequests?: AppointmentSummary[]; error?: string } | null = null;
+  try {
+    body = await response.json();
+  } catch {
+    // corpo não é JSON válido
+  }
+  if (!response.ok) throw new Error(body?.error ?? `Não foi possível carregar a agenda (status ${response.status}).`);
   return {
-    appointments: ((body.appointments as AppointmentSummary[]) || []).sort((a, b) => a.startAt.localeCompare(b.startAt)),
-    pendingRequests: ((body.pendingRequests as AppointmentSummary[]) || []),
+    appointments: ((body?.appointments as AppointmentSummary[]) || []).sort((a, b) => a.startAt.localeCompare(b.startAt)),
+    pendingRequests: ((body?.pendingRequests as AppointmentSummary[]) || []),
   };
 }
 
 async function fetchTimeBlocks(from: string, to: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ from, to });
   const response = await fetch('/api/admin/time-blocks?' + params, { cache: 'no-store', signal });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? 'Não foi possível carregar os bloqueios.');
-  return (body.blocks as TimeBlock[]).sort((left, right) => left.startAt.localeCompare(right.startAt));
+  let body: { blocks?: TimeBlock[]; error?: string } | null = null;
+  try {
+    body = await response.json();
+  } catch {
+    // corpo não é JSON válido
+  }
+  if (!response.ok) throw new Error(body?.error ?? `Não foi possível carregar os bloqueios (status ${response.status}).`);
+  return ((body?.blocks as TimeBlock[]) || []).sort((left, right) => left.startAt.localeCompare(right.startAt));
 }
 
 async function fetchGroupSessions(from: string, to: string, signal?: AbortSignal): Promise<GroupSession[]> {
   const params = new URLSearchParams({ from, to });
   const response = await fetch('/api/admin/group-sessions?' + params, { cache: 'no-store', signal });
-  const body = await response.json().catch(() => null);
+  let body: { sessions?: GroupSession[]; error?: string } | null = null;
+  try {
+    body = await response.json();
+  } catch {
+    // corpo não é JSON válido
+  }
   if (!response.ok || !body?.sessions) return [];
   return (body.sessions as GroupSession[]).filter((s) => s.status !== 'cancelado');
 }
@@ -1879,7 +1894,24 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
             }
           }}
         >
-          {message && <div className="gcal-toast" role="status"><CheckCircle2 size={17} /> {message}</div>}
+          {message && (
+            <div
+              className="gcal-toast"
+              role="status"
+              style={
+                /erro|não foi|falha|failed|inválid/i.test(message)
+                  ? { background: '#991b1b', color: '#fff', borderColor: '#7f1d1d' }
+                  : undefined
+              }
+            >
+              {/erro|não foi|falha|failed|inválid/i.test(message) ? (
+                <AlertTriangle size={17} style={{ color: '#fca5a5' }} />
+              ) : (
+                <CheckCircle2 size={17} />
+              )}{' '}
+              {message}
+            </div>
+          )}
 
           {/* Alerta de Solicitações de Agendamento Online Pendentes */}
           {pendingRequests.length > 0 && (
