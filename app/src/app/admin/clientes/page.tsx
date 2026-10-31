@@ -158,6 +158,27 @@ export default function ClientesPage() {
   const [anamneseLinkCopied, setAnamneseLinkCopied] = useState(false);
   const [deletingLoading, setDeletingLoading] = useState(false);
 
+  // Cobrança automática via API WhatsApp
+  const [chargingClientId, setChargingClientId] = useState<string | null>(null);
+
+  async function handleAutomaticCharge(clientId: string, clientName: string) {
+    setChargingClientId(clientId);
+    try {
+      const res = await fetch(`/api/admin/clients/${clientId}/whatsapp-charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao disparar cobrança.');
+      setSuccessMsg(`✓ Mensagem de cobrança enviada automaticamente no WhatsApp de ${clientName.split(' ')[0]}!`);
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao disparar cobrança.');
+    } finally {
+      setChargingClientId(null);
+    }
+  }
+
   const load = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/clients?status=todos', { cache: 'no-store' });
@@ -1352,11 +1373,11 @@ export default function ClientesPage() {
                         </Link>
 
                         {client.isInadimplente && (
-                          <a
-                            href={buildWaChargeUrl(client)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Cobrar fatura vencida no WhatsApp"
+                          <button
+                            type="button"
+                            onClick={() => handleAutomaticCharge(client.id, client.name)}
+                            disabled={chargingClientId === client.id}
+                            title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1368,12 +1389,14 @@ export default function ClientesPage() {
                               background: '#fee2e2',
                               color: '#b91c1c',
                               border: '1.5px solid #f87171',
-                              textDecoration: 'none',
+                              cursor: chargingClientId === client.id ? 'wait' : 'pointer',
                               boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
+                              opacity: chargingClientId === client.id ? 0.7 : 1,
                             }}
                           >
-                            <WhatsappIcon size={14} color="#b91c1c" /> Cobrar
-                          </a>
+                            <WhatsappIcon size={14} color="#b91c1c" />
+                            {chargingClientId === client.id ? 'Enviando...' : 'Cobrar'}
+                          </button>
                         )}
 
                         <button
@@ -1631,10 +1654,11 @@ export default function ClientesPage() {
                 >
                   <div style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                     {client.isInadimplente && (
-                      <a
-                        href={buildWaChargeUrl(client)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handleAutomaticCharge(client.id, client.name)}
+                        disabled={chargingClientId === client.id}
+                        title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1646,12 +1670,14 @@ export default function ClientesPage() {
                           border: '1.5px solid #f87171',
                           fontSize: '0.74rem',
                           fontWeight: 800,
-                          textDecoration: 'none',
+                          cursor: chargingClientId === client.id ? 'wait' : 'pointer',
                           boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
+                          opacity: chargingClientId === client.id ? 0.7 : 1,
                         }}
                       >
-                        <WhatsappIcon size={14} color="#b91c1c" /> Cobrar
-                      </a>
+                        <WhatsappIcon size={14} color="#b91c1c" />
+                        {chargingClientId === client.id ? 'Enviando...' : 'Cobrar'}
+                      </button>
                     )}
                     {waUrl && (
                       <a
@@ -1965,10 +1991,11 @@ export default function ClientesPage() {
                     </p>
                   </div>
 
-                  <a
-                    href={buildWaChargeUrl(viewingClient)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => handleAutomaticCharge(viewingClient.id, viewingClient.name)}
+                    disabled={chargingClientId === viewingClient.id}
+                    title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1979,13 +2006,15 @@ export default function ClientesPage() {
                       color: '#ffffff',
                       fontSize: '0.8rem',
                       fontWeight: 800,
-                      textDecoration: 'none',
+                      border: 'none',
+                      cursor: chargingClientId === viewingClient.id ? 'wait' : 'pointer',
                       boxShadow: '0 4px 10px rgba(220, 38, 38, 0.3)',
+                      opacity: chargingClientId === viewingClient.id ? 0.7 : 1,
                     }}
                   >
                     <WhatsappIcon size={16} color="#ffffff" />
-                    Cobrar Fatura no WhatsApp
-                  </a>
+                    {chargingClientId === viewingClient.id ? 'Enviando no WhatsApp...' : 'Cobrar Fatura no WhatsApp'}
+                  </button>
                 </div>
               )}
 

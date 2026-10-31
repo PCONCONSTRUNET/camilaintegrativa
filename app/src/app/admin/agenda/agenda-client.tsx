@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
 import type {
   DragEvent as ReactDragEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -40,7 +41,7 @@ import {
   AlertTriangle,
   X,
 } from 'lucide-react';
-import type { AppointmentStatus, AppointmentSummary, TimeBlock } from '@/lib/domain';
+import type { AppointmentStatus, AppointmentSummary, TimeBlock, GroupSession } from '@/lib/domain';
 import { STATUS_COLORS, STATUS_LABELS, formatCurrency } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { AdminNotificationBell } from '@/components/admin-notification-bell';
@@ -394,6 +395,30 @@ async function fetchTimeBlocks(from: string, to: string, signal?: AbortSignal) {
   return (body.blocks as TimeBlock[]).sort((left, right) => left.startAt.localeCompare(right.startAt));
 }
 
+async function fetchGroupSessions(from: string, to: string, signal?: AbortSignal): Promise<GroupSession[]> {
+  const params = new URLSearchParams({ from, to });
+  const response = await fetch('/api/admin/group-sessions?' + params, { cache: 'no-store', signal });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.sessions) return [];
+  return (body.sessions as GroupSession[]).filter((s) => s.status !== 'cancelado');
+}
+
+function groupSessionPosition(session: GroupSession) {
+  const [sh, sm] = (session.startTime.slice(0, 5)).split(':').map(Number);
+  const startMinutes = (Number.isNaN(sh) ? 0 : sh) * 60 + (Number.isNaN(sm) ? 0 : sm);
+  let endMinutes = startMinutes + (session.durationMinutes || 60);
+  if (session.endTime) {
+    const [eh, em] = (session.endTime.slice(0, 5)).split(':').map(Number);
+    const parsedEnd = (Number.isNaN(eh) ? 0 : eh) * 60 + (Number.isNaN(em) ? 0 : em);
+    if (parsedEnd > startMinutes) endMinutes = parsedEnd;
+  }
+  const duration = Math.max(30, endMinutes - startMinutes);
+  return {
+    top: (startMinutes / 60) * HOUR_HEIGHT,
+    height: Math.max(22, (duration / 60) * HOUR_HEIGHT - 3),
+  };
+}
+
 export default function AgendaClient({ initialDate, canManageAgenda }: { initialDate: string; canManageAgenda: boolean }) {
   const [view, setView] = useState<AgendaView>('week');
   const [anchorDate, setAnchorDate] = useState(initialDate);
@@ -411,10 +436,36 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   const sidebarOpen = compactSidebar ? mobileSidebarOpen : desktopSidebarOpen;
   const initialCachedAppointments = getInstantCache<AppointmentSummary[]>('admin_agenda_appointments', []);
   const initialCachedBlocks = getInstantCache<TimeBlock[]>('admin_agenda_blocks', []);
+  const initialCachedGroupSessions = getInstantCache<GroupSession[]>('admin_agenda_group_sessions', []);
   const [appointments, setAppointments] = useState<AppointmentSummary[]>(() => initialCachedAppointments);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => initialCachedBlocks);
+  const [groupSessions, setGroupSessions] = useState<GroupSession[]>(() => initialCachedGroupSessions);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedGroupSessionId, setSelectedGroupSessionId] = useState<string | null>(null);
+
+  // Cobrança automática de inadimplência via API
+  const [chargingClientId, setChargingClientId] = useState<string | null>(null);
+  const [chargeSuccessMsg, setChargeSuccessMsg] = useState<string | null>(null);
+
+  async function handleAutomaticCharge(clientId: string) {
+    setChargingClientId(clientId);
+    setChargeSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/admin/clients/${clientId}/whatsapp-charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao disparar cobrança.');
+      setChargeSuccessMsg('✓ Mensagem enviada automaticamente no WhatsApp!');
+      setTimeout(() => setChargeSuccessMsg(null), 5000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao disparar cobrança.');
+    } finally {
+      setChargingClientId(null);
+    }
+  }
   const [quickSlot, setQuickSlot] = useState<QuickAppointmentSlot | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<AppointmentSummary | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -492,12 +543,23 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     }
     return grouped;
   }, [timeBlocks, visibleRange]);
+  const groupSessionsByDate = useMemo(() => {
+    const grouped = new Map<string, GroupSession[]>();
+    const q = searchQuery.trim().toLowerCase();
+    for (const session of groupSessions) {
+      if (session.status === 'cancelado') continue;
+      if (q && !session.title.toLowerCase().includes(q)) continue;
+      grouped.set(session.date, [...(grouped.get(session.date) ?? []), session]);
+    }
+    return grouped;
+  }, [groupSessions, searchQuery]);
   const listDates = useMemo(
-    () => [...new Set([...appointmentsByDate.keys(), ...blocksByDate.keys()])].sort((left, right) => left.localeCompare(right)),
-    [appointmentsByDate, blocksByDate],
+    () => [...new Set([...appointmentsByDate.keys(), ...blocksByDate.keys(), ...groupSessionsByDate.keys()])].sort((left, right) => left.localeCompare(right)),
+    [appointmentsByDate, blocksByDate, groupSessionsByDate],
   );
   const selectedAppointment = appointments.find((appointment) => appointment.id === selectedId) ?? null;
   const selectedBlock = timeBlocks.find((block) => block.id === selectedBlockId) ?? null;
+  const selectedGroupSession = groupSessions.find((session) => session.id === selectedGroupSessionId) ?? null;
   const nowKey = eventDateKey(now.toISOString());
   const nowParts = timeParts(now.toISOString());
   const nowTop = ((nowParts.hour * 60 + nowParts.minute) / 60) * HOUR_HEIGHT;
@@ -545,12 +607,15 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     Promise.all([
       fetchAppointments(visibleRange.from, visibleRange.to, controller.signal),
       fetchTimeBlocks(visibleRange.from, visibleRange.to, controller.signal),
+      fetchGroupSessions(visibleRange.from, visibleRange.to, controller.signal),
     ])
-      .then(([nextAppointments, nextBlocks]) => {
+      .then(([nextAppointments, nextBlocks, nextGroupSessions]) => {
         setAppointments(nextAppointments);
         setTimeBlocks(nextBlocks);
+        setGroupSessions(nextGroupSessions);
         setInstantCache('admin_agenda_appointments', nextAppointments);
         setInstantCache('admin_agenda_blocks', nextBlocks);
+        setInstantCache('admin_agenda_group_sessions', nextGroupSessions);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -576,16 +641,19 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     setMessage('');
     setSelectedId(null);
     setSelectedBlockId(null);
+    setSelectedGroupSessionId(null);
     const nextRange = getViewRange(nextView, nextDate);
     if (!nextRange) {
       setAppointments([]);
       setTimeBlocks([]);
+      setGroupSessions([]);
       setLoading(false);
       return;
     }
     if (rangeKey(nextView, nextDate) !== requestKey) {
       setAppointments([]);
       setTimeBlocks([]);
+      setGroupSessions([]);
       setLoading(true);
     }
   }
@@ -1227,6 +1295,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
             {dates.map((date) => {
               const dayAppointments = appointmentsByDate.get(date) ?? [];
               const dayBlocks = blocksByDate.get(date) ?? [];
+              const dayGroupSessions = groupSessionsByDate.get(date) ?? [];
               const moveAppointment = moveDraft
                 ? appointments.find((appointment) => appointment.id === moveDraft.appointmentId) ?? null
                 : null;
@@ -1282,6 +1351,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                           setQuickSlot(null);
                           setSelectedId(null);
                           setSelectedBlockId(block.id);
+                          setSelectedGroupSessionId(null);
                         }}
                         title={block.reason}
                         key={block.id + ':' + date}
@@ -1290,6 +1360,45 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                         <strong>{block.reason}</strong>
                         <small>{fullDay ? 'Dia bloqueado' : formatTime(block.startAt) + ' – ' + formatTime(block.endAt)}</small>
                       </button>
+                    );
+                  })}
+                  {dayGroupSessions.map((session) => {
+                    const pos = groupSessionPosition(session);
+                    return (
+                      <div
+                        className={'gcal-time-group-session' + (selectedGroupSessionId === session.id ? ' is-selected' : '')}
+                        style={pos}
+                        key={session.id + ':' + date}
+                      >
+                        <button
+                          type="button"
+                          className="gcal-time-event-content"
+                          title={session.title + ' (' + session.startTime.slice(0, 5) + ' - ' + (session.endTime ? session.endTime.slice(0, 5) : '...') + ')'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setQuickSlot(null);
+                            setSelectedId(null);
+                            setSelectedBlockId(null);
+                            setSelectedGroupSessionId(session.id);
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
+                            <span className="gcal-group-pill-badge">
+                              <Users size={9} /> Grupo
+                            </span>
+                            <small style={{ fontSize: '9.5px', fontWeight: 700, color: '#6d28d9' }}>
+                              {session.startTime.slice(0, 5)}{session.endTime ? ` - ${session.endTime.slice(0, 5)}` : ''}
+                            </small>
+                          </div>
+                          <strong>{session.title}</strong>
+                          <div className="gcal-event-footer-row">
+                            <small>
+                              {session.currentParticipants} {session.currentParticipants === 1 ? 'inscrito' : 'inscritos'}
+                              {session.maxParticipants ? ` / ${session.maxParticipants} vagas` : ' (Ilimitada)'}
+                            </small>
+                          </div>
+                        </button>
+                      </div>
                     );
                   })}
                   {moveDraft?.date === date && moveAppointment && (
@@ -1778,7 +1887,8 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                   {monthDates.map((date) => {
                     const dayAppointments = appointmentsByDate.get(date) ?? [];
                     const dayBlocks = blocksByDate.get(date) ?? [];
-                    const visibleAppointments = dayAppointments.slice(0, dayBlocks.length ? 2 : 3);
+                    const dayGroupSessions = groupSessionsByDate.get(date) ?? [];
+                    const visibleAppointments = dayAppointments.slice(0, dayBlocks.length || dayGroupSessions.length ? 2 : 3);
                     const hiddenItems = Math.max(0, dayAppointments.length - visibleAppointments.length) + Math.max(0, dayBlocks.length - 1);
                     return (
                       <div className={'gcal-month-day' + (date.slice(0, 7) !== anchorDate.slice(0, 7) ? ' is-outside' : '')} key={date}>
@@ -1786,6 +1896,22 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                           {Number(date.slice(-2))}
                         </button>
                         <div className="gcal-month-events">
+                          {dayGroupSessions.slice(0, 1).map((session) => (
+                            <button
+                              type="button"
+                              className={'gcal-month-event is-group' + (selectedGroupSessionId === session.id ? ' is-selected' : '')}
+                              onClick={() => {
+                                setSelectedBlockId(null);
+                                setSelectedId(null);
+                                setSelectedGroupSessionId(session.id);
+                              }}
+                              title={'Sessão em Grupo: ' + session.title}
+                              key={session.id}
+                            >
+                              <Users size={10} />
+                              <span>{session.title}</span>
+                            </button>
+                          ))}
                           {dayBlocks.slice(0, 1).map((block) => (
                             <button
                               type="button"
@@ -1793,6 +1919,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                               onClick={() => {
                                 setSelectedId(null);
                                 setSelectedBlockId(block.id);
+                                setSelectedGroupSessionId(null);
                               }}
                               title={'Bloqueado: ' + block.reason}
                               key={block.id}
@@ -1806,6 +1933,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                               className={'gcal-month-event event-' + appointment.status + (appointment.bookingKind === 'encaixe' ? ' is-fit-in' : '') + (selectedId === appointment.id ? ' is-selected' : '')}
                               onClick={() => {
                                 setSelectedBlockId(null);
+                                setSelectedGroupSessionId(null);
                                 setSelectedId(appointment.id);
                               }}
                               title={formatTime(appointment.startAt) + ' — ' + appointment.clientName + ' — ' + appointment.serviceName}
@@ -1852,6 +1980,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                 {listDates.map((date) => {
                   const dayAppointments = appointmentsByDate.get(date) ?? [];
                   const dayBlocks = blocksByDate.get(date) ?? [];
+                  const dayGroupSessions = groupSessionsByDate.get(date) ?? [];
                   return (
                     <section className="gcal-list-day" key={date}>
                       <button type="button" className={'gcal-list-date' + (date === initialDate ? ' is-today' : '')} onClick={() => openDate(date, 'day')}>
@@ -1859,9 +1988,35 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                         <span>{formatFullDate(date, false)}</span>
                       </button>
                       <div className="gcal-list-items">
+                        {dayGroupSessions.map((session) => (
+                          <button
+                            type="button"
+                            className={'gcal-list-item is-group-session' + (selectedGroupSessionId === session.id ? ' is-selected' : '')}
+                            onClick={() => {
+                              setSelectedBlockId(null);
+                              setSelectedId(null);
+                              setSelectedGroupSessionId(session.id);
+                            }}
+                            key={session.id}
+                          >
+                            <time><strong>{session.startTime.slice(0, 5)}</strong><span>{session.endTime ? session.endTime.slice(0, 5) : '...'}</span></time>
+                            <i style={{ background: '#7c3aed' }} />
+                            <span className="gcal-list-main">
+                              <strong style={{ color: '#4c1d95', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Users size={13} color="#7c3aed" /> {session.title}
+                              </strong>
+                              <small>Sessão Coletiva · {session.currentParticipants} inscritos {session.maxParticipants ? `de ${session.maxParticipants}` : ''}</small>
+                            </span>
+                            <span className="gcal-list-modality">{session.modality === 'online' ? <Monitor size={14} /> : <MapPin size={14} />}{session.modality}</span>
+                            <span className="badge" style={{ background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
+                              Grupo ({session.currentParticipants})
+                            </span>
+                          </button>
+                        ))}
                         {dayBlocks.map((block) => (
                           <button type="button" className={'gcal-list-block' + (selectedBlockId === block.id ? ' is-selected' : '')} onClick={() => {
                             setSelectedId(null);
+                            setSelectedGroupSessionId(null);
                             setSelectedBlockId(block.id);
                           }} key={block.id}>
                             <span className="gcal-list-block-time"><LockKeyhole size={15} /> Bloqueio</span>
@@ -1872,6 +2027,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                         {dayAppointments.map((appointment) => (
                           <button type="button" className={'gcal-list-item' + (appointment.bookingKind === 'encaixe' ? ' is-fit-in' : '') + (selectedId === appointment.id ? ' is-selected' : '')} onClick={() => {
                             setSelectedBlockId(null);
+                            setSelectedGroupSessionId(null);
                             setSelectedId(appointment.id);
                           }} key={appointment.id}>
                             <time><strong>{formatTime(appointment.startAt)}</strong><span>{formatTime(appointment.endAt)}</span></time>
@@ -2153,13 +2309,14 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
         </div>
       )}
 
-      {compactSidebar && (selectedAppointment || selectedBlock) && (
+      {compactSidebar && (selectedAppointment || selectedBlock || selectedGroupSession) && (
         <button
           type="button"
           className="gcal-popover-backdrop"
           onClick={() => {
             setSelectedId(null);
             setSelectedBlockId(null);
+            setSelectedGroupSessionId(null);
           }}
           aria-label="Fechar detalhes"
         />
@@ -2241,45 +2398,52 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                 background: '#fef2f2',
                 border: '1.5px solid #fca5a5',
                 fontSize: '0.78rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '8px',
               }}
             >
-              <div>
-                <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <AlertTriangle size={14} color="#dc2626" />
-                  Cliente Inadimplente
-                </strong>
-                <span style={{ fontSize: '0.72rem', color: '#b91c1c', display: 'block', marginTop: '2px' }}>
-                  {formatCurrency(selectedAppointment.clientOverdueBalanceCents || 0)} em atraso
-                  {selectedAppointment.clientDaysOverdue ? ` (${selectedAppointment.clientDaysOverdue}d de atraso)` : ''}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div>
+                  <strong style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertTriangle size={14} color="#dc2626" />
+                    Cliente Inadimplente
+                  </strong>
+                  <span style={{ fontSize: '0.72rem', color: '#b91c1c', display: 'block', marginTop: '2px' }}>
+                    {formatCurrency(selectedAppointment.clientOverdueBalanceCents || 0)} em atraso
+                    {selectedAppointment.clientDaysOverdue ? ` (${selectedAppointment.clientDaysOverdue}d de atraso)` : ''}
+                  </span>
+                </div>
+                {selectedAppointment.clientPhone && (
+                  <button
+                    type="button"
+                    disabled={chargingClientId === selectedAppointment.clientId}
+                    onClick={() => handleAutomaticCharge(selectedAppointment.clientId)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '999px',
+                      background: '#dc2626',
+                      color: '#ffffff',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      border: 'none',
+                      cursor: chargingClientId === selectedAppointment.clientId ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)',
+                      opacity: chargingClientId === selectedAppointment.clientId ? 0.75 : 1,
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
+                  >
+                    {chargingClientId === selectedAppointment.clientId ? 'Enviando...' : 'Cobrar'}
+                  </button>
+                )}
               </div>
-              {selectedAppointment.clientPhone && (
-                <a
-                  href={`https://wa.me/${selectedAppointment.clientPhone.replace(/\D/g, '').startsWith('55') ? selectedAppointment.clientPhone.replace(/\D/g, '') : `55${selectedAppointment.clientPhone.replace(/\D/g, '')}`}?text=${encodeURIComponent(
-                    `Olá, ${selectedAppointment.clientName.split(' ')[0]}! 📄 Passando para lembrar do seu saldo em aberto de ${formatCurrency(selectedAppointment.clientOverdueBalanceCents || 0)} referente ao seu atendimento. Chave PIX: (48) 99691-5303 (Camila Machado). Qualquer dúvida, estou à disposição! ✨`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: '4px 9px',
-                    borderRadius: '999px',
-                    background: '#dc2626',
-                    color: '#ffffff',
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    flexShrink: 0,
-                  }}
-                >
-                  Cobrar
-                </a>
+              {chargeSuccessMsg && (
+                <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#15803d', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={13} color="#15803d" />
+                  {chargeSuccessMsg}
+                </div>
               )}
             </div>
           )}
@@ -2343,6 +2507,40 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           </div>
           <div className="gcal-popover-actions">
             {canManageAgenda && <button type="button" className="btn btn-ghost btn-sm danger-text" onClick={() => void deleteTimeBlock(selectedBlock)}><Trash2 size={14} /> Remover bloqueio</button>}
+          </div>
+        </aside>
+      )}
+
+      {selectedGroupSession && (
+        <aside className="gcal-event-popover gcal-group-session-popover" aria-label="Detalhes da sessão em grupo">
+          <div className="gcal-popover-heading">
+            <span className="gcal-popover-color gcal-group-popover-color" />
+            <button type="button" className="gcal-icon-button" onClick={() => setSelectedGroupSessionId(null)} aria-label="Fechar detalhes"><X size={19} /></button>
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', background: '#f5f3ff', color: '#7c3aed', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
+            <Users size={13} /> Sessão em Grupo
+          </div>
+          <h2>{selectedGroupSession.title}</h2>
+          <p className="gcal-popover-client" style={{ fontSize: '0.9rem', color: '#475569', marginTop: '2px' }}>
+            {selectedGroupSession.description || 'Sessão terapêutica coletiva'}
+          </p>
+          <div className="gcal-popover-meta">
+            <span><CalendarDays size={16} /> {formatFullDate(selectedGroupSession.date)}</span>
+            <span><Clock3 size={16} /> {selectedGroupSession.startTime.slice(0, 5)} – {selectedGroupSession.endTime ? selectedGroupSession.endTime.slice(0, 5) : 'Fim programado'}</span>
+            <span><Users size={16} /> {selectedGroupSession.currentParticipants} inscritos {selectedGroupSession.maxParticipants ? `(máx ${selectedGroupSession.maxParticipants})` : '(Ilimitada)'}</span>
+            <span>{selectedGroupSession.modality === 'online' ? <Monitor size={16} /> : <MapPin size={16} />} {selectedGroupSession.modality === 'online' ? 'Online' : (selectedGroupSession.locationNotes || 'Presencial')}</span>
+            {selectedGroupSession.priceCents != null && (
+              <span>💰 {formatCurrency(selectedGroupSession.priceCents)}</span>
+            )}
+          </div>
+          <div className="gcal-popover-actions">
+            <Link
+              href="/admin/sessoes-grupo"
+              className="btn btn-primary btn-sm"
+              style={{ background: '#7c3aed', borderColor: '#7c3aed', color: '#fff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Users size={14} /> Ver Inscritos & Presença
+            </Link>
           </div>
         </aside>
       )}

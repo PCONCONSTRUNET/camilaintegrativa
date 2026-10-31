@@ -39,6 +39,7 @@ import type { NoteItem, NoteFolder, NoteAttachment } from '@/lib/notes-repositor
 import { uploadImageToStorage, getSafeFileUrl } from '@/lib/image-storage';
 import { uploadDocumentToR2Api } from '@/lib/document-upload-client';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
+import { getInstantCache, setInstantCache } from '@/lib/client-cache';
 
 // Ícones disponíveis para as pastas
 const FOLDER_ICONS: Record<string, typeof Folder> = {
@@ -120,9 +121,11 @@ function formatDate(iso: string): string {
 }
 
 export default function AnotacoesPage() {
-  const [notes, setNotes] = useState<NoteItem[]>([]);
-  const [folders, setFolders] = useState<NoteFolder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCachedNotes = getInstantCache<NoteItem[]>('admin_notes', []);
+  const initialCachedFolders = getInstantCache<NoteFolder[]>('admin_folders', []);
+  const [notes, setNotes] = useState<NoteItem[]>(() => initialCachedNotes);
+  const [folders, setFolders] = useState<NoteFolder[]>(() => initialCachedFolders);
+  const [loading, setLoading] = useState(() => initialCachedNotes.length === 0 && initialCachedFolders.length === 0);
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
@@ -177,12 +180,18 @@ export default function AnotacoesPage() {
   // Carregar anotações e pastas
   async function loadData() {
     try {
-      setLoading(true);
+      if (notes.length === 0 && folders.length === 0) {
+        setLoading(true);
+      }
       const res = await fetch('/api/admin/notes');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar dados');
-      setNotes(data.notes || []);
-      setFolders(data.folders || []);
+      const incomingNotes: NoteItem[] = data.notes || [];
+      const incomingFolders: NoteFolder[] = data.folders || [];
+      setNotes(incomingNotes);
+      setFolders(incomingFolders);
+      setInstantCache('admin_notes', incomingNotes);
+      setInstantCache('admin_folders', incomingFolders);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar anotações.');
     } finally {
@@ -1787,7 +1796,7 @@ export default function AnotacoesPage() {
           </div>
         )}
 
-        {loading ? (
+        {loading && notes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
             <NotebookPen size={36} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
             <p>Carregando anotações da clínica...</p>

@@ -4582,6 +4582,8 @@ function calcDurationFromStartEnd(startTime: string, endTime?: string | null): n
 export async function listGroupSessions(filters?: {
   status?: string;
   published?: boolean;
+  from?: string;
+  to?: string;
 }): Promise<import('./domain').GroupSession[]> {
   await ensureGroupSessionTables();
   const database = getDatabase();
@@ -4604,6 +4606,14 @@ export async function listGroupSessions(filters?: {
   if (filters?.published !== undefined) {
     query += ` AND gs.published = ?`;
     params.push(filters.published ? 1 : 0);
+  }
+  if (filters?.from) {
+    query += ` AND gs.date >= ?`;
+    params.push(filters.from);
+  }
+  if (filters?.to) {
+    query += ` AND gs.date <= ?`;
+    params.push(filters.to);
   }
   query += ` ORDER BY gs.date ASC, gs.start_time ASC`;
   const rows = (await database.prepare(query).all(...params)) as Record<string, unknown>[];

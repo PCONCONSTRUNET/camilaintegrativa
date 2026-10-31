@@ -45,6 +45,7 @@ import {
   WhatsappTriggerType,
 } from '@/lib/whatsapp-templates';
 import { useConfirmDialog } from '@/components/confirm-dialog';
+import { getInstantCache, setInstantCache } from '@/lib/client-cache';
 
 const TRIGGER_ORDER: WhatsappTriggerType[] = [
   'sessao_agendada',
@@ -197,7 +198,8 @@ type ClinicBackupSummary = {
 };
 
 export default function ConfiguracoesPage() {
-  const [loading, setLoading] = useState(true);
+  const cachedData = getInstantCache<any>('admin_whatsapp_settings', null);
+  const [loading, setLoading] = useState(() => !cachedData);
   const [saving, setSaving] = useState(false);
   const [checking24h, setChecking24h] = useState(false);
   const [checkingOverdue, setCheckingOverdue] = useState(false);
@@ -215,28 +217,28 @@ export default function ConfiguracoesPage() {
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
 
   // Settings state
-  const [enabled, setEnabled] = useState(true);
-  const [providerType, setProviderType] = useState<WhatsappProviderType>('evolution');
-  const [apiBaseUrl, setApiBaseUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [instanceName, setInstanceName] = useState('clinica-camila');
-  const [adminNotifyPhone, setAdminNotifyPhone] = useState('');
-  const [notifyOwnerOnCancel, setNotifyOwnerOnCancel] = useState(true);
-  const [notifyOwnerOnPayment, setNotifyOwnerOnPayment] = useState(true);
-  const [templates, setTemplates] = useState<WhatsappTemplatesMap>(DEFAULT_WHATSAPP_TEMPLATES);
+  const [enabled, setEnabled] = useState<boolean>(() => cachedData?.settings?.enabled ?? true);
+  const [providerType, setProviderType] = useState<WhatsappProviderType>('webhook_custom');
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => cachedData?.settings?.apiBaseUrl || '');
+  const [apiKey, setApiKey] = useState<string>(() => cachedData?.settings?.apiKey || '');
+  const [instanceName, setInstanceName] = useState<string>(() => cachedData?.settings?.instanceName || 'clinica-camila');
+  const [adminNotifyPhone, setAdminNotifyPhone] = useState<string>(() => cachedData?.settings?.adminNotifyPhone || '');
+  const [notifyOwnerOnCancel, setNotifyOwnerOnCancel] = useState<boolean>(() => cachedData?.settings?.notifyOwnerOnCancel ?? true);
+  const [notifyOwnerOnPayment, setNotifyOwnerOnPayment] = useState<boolean>(() => cachedData?.settings?.notifyOwnerOnPayment ?? true);
+  const [templates, setTemplates] = useState<WhatsappTemplatesMap>(() => cachedData?.settings?.templates || DEFAULT_WHATSAPP_TEMPLATES);
 
   // Logs & stats
-  const [logs, setLogs] = useState<WhatsappMessageLog[]>([]);
-  const [upcoming24hCount, setUpcoming24hCount] = useState(0);
-  const [overdueInvoicesCount, setOverdueInvoicesCount] = useState(0);
+  const [logs, setLogs] = useState<WhatsappMessageLog[]>(() => cachedData?.logs || []);
+  const [upcoming24hCount, setUpcoming24hCount] = useState<number>(() => cachedData?.upcoming24hCount ?? 0);
+  const [overdueInvoicesCount, setOverdueInvoicesCount] = useState<number>(() => cachedData?.overdueInvoicesCount ?? 0);
 
   // Test bar state
-  const [testPhone, setTestPhone] = useState('');
+  const [testPhone, setTestPhone] = useState<string>(() => cachedData?.settings?.adminNotifyPhone || '');
   const [testClientName, setTestClientName] = useState('Lucas Pereira de Souza');
   const [testTrigger, setTestTrigger] = useState<WhatsappTriggerType>('sessao_agendada');
 
   // QR Code & Session connection state
-  const [qrEndpointOverride, setQrEndpointOverride] = useState('');
+  const [qrEndpointOverride, setQrEndpointOverride] = useState<string>(() => cachedData?.settings?.qrEndpoint || '');
   const [qrLoading, setQrLoading] = useState<'qrcode' | 'status' | 'disconnect' | null>(null);
   const [qrState, setQrState] = useState<{
     status: 'idle' | 'connected' | 'qrcode' | 'connecting' | 'disconnected' | 'error';
@@ -246,7 +248,19 @@ export default function ConfiguracoesPage() {
     profileName?: string | null;
     message?: string;
     simulated?: boolean;
-  }>({ status: 'idle' });
+  }>(() => {
+    if (cachedData?.connectionStatus?.status === 'connected') {
+      return {
+        status: 'connected',
+        qrImageUrl: null,
+        connectedPhone: cachedData.connectionStatus.connectedPhone ?? null,
+        profileName: cachedData.connectionStatus.profileName ?? null,
+        message: cachedData.connectionStatus.message || 'WhatsApp Conectado e ativo na API!',
+        simulated: false,
+      };
+    }
+    return { status: 'idle' };
+  });
 
   // Toast feedback
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -259,12 +273,12 @@ export default function ConfiguracoesPage() {
   }, []);
 
   const loadSettings = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch('/api/admin/whatsapp-settings', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar configurações.');
 
+      setInstantCache('admin_whatsapp_settings', data);
       const s: WhatsappAutomationSettings = data.settings;
       setEnabled(s.enabled);
       setProviderType('webhook_custom');
@@ -706,25 +720,6 @@ export default function ConfiguracoesPage() {
     () => TRIGGER_ORDER.filter((k) => templates[k]?.enabled).length,
     [templates]
   );
-
-  if (loading) {
-    return (
-      <div style={{ padding: '32px 24px', maxWidth: '1240px', margin: '0 auto' }}>
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            padding: '48px 24px',
-            textAlign: 'center',
-            border: '1px solid #e2e8f0',
-            color: '#64748b',
-          }}
-        >
-          Carregando central de lembretes automáticos e integrações WhatsApp...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ padding: '20px 20px 60px', maxWidth: '1260px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>

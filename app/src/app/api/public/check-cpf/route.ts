@@ -76,3 +76,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ found: false, error: 'Erro ao consultar CPF' }, { status: 500 });
   }
 }
+
