@@ -167,52 +167,60 @@ export async function sendOneSignalPush(payload: SendPushPayload): Promise<{
     const onesignalId = data.id || null;
     const recipients = Number(data.recipients || 0);
 
-    await db
-      .prepare(
-        `INSERT INTO push_notification_logs (
-          id, clinic_id, target_type, target_id, title, message, url, status,
-          recipients_count, onesignal_id, error_message, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        logId,
-        IDS.clinic,
-        targetTypeStr,
-        targetIdStr,
-        titleClean,
-        messageClean,
-        urlClean,
-        'enviado',
-        recipients,
-        onesignalId,
-        null,
-        now
-      );
+    try {
+      await db
+        .prepare(
+          `INSERT INTO push_notification_logs (
+            id, clinic_id, target_type, target_id, title, message, url, status,
+            recipients_count, onesignal_id, error_message, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          logId,
+          IDS.clinic,
+          targetTypeStr,
+          targetIdStr,
+          titleClean,
+          messageClean,
+          urlClean,
+          'enviado',
+          recipients,
+          onesignalId,
+          null,
+          now
+        );
+    } catch (logErr) {
+      console.warn('[OneSignal] Aviso ao registrar log de sucesso:', logErr);
+    }
 
     return { ok: true, onesignalId, recipients };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro de rede ao conectar com OneSignal.';
-    await db
-      .prepare(
-        `INSERT INTO push_notification_logs (
-          id, clinic_id, target_type, target_id, title, message, url, status,
-          recipients_count, onesignal_id, error_message, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        logId,
-        IDS.clinic,
-        targetTypeStr,
-        targetIdStr,
-        titleClean,
-        messageClean,
-        urlClean,
-        'erro',
-        0,
-        null,
-        msg,
-        now
-      );
+    try {
+      await db
+        .prepare(
+          `INSERT INTO push_notification_logs (
+            id, clinic_id, target_type, target_id, title, message, url, status,
+            recipients_count, onesignal_id, error_message, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          logId,
+          IDS.clinic,
+          targetTypeStr,
+          targetIdStr,
+          titleClean,
+          messageClean,
+          urlClean,
+          'erro',
+          0,
+          null,
+          msg,
+          now
+        );
+    } catch (logErr) {
+      console.warn('[OneSignal] Aviso ao registrar log de erro:', logErr);
+    }
 
     return { ok: false, error: msg };
   }
@@ -222,20 +230,25 @@ export async function sendOneSignalPush(payload: SendPushPayload): Promise<{
  * Lista histórico de envios de Push
  */
 export async function listPushNotificationLogs(limit = 40): Promise<PushNotificationLog[]> {
-  await ensurePushTables();
-  const db = getDatabase();
-  const rows = (await db
-    .prepare(
-      `SELECT id, clinic_id as "clinicId", target_type as "targetType", target_id as "targetId",
-              title, message, url, status, recipients_count as "recipientsCount",
-              onesignal_id as "onesignalId", error_message as "errorMessage", created_at as "createdAt"
-       FROM push_notification_logs
-       WHERE clinic_id = ?
-       ORDER BY created_at DESC
-       LIMIT ?`
-    )
-    .all(IDS.clinic, limit)) as PushNotificationLog[];
+  try {
+    await ensurePushTables();
+    const db = getDatabase();
+    const rows = (await db
+      .prepare(
+        `SELECT id, clinic_id as "clinicId", target_type as "targetType", target_id as "targetId",
+                title, message, url, status, recipients_count as "recipientsCount",
+                onesignal_id as "onesignalId", error_message as "errorMessage", created_at as "createdAt"
+         FROM push_notification_logs
+         WHERE clinic_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`
+      )
+      .all(IDS.clinic, limit)) as PushNotificationLog[];
 
-  return rows;
+    return rows;
+  } catch (err) {
+    console.warn('[OneSignal] Falha ao listar logs de push:', err);
+    return [];
+  }
 }
 

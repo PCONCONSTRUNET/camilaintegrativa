@@ -17,14 +17,14 @@ function formatCurrency(cents: number): string {
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ clientId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
   }
 
-  const { clientId } = await context.params;
+  const { id: clientId } = await context.params;
 
   try {
     const db = getDatabase();
