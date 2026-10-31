@@ -85,6 +85,7 @@ function AgendarContent() {
     email: '',
     notes: '',
     privacyAccepted: false,
+    therapeuticConsentAccepted: false,
   });
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro' | 'cartao' | ''>('');
   const [copiedPix, setCopiedPix] = useState(false);
@@ -144,6 +145,7 @@ function AgendarContent() {
             birthDate: portalBody.client.birthDate || portalBody.client.birth_date || prev.birthDate,
             email: portalBody.client.email || prev.email,
             privacyAccepted: true,
+            therapeuticConsentAccepted: true,
           }));
         }
 
@@ -251,6 +253,7 @@ function AgendarContent() {
         notes: formattedNotes,
         paymentMethod: activePackage ? undefined : paymentMethod,
         privacyAccepted: form.privacyAccepted,
+        therapeuticConsentAccepted: form.therapeuticConsentAccepted,
       }),
     });
     const body = await response.json();
@@ -281,6 +284,8 @@ function AgendarContent() {
         email: form.email || null,
         notes: form.notes.trim() || null,
         paymentMethod,
+        privacyAccepted: form.privacyAccepted,
+        therapeuticConsentAccepted: form.therapeuticConsentAccepted,
       }),
     });
     const body = await response.json();
@@ -1107,18 +1112,27 @@ function AgendarContent() {
                     </div>
                   </div>
 
+                  <label className="privacy-check" style={{ marginBottom: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.therapeuticConsentAccepted}
+                      onChange={(event) => setForm({ ...form, therapeuticConsentAccepted: event.target.checked })}
+                    />
+                    <span>Declaro que as informações fornecidas são verdadeiras e estou ciente da abordagem terapêutica integrativa. *</span>
+                  </label>
+
                   <label className="privacy-check">
                     <input
                       type="checkbox"
                       checked={form.privacyAccepted}
                       onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
                     />
-                    <span>Li e concordo que meus dados sejam usados para administrar minha inscrição. *</span>
+                    <span>Li e concordo com os Termos de Uso e Política de Privacidade para administrar minha inscrição. *</span>
                   </label>
 
                   <button
                     className="btn btn-primary btn-lg booking-next"
-                    disabled={!form.privacyAccepted || submitting || !paymentMethod}
+                    disabled={!form.privacyAccepted || !form.therapeuticConsentAccepted || submitting || !paymentMethod}
                     onClick={confirmGroupEnrollment}
                   >
                     {submitting ? (
@@ -1421,11 +1435,29 @@ function AgendarContent() {
                       <span className="form-hint">O pagamento é realizado no dia do atendimento.</span>
                     </div>
                   )}
-                  <label className="privacy-check">
-                    <input type="checkbox" checked={form.privacyAccepted} onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })} />
-                    <span>Li e concordo que meus dados sejam usados para administrar este agendamento. *</span>
+                  <label className="privacy-check" style={{ marginBottom: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.therapeuticConsentAccepted}
+                      onChange={(event) => setForm({ ...form, therapeuticConsentAccepted: event.target.checked })}
+                    />
+                    <span>Declaro que as informações fornecidas são verdadeiras e estou ciente da abordagem terapêutica integrativa. *</span>
                   </label>
-                  <button className="btn btn-primary btn-lg booking-next" disabled={!form.privacyAccepted || submitting || (!activePackage && !paymentMethod)} onClick={confirm}>
+
+                  <label className="privacy-check">
+                    <input
+                      type="checkbox"
+                      checked={form.privacyAccepted}
+                      onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
+                    />
+                    <span>Li e concordo com os Termos de Uso e Política de Privacidade da clínica. *</span>
+                  </label>
+
+                  <button
+                    className="btn btn-primary btn-lg booking-next"
+                    disabled={!form.privacyAccepted || !form.therapeuticConsentAccepted || submitting || (!activePackage && !paymentMethod)}
+                    onClick={confirm}
+                  >
                     {submitting ? <><LoaderCircle className="spin" size={17} /> Verificando horário…</> : <><Check size={17} /> Enviar agendamento</>}
                   </button>
                 </section>

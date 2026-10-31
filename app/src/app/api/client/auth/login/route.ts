@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClientSessionToken, CLIENT_SESSION_COOKIE } from '@/lib/auth';
 import { authenticateClientAccount } from '@/lib/repository';
+import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
 
 export async function POST(request: Request) {
+  const { ip, userAgent } = extractClientMetadata(request);
   try {
     const body = await request.json();
     const { identifier, password } = body ?? {};
@@ -17,6 +19,22 @@ export async function POST(request: Request) {
 
     const client = await authenticateClientAccount(identifier.trim(), password);
     const token = createClientSessionToken(client);
+
+    // Registro na trilha de auditoria
+    await recordAuditLog({
+      actorType: 'paciente',
+      actorId: client.id,
+      actorName: client.name,
+      category: 'acesso_login',
+      action: 'login_portal_paciente',
+      title: 'Acesso ao Portal do Paciente',
+      description: `Paciente ${client.name} fez login com sucesso no Portal do Paciente.`,
+      ipAddress: ip,
+      userAgent,
+      severity: 'info',
+      details: { clientId: client.id, email: client.email, phone: client.phone },
+    }).catch(() => null);
+
     const response = NextResponse.json({ ok: true, client });
 
     response.cookies.set(CLIENT_SESSION_COOKIE, token, {

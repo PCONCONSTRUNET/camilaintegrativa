@@ -23,6 +23,7 @@ import type {
   TreatmentGoal,
 } from './domain';
 import { getDatabase, IDS } from './db';
+import { recordAuditLog } from './audit';
 import { hashPassword, verifyPassword } from './auth';
 import { dateKeyInClinicTimeZone, localDateBounds, timeKeyInClinicTimeZone, weekdayForLocalDate, zonedDateTimeToUtc } from './time';
 import type { z } from 'zod';
@@ -2556,6 +2557,31 @@ export async function logProntuarioAccess(
     INSERT INTO prontuario_access_logs (id, client_id, actor_user_id, actor_name, action_type, details)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(randomUUID(), clientId, actor.userId, actor.name, actionType, details));
+
+  const friendlyActionTitles: Record<string, string> = {
+    visualizacao: 'Visualização de Prontuário Clínico',
+    edicao_ficha: 'Atualização de Ficha Clínica',
+    criacao_ficha: 'Criação de Ficha Clínica',
+    evolucao_criada: 'Registro de Evolução Terapêutica',
+    evolucao_editada: 'Edição de Evolução Terapêutica',
+    tecnica_registrada: 'Aplicação de Técnica Hipnótica',
+    documento_adicionado: 'Upload de Documento Clínico',
+    documento_excluido: 'Exclusão de Documento',
+    encaminhamento_registrado: 'Encaminhamento Multidisciplinar',
+    exportacao_lgpd: 'Exportação de Dossiê LGPD (Art. 18)',
+  };
+
+  await recordAuditLog({
+    actorType: 'admin',
+    actorId: actor.userId,
+    actorName: actor.name,
+    category: 'prontuario',
+    action: actionType,
+    title: friendlyActionTitles[actionType] || `Prontuário: ${actionType}`,
+    description: `${actor.name} realizou ação no prontuário do paciente: ${details}`,
+    severity: actionType === 'documento_excluido' ? 'aviso' : 'info',
+    details: { clientId, actionType, details },
+  }).catch(() => null);
 }
 
 async function ensureDemoProntuario(clientId: string, clientName: string) {

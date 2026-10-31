@@ -27,6 +27,7 @@ export const bookingSchema = z.object({
   notes: z.string().trim().max(500, 'Use no máximo 500 caracteres.').optional(),
   paymentMethod: z.enum(['pix', 'dinheiro', 'cartao']).optional().nullable(),
   privacyAccepted: z.literal(true, { error: 'É necessário aceitar o aviso de privacidade.' }),
+  therapeuticConsentAccepted: z.boolean().optional(),
 });
 
 export const clientSchema = z.object({

@@ -6,6 +6,7 @@ import { triggerPaymentIdentifiedReminder } from '@/lib/whatsapp-reminders';
 import { notifyAdminConfirmedPayment } from '@/lib/admin-push-alerts';
 import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
+import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
 
 export async function POST(
   request: Request,
@@ -107,6 +108,31 @@ export async function POST(
       currentUser.userId,
       now
     );
+
+    // Registro de Auditoria Contábil & Financeira
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      actorType: 'admin',
+      actorId: currentUser.userId,
+      actorName: currentUser.name || 'Camila Machado',
+      category: 'financeiro',
+      action: 'baixa_pagamento',
+      title: 'Pagamento Confirmado',
+      description: `Baixa manual de R$ ${(payAmount / 100).toFixed(2)} (${paymentMethod.toUpperCase()}) para o paciente ${payment.client_name || 'Paciente'}. Saldo remanescente: R$ ${(newRemaining / 100).toFixed(2)}.`,
+      ipAddress: ip,
+      userAgent,
+      severity: 'info',
+      details: {
+        paymentId,
+        clientId: payment.client_id,
+        clientName: payment.client_name,
+        amountPaidCents: payAmount,
+        totalAmountCents: totalAmount,
+        remainingCents: newRemaining,
+        paymentMethod,
+        status: newStatus,
+      },
+    }).catch(() => null);
 
     if (payment.client_id && payment.client_phone) {
       await triggerPaymentIdentifiedReminder({

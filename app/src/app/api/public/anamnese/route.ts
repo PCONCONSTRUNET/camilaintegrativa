@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { getDatabase, IDS } from '@/lib/db';
 import { unifyClientRecordsByIdentity } from '@/lib/repository';
+import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
 
 export async function POST(request: Request) {
   try {
@@ -277,6 +278,47 @@ export async function POST(request: Request) {
 
     // 6. Unificar quaisquer outros registros idênticos por CPF / Telefone / E-mail
     await unifyClientRecordsByIdentity(database, targetClientId, cleanCpfDigits, cleanPhoneDigits, cleanEmail);
+
+    // 6.1 Trilha de Auditoria Obrigatória (LGPD e Ficha Terapêutica)
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      actorType: 'paciente',
+      actorId: targetClientId,
+      actorName: name.trim(),
+      category: 'consentimento_lgpd',
+      action: 'termo_consentimento_anamnese',
+      title: 'Termo de Consentimento da Anamnese Aceito',
+      description: `O paciente ${name.trim()} (CPF ${cpf.trim()}) assinou digitalmente o Termo de Consentimento Informado e declarou a veracidade dos dados de saúde na Ficha de Anamnese.`,
+      ipAddress: ip,
+      userAgent,
+      severity: 'info',
+      details: {
+        clientId: targetClientId,
+        cpf: cleanCpfDigits,
+        phone: cleanPhoneDigits,
+        consultationReason: consultationReason.trim(),
+        consentAgreed: true,
+      },
+    }).catch(() => null);
+
+    await recordAuditLog({
+      actorType: 'paciente',
+      actorId: targetClientId,
+      actorName: name.trim(),
+      category: 'anamnese',
+      action: 'submissao_ficha_anamnese',
+      title: 'Ficha de Anamnese Preenchida',
+      description: `Ficha de Anamnese inicial com histórico de saúde e queixa principal enviada pelo paciente ${name.trim()}.`,
+      ipAddress: ip,
+      userAgent,
+      severity: 'info',
+      details: {
+        clientId: targetClientId,
+        chiefComplaint: consultationReason.trim(),
+        hasHealthConditions: !!hasHealthConditions,
+        hasPsychCare: !!hasPsychCare,
+      },
+    }).catch(() => null);
 
     // 7. Notificação interna para Camila Machado
     try {

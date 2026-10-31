@@ -4,10 +4,12 @@ import { dispatchWhatsappReminder } from '@/lib/whatsapp-reminders';
 import { notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admin-push-alerts';
 import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
+import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
+  const { ip, userAgent } = extractClientMetadata(req);
   if (!body.name || !body.phone) {
     return NextResponse.json({ error: 'Nome e WhatsApp são obrigatórios.' }, { status: 400 });
   }
@@ -28,6 +30,49 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     notes: body.notes ?? null,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
+
+  // Registro de Auditoria & Consentimento Jurídico (LGPD)
+  await recordAuditLog({
+    actorType: 'paciente',
+    actorId: result.clientId || null,
+    actorName: body.name,
+    category: 'consentimento_lgpd',
+    action: 'aceite_termo_sessao_grupo',
+    title: 'Consentimento Terapêutico & Veracidade Aceito (Grupo)',
+    description: `O paciente ${body.name} declarou a veracidade dos dados e manifestou ciência da abordagem integrativa e termos LGPD ao se inscrever na sessão coletiva "${result.sessionTitle ?? 'Grupo'}".`,
+    ipAddress: ip,
+    userAgent,
+    severity: 'info',
+    details: {
+      sessionId: id,
+      enrollmentId: result.enrollmentId,
+      sessionTitle: result.sessionTitle,
+      date: result.date,
+      startTime: result.startTime,
+      cpf: cleanCpf,
+      phone: body.phone,
+      declaracaoAceita: 'Declaro que as informações fornecidas são verdadeiras e estou ciente da abordagem terapêutica integrativa.',
+      lgpdTermosAceitos: true,
+    },
+  }).catch(() => null);
+
+  await recordAuditLog({
+    actorType: 'paciente',
+    actorId: result.clientId || null,
+    actorName: body.name,
+    category: 'agendamento',
+    action: 'inscricao_sessao_grupo',
+    title: 'Nova Inscrição em Sessão Coletiva',
+    description: `Inscrição confirmada na sessão em grupo "${result.sessionTitle ?? 'Sessão Coletiva'}" com status pendente de pagamento.`,
+    ipAddress: ip,
+    userAgent,
+    severity: 'info',
+    details: {
+      sessionId: id,
+      enrollmentId: result.enrollmentId,
+      paymentMethod: body.paymentMethod,
+    },
+  }).catch(() => null);
 
   const dateFormatted = result.date ? result.date.split('-').reverse().join('/') : '';
   const timeFormatted = result.startTime ?? '';
