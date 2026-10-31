@@ -7,13 +7,15 @@ import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
 import { getDatabase, IDS } from '@/lib/db';
 import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
+import { getCurrentClient } from '@/lib/auth';
 import { randomUUID } from 'node:crypto';
 
 export async function POST(request: Request) {
   try {
     const rawJson = await request.json();
     const input = bookingSchema.parse(rawJson);
-    const appointment = await createPublicBooking(input);
+    const clientSession = await getCurrentClient().catch(() => null);
+    const appointment = await createPublicBooking(input, clientSession?.clientId || null);
     const { ip, userAgent } = extractClientMetadata(request);
 
     // 0. Registrar Consentimento Jurídico no Banco e na Auditoria (LGPD)
@@ -113,12 +115,14 @@ export async function POST(request: Request) {
           const dateFormatted = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : input.date;
           const title = renderPushTemplate(clientPushCfg.title, {
             paciente: input.name.split(' ')[0],
+            servico: appointment.serviceName,
             data: dateFormatted,
             horario: input.time,
             modalidade: input.modality === 'online' ? 'Online' : 'Presencial',
           });
           const message = renderPushTemplate(clientPushCfg.message, {
             paciente: input.name.split(' ')[0],
+            servico: appointment.serviceName,
             data: dateFormatted,
             horario: input.time,
             modalidade: input.modality === 'online' ? 'Online' : 'Presencial',

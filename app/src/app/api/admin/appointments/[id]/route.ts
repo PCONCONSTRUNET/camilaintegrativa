@@ -16,7 +16,9 @@ import {
 } from '@/lib/whatsapp-reminders';
 import { notifyAdminCancelledAppointment } from '@/lib/admin-push-alerts';
 import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
-import { IDS } from '@/lib/db';
+import { getDatabase, IDS } from '@/lib/db';
+import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
+import { sendOneSignalPush } from '@/lib/onesignal';
 
 export async function PATCH(request: Request, context: RouteContext<'/api/admin/appointments/[id]'>) {
   const user = await getCurrentUser();
@@ -48,6 +50,56 @@ export async function PATCH(request: Request, context: RouteContext<'/api/admin/
           await triggerAppointmentCancelledReminder(id, 'Cancelado pela clínica').catch(() => null);
         } else if (input.status === 'confirmado') {
           await triggerAppointmentBookedReminder(id).catch(() => null);
+
+          // Disparar Push Notification para o Paciente informando que a consulta foi confirmada
+          try {
+            const db = getDatabase();
+            const apt = (await db.prepare(`
+              SELECT a.client_id, a.start_at, a.modality, c.name as client_name, s.name as service_name
+              FROM appointments a
+              JOIN clients c ON c.id = a.client_id
+              JOIN services s ON s.id = a.service_id
+              WHERE a.id = ? AND a.clinic_id = ?
+            `).get(id, IDS.clinic)) as {
+              client_id: string;
+              start_at: string;
+              modality: string;
+              client_name: string;
+              service_name: string;
+            } | undefined;
+
+            if (apt?.client_id) {
+              const clientPushCfg = await getPushConfig('client_appointment_confirmed');
+              if (clientPushCfg.enabled) {
+                const dateObj = new Date(apt.start_at);
+                const dateFormatted = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(dateObj);
+                const timeFormatted = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(dateObj);
+                const title = renderPushTemplate(clientPushCfg.title, {
+                  paciente: apt.client_name.split(' ')[0],
+                  servico: apt.service_name,
+                  data: dateFormatted,
+                  horario: timeFormatted,
+                  modalidade: apt.modality === 'online' ? 'Online' : 'Presencial',
+                });
+                const message = renderPushTemplate(clientPushCfg.message, {
+                  paciente: apt.client_name.split(' ')[0],
+                  servico: apt.service_name,
+                  data: dateFormatted,
+                  horario: timeFormatted,
+                  modalidade: apt.modality === 'online' ? 'Online' : 'Presencial',
+                });
+                await sendOneSignalPush({
+                  title,
+                  message,
+                  url: '/cliente?tab=agendamentos',
+                  target: { type: 'client', clientId: apt.client_id },
+                  data: { type: 'appointment_confirmed', appointmentId: id },
+                }).catch(() => null);
+              }
+            }
+          } catch {
+            // non-blocking
+          }
         }
       }
       return Response.json({ ok: true });

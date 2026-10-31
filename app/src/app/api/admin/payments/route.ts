@@ -194,10 +194,22 @@ export async function GET(request: Request) {
 
     if (fromDate || toDate) {
       filtered = filtered.filter((p) => {
-        const refDate = (p.paidAt || p.dueAt || p.createdAt).slice(0, 10);
-        if (fromDate && refDate < fromDate) return false;
-        if (toDate && refDate > toDate) return false;
-        return true;
+        const paidDate = p.paidAt ? p.paidAt.slice(0, 10) : null;
+        const createdDate = p.createdAt ? p.createdAt.slice(0, 10) : null;
+        const dueDate = p.dueAt ? p.dueAt.slice(0, 10) : null;
+
+        // Se o pagamento já foi pago, a data de competência/liquidação é paidDate
+        if (paidDate) {
+          if (fromDate && paidDate < fromDate) return false;
+          if (toDate && paidDate > toDate) return false;
+          return true;
+        }
+
+        // Se está pendente/em aberto, deve aparecer se foi CRIADO no período OU se VENCE no período
+        const createdInRange = (!fromDate || (createdDate && createdDate >= fromDate)) && (!toDate || (createdDate && createdDate <= toDate));
+        const dueInRange = (!fromDate || (dueDate && dueDate >= fromDate)) && (!toDate || (dueDate && dueDate <= toDate));
+
+        return Boolean(createdInRange || dueInRange);
       });
     }
 

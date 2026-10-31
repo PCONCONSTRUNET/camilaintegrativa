@@ -6,6 +6,7 @@ import {
   createInternalAppointment,
   listAppointments,
   listAppointmentsInRange,
+  listPendingAppointments,
 } from '@/lib/repository';
 import { dateKeyInClinicTimeZone } from '@/lib/time';
 import { internalAppointmentSchema } from '@/lib/validation';
@@ -41,12 +42,20 @@ export async function GET(request: Request) {
       return Response.json({ error: 'O período deve ter no máximo 63 dias.' }, { status: 422 });
     }
 
-    return Response.json({ appointments: await listAppointmentsInRange(from, to), from, to });
+    const [appointments, pendingRequests] = await Promise.all([
+      listAppointmentsInRange(from, to),
+      listPendingAppointments(),
+    ]);
+    return Response.json({ appointments, pendingRequests, from, to });
   }
 
   const date = params.get('date') ?? dateKeyInClinicTimeZone();
   if (!isValidDateKey(date)) return Response.json({ error: 'Data inválida.' }, { status: 422 });
-  return Response.json({ appointments: await listAppointments(date), date });
+  const [appointments, pendingRequests] = await Promise.all([
+    listAppointments(date),
+    listPendingAppointments(),
+  ]);
+  return Response.json({ appointments, pendingRequests, date });
 }
 
 export async function POST(request: Request) {

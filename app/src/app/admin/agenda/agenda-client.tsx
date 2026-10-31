@@ -384,7 +384,10 @@ async function fetchAppointments(from: string, to: string, signal?: AbortSignal)
   const response = await fetch('/api/admin/appointments?' + params, { cache: 'no-store', signal });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error ?? 'Não foi possível carregar a agenda.');
-  return (body.appointments as AppointmentSummary[]).sort((a, b) => a.startAt.localeCompare(b.startAt));
+  return {
+    appointments: ((body.appointments as AppointmentSummary[]) || []).sort((a, b) => a.startAt.localeCompare(b.startAt)),
+    pendingRequests: ((body.pendingRequests as AppointmentSummary[]) || []),
+  };
 }
 
 async function fetchTimeBlocks(from: string, to: string, signal?: AbortSignal) {
@@ -438,6 +441,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   const initialCachedBlocks = getInstantCache<TimeBlock[]>('admin_agenda_blocks', []);
   const initialCachedGroupSessions = getInstantCache<GroupSession[]>('admin_agenda_group_sessions', []);
   const [appointments, setAppointments] = useState<AppointmentSummary[]>(() => initialCachedAppointments);
+  const [pendingRequests, setPendingRequests] = useState<AppointmentSummary[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => initialCachedBlocks);
   const [groupSessions, setGroupSessions] = useState<GroupSession[]>(() => initialCachedGroupSessions);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -612,11 +616,12 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       fetchTimeBlocks(visibleRange.from, visibleRange.to, controller.signal),
       fetchGroupSessions(visibleRange.from, visibleRange.to, controller.signal),
     ])
-      .then(([nextAppointments, nextBlocks, nextGroupSessions]) => {
-        setAppointments(nextAppointments);
+      .then(([apptData, nextBlocks, nextGroupSessions]) => {
+        setAppointments(apptData.appointments);
+        setPendingRequests(apptData.pendingRequests);
         setTimeBlocks(nextBlocks);
         setGroupSessions(nextGroupSessions);
-        setInstantCache('admin_agenda_appointments', nextAppointments);
+        setInstantCache('admin_agenda_appointments', apptData.appointments);
         setInstantCache('admin_agenda_blocks', nextBlocks);
         setInstantCache('admin_agenda_group_sessions', nextGroupSessions);
       })
@@ -1875,6 +1880,75 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           }}
         >
           {message && <div className="gcal-toast" role="status"><CheckCircle2 size={17} /> {message}</div>}
+
+          {/* Alerta de Solicitações de Agendamento Online Pendentes */}
+          {pendingRequests.length > 0 && (
+            <div
+              style={{
+                margin: '10px 14px 4px 14px',
+                background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                border: '1.5px solid #f59e0b',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.12)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>🔔</span>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ color: '#92400e', fontSize: '0.92rem', display: 'block' }}>
+                    {pendingRequests.length === 1
+                      ? '1 Novo Agendamento Solicitado Aguardando Confirmação'
+                      : `${pendingRequests.length} Novos Agendamentos Solicitados Aguardando Confirmação`}
+                  </strong>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.80rem', color: '#78350f', lineHeight: 1.4 }}>
+                    {pendingRequests.map((p) => {
+                      const d = new Date(p.startAt);
+                      const dStr = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }).format(d);
+                      const tStr = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(d);
+                      return `${p.clientName} • ${dStr} às ${tStr} (${p.serviceName})`;
+                    }).join(' | ')}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ background: '#ffffff', borderColor: '#d97706', color: '#92400e', fontWeight: 700 }}
+                  onClick={() => {
+                    const first = pendingRequests[0];
+                    if (first) {
+                      const dateParts = new Intl.DateTimeFormat('en-CA', {
+                        timeZone: 'America/Sao_Paulo',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      }).format(new Date(first.startAt));
+                      selectDate(dateParts);
+                      setSelectedId(first.id);
+                    }
+                  }}
+                >
+                  Ver na Agenda
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff', fontWeight: 800 }}
+                  disabled={statusUpdatingId === pendingRequests[0].id}
+                  onClick={() => update(pendingRequests[0].id, 'confirmado')}
+                >
+                  {statusUpdatingId === pendingRequests[0].id ? 'Confirmando…' : 'Confirmar Agora'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className={'gcal-view gcal-view-' + view} aria-busy={loading}>
             {view === 'day' && renderTimedView([anchorDate])}

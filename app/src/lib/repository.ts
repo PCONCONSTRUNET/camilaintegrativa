@@ -380,9 +380,9 @@ export async function deleteAdminService(serviceId: string): Promise<{ deleted: 
 
 async function getService(serviceId: string, publishedOnly = true) {
   return (await getDatabase().prepare(`
-    SELECT id, duration_minutes, interval_minutes, pricing_tiers FROM services
+    SELECT id, name, duration_minutes, interval_minutes, pricing_tiers FROM services
     WHERE id = ? AND clinic_id = ? AND (? = 0 OR published = 1)
-  `).get(serviceId, IDS.clinic, publishedOnly ? 1 : 0)) as { id: string; duration_minutes: number; interval_minutes: number; pricing_tiers?: unknown } | undefined;
+  `).get(serviceId, IDS.clinic, publishedOnly ? 1 : 0)) as { id: string; name: string; duration_minutes: number; interval_minutes: number; pricing_tiers?: unknown } | undefined;
 }
 
 function minutesToTime(minutes: number) {
@@ -627,7 +627,7 @@ async function getPackagePendingSession(
   return row ? { id: row.id, sessionNumber: row.session_number ?? null, startAt: row.start_at } : null;
 }
 
-export async function createPublicBooking(input: BookingInput) {
+export async function createPublicBooking(input: BookingInput, explicitClientId?: string | null) {
   const database = getDatabase();
   const service = (await getService(input.serviceId));
   if (!service) throw new Error('Serviço indisponível.');
@@ -668,16 +668,54 @@ export async function createPublicBooking(input: BookingInput) {
     `).get(IDS.clinic)) as { booking_confirmation_mode: 'manual' | 'automatico' } | undefined;
     const status = settings?.booking_confirmation_mode === 'automatico' ? 'confirmado' : 'solicitado';
 
-    let client = (await database.prepare('SELECT id FROM clients WHERE clinic_id = ? AND phone = ?').get(IDS.clinic, input.phone)) as { id: string } | undefined;
+    const cleanPhone = (input.phone || '').replace(/\D/g, '');
+    const cleanCpf = input.cpf ? input.cpf.replace(/\D/g, '') : null;
+    const cleanEmail = (input.email || '').trim().toLowerCase();
+
+    let client: { id: string } | undefined;
+
+    if (explicitClientId) {
+      client = (await database.prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?').get(explicitClientId, IDS.clinic)) as { id: string } | undefined;
+    }
+
+    if (!client && cleanCpf && cleanCpf.length === 11) {
+      const byCpf = (await database.prepare(`
+        SELECT c.id FROM clients c
+        JOIN client_records cr ON cr.client_id = c.id
+        WHERE c.clinic_id = ? AND REPLACE(REPLACE(REPLACE(cr.cpf, '.', ''), '-', ''), ' ', '') = ?
+        LIMIT 1
+      `).get(IDS.clinic, cleanCpf)) as { id: string } | undefined;
+      if (byCpf) client = byCpf;
+    }
+
+    if (!client && cleanPhone.length >= 8) {
+      const byPhone = (await database.prepare(`
+        SELECT id FROM clients
+        WHERE clinic_id = ?
+          AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', ''), ' ', ''), '+', '') LIKE '%' || ?
+        LIMIT 1
+      `).get(IDS.clinic, cleanPhone.slice(-8))) as { id: string } | undefined;
+      if (byPhone) client = byPhone;
+    }
+
+    if (!client && cleanEmail) {
+      const byEmail = (await database.prepare(`
+        SELECT id FROM clients
+        WHERE clinic_id = ? AND LOWER(email) = ?
+        LIMIT 1
+      `).get(IDS.clinic, cleanEmail)) as { id: string } | undefined;
+      if (byEmail) client = byEmail;
+    }
+
     if (!client) {
       client = { id: randomUUID() };
       (await database.prepare(`
         INSERT INTO clients (id, clinic_id, name, phone, email, status)
         VALUES (?, ?, ?, ?, ?, 'pendente')
-      `).run(client.id, IDS.clinic, input.name, input.phone, input.email || null));
+      `).run(client.id, IDS.clinic, input.name, cleanPhone || input.phone, cleanEmail || null));
     } else {
-      (await database.prepare(`UPDATE clients SET name = ?, email = COALESCE(?, email), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`)
-        .run(input.name, input.email || null, client.id));
+      (await database.prepare(`UPDATE clients SET name = ?, phone = COALESCE(?, phone), email = COALESCE(?, email), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`)
+        .run(input.name, cleanPhone || null, cleanEmail || null, client.id));
     }
     createdClientId = client.id;
 
@@ -865,6 +903,7 @@ export async function createPublicBooking(input: BookingInput) {
     clientId: createdClientId,
     status: created.status,
     startAt: start.toISOString(),
+    serviceName: service.name,
     package: packageSummary,
   };
 }
@@ -1688,7 +1727,9 @@ export async function listAppointmentsInRange(from: string, to: string): Promise
   const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
   return (await database.prepare(`
-    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone, c.cpf AS client_cpf, a.service_id, s.name AS service_name,
+    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone,
+           (SELECT cr.cpf FROM client_records cr WHERE cr.client_id = a.client_id LIMIT 1) AS client_cpf,
+           a.service_id, s.name AS service_name,
            a.modality, a.start_at, a.end_at, a.status, a.source, a.booking_kind, a.fit_in_reason,
            a.administrative_notes, a.client_package_id, a.session_number, a.updated_at,
            cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status,
@@ -1705,6 +1746,26 @@ export async function listAppointmentsInRange(from: string, to: string): Promise
 
 export async function listAppointments(date = dateKeyInClinicTimeZone()): Promise<AppointmentSummary[]> {
   return (await listAppointmentsInRange(date, date));
+}
+
+export async function listPendingAppointments(): Promise<AppointmentSummary[]> {
+  const database = getDatabase();
+  const rows = (await database.prepare(`
+    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone,
+           (SELECT cr.cpf FROM client_records cr WHERE cr.client_id = a.client_id LIMIT 1) AS client_cpf,
+           a.service_id, s.name AS service_name, a.modality, a.start_at, a.end_at, a.status, a.source,
+           a.booking_kind, a.fit_in_reason, a.administrative_notes, a.client_package_id, a.session_number,
+           a.updated_at, cp.package_name, cp.total_sessions AS package_total_sessions,
+           cp.used_sessions AS package_used_sessions, cp.status AS package_status
+    FROM appointments a
+    JOIN clients c ON c.id = a.client_id
+    JOIN services s ON s.id = a.service_id
+    LEFT JOIN client_packages cp ON cp.id = a.client_package_id
+    WHERE a.clinic_id = ? AND a.status = 'solicitado'
+    ORDER BY a.start_at ASC
+  `).all(IDS.clinic)) as Array<Record<string, unknown>>;
+
+  return rows.map(mapAppointmentSummary);
 }
 
 export async function updateAppointmentStatus(
