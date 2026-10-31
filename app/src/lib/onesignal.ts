@@ -8,8 +8,7 @@ export const ONESIGNAL_SAFARI_WEB_ID =
   process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_WEB_ID || 'web.onesignal.auto.4b51c712-23a7-447d-a673-6f24b07d407b';
 
 export const ONESIGNAL_REST_API_KEY =
-  process.env.ONESIGNAL_REST_API_KEY ||
-  'os_v2_app_2gudjbg44zc7bcapcxz5qi25jsupzvqsqiwe425ytlqctbr7453te4jfjzm2cjoclfw2g2oe7chl7dndot37wukhfmpfjfrs52apcaa';
+  process.env.ONESIGNAL_REST_API_KEY || '';
 
 export type PushTarget =
   | { type: 'all' }
