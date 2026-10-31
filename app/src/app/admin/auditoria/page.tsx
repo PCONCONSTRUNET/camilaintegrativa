@@ -60,6 +60,11 @@ export default function AuditoriaPage() {
   const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
+  // Modal e Estado de Impressão Oficial A4
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printLogs, setPrintLogs] = useState<AuditLogItem[]>([]);
+  const [loadingPrintLogs, setLoadingPrintLogs] = useState(false);
+
   // Filtros
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -215,14 +220,225 @@ export default function AuditoriaPage() {
     window.open(`/api/admin/audit/export?${params.toString()}`, '_blank');
   }
 
-  function handlePrint() {
-    window.print();
+  async function handleOpenPrintModal() {
+    setPrintModalOpen(true);
+    setLoadingPrintLogs(true);
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '1000',
+        period,
+      });
+      if (category !== 'all') params.append('category', category);
+      if (severity !== 'all') params.append('severity', severity);
+      if (search.trim()) params.append('search', search.trim());
+
+      const res = await fetch(`/api/admin/audit?${params.toString()}`);
+      if (!res.ok) throw new Error('Falha ao carregar registros para impressão');
+      const data = await res.json();
+      setPrintLogs(data.logs || []);
+    } catch {
+      setPrintLogs(logs);
+    } finally {
+      setLoadingPrintLogs(false);
+    }
   }
+
+  const renderPrintableAuditDocument = () => {
+    const listToRender = printLogs.length > 0 ? printLogs : logs;
+    const nowBrasilia = formatBrasilia(new Date().toISOString());
+
+    return (
+      <div
+        id="printable-audit-report"
+        style={{
+          background: '#ffffff',
+          color: '#0f172a',
+          padding: '24px 28px',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontSize: '11px',
+          lineHeight: 1.4,
+        }}
+      >
+        {/* Cabeçalho Oficial do Documento */}
+        <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '14px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#1a3a4a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Espaço Camila Machado &bull; Hipnose Clínica Integrativa
+              </div>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+                CRT-SBHP / SC &bull; Atendimento Presencial &amp; Online &bull; Urussanga - SC
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  background: '#f1f5f9',
+                  color: '#0f172a',
+                  border: '1px solid #cbd5e1',
+                }}
+              >
+                Conformidade Legal &bull; LGPD Art. 37
+              </span>
+              <div style={{ fontSize: '9px', color: '#64748b', marginTop: '3px' }}>
+                Emissão: {nowBrasilia}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '12px' }}>
+            <h1 style={{ fontSize: '17px', fontWeight: 900, color: '#0f172a', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              Relatório Oficial de Auditoria &amp; Trilha de Conformidade LGPD
+            </h1>
+            <p style={{ fontSize: '10px', color: '#475569', margin: 0, lineHeight: 1.45 }}>
+              Registro cronológico e imutável de acessos a prontuários eletrônicos, termos de consentimento, alterações de fichas clínicas e operações administrativas com dados sensíveis de saúde (Art. 11 da Lei 13.709/2018).
+            </p>
+          </div>
+        </div>
+
+        {/* Faixa de Parâmetros e Filtros Aplicados */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            marginBottom: '14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            fontSize: '9.5px',
+          }}
+        >
+          <div>
+            <b>Filtros da Emissão:</b>{' '}
+            <span>Categoria: <b>{category === 'all' ? 'Todas as Categorias' : category}</b></span> &bull;{' '}
+            <span>Período: <b>{period === 'all' ? 'Todo o Período' : period}</b></span> &bull;{' '}
+            <span>Severidade: <b>{severity === 'all' ? 'Todas' : severity}</b></span>
+            {search.trim() ? (
+              <span> &bull; Busca: <b>&quot;{search.trim()}&quot;</b></span>
+            ) : null}
+          </div>
+          <div>
+            <b>Total de Registros Emitidos:</b> {listToRender.length} evento(s)
+          </div>
+        </div>
+
+        {/* Resumo de Indicadores Compacto */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '8px',
+            marginBottom: '16px',
+          }}
+        >
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', background: '#fafafa' }}>
+            <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Total de Ações</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>{stats.totalLogs}</div>
+          </div>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', background: '#fafafa' }}>
+            <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Consentimentos LGPD</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>{stats.totalConsents}</div>
+          </div>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', background: '#fafafa' }}>
+            <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Acessos a Prontuários</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: '#0284c7', marginTop: '2px' }}>{stats.totalProntuarioAccess}</div>
+          </div>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', background: '#fafafa' }}>
+            <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Alertas de Segurança</div>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: stats.totalSecurityAlerts > 0 ? '#b45309' : '#0f172a', marginTop: '2px' }}>{stats.totalSecurityAlerts}</div>
+          </div>
+        </div>
+
+        {/* Tabela Oficial Formatada para Impressão */}
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '9.5px',
+            tableLayout: 'fixed',
+          }}
+        >
+          <thead>
+            <tr style={{ background: '#0f172a', color: '#ffffff', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px', width: '105px', border: '1px solid #0f172a', fontWeight: 800 }}>Data / Hora</th>
+              <th style={{ padding: '6px 8px', width: '85px', border: '1px solid #0f172a', fontWeight: 800 }}>Categoria</th>
+              <th style={{ padding: '6px 8px', width: '110px', border: '1px solid #0f172a', fontWeight: 800 }}>Ator / Usuário</th>
+              <th style={{ padding: '6px 8px', width: '115px', border: '1px solid #0f172a', fontWeight: 800 }}>Evento / Ação</th>
+              <th style={{ padding: '6px 8px', border: '1px solid #0f172a', fontWeight: 800 }}>Descrição &amp; Detalhes da Auditoria</th>
+              <th style={{ padding: '6px 8px', width: '85px', border: '1px solid #0f172a', fontWeight: 800 }}>IP Origem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {listToRender.map((log, idx) => {
+              const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+              return (
+                <tr key={log.id} style={{ background: bg, pageBreakInside: 'avoid' }}>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '9px', color: '#334155', whiteSpace: 'nowrap' }}>
+                    {formatBrasilia(log.createdAt)}
+                  </td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', textTransform: 'capitalize', fontWeight: 700, color: '#1e293b' }}>
+                    {log.category.replace('_', ' ')}
+                  </td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', color: '#0f172a' }}>
+                    <div style={{ fontWeight: 700 }}>{log.actorName}</div>
+                    <div style={{ fontSize: '8px', color: '#64748b', textTransform: 'uppercase' }}>{log.actorType}</div>
+                  </td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', fontWeight: 700, color: '#1e293b' }}>
+                    {log.title || log.action}
+                  </td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', color: '#334155', wordBreak: 'break-word', lineHeight: 1.35 }}>
+                    {log.description}
+                    {log.details && (
+                      <div style={{ marginTop: '3px', fontSize: '8.5px', color: '#64748b', fontStyle: 'italic' }}>
+                        {Object.entries(log.details)
+                          .filter(([k]) => !['details', 'actionType'].includes(k))
+                          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+                          .join(' | ')}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '6px 8px', border: '1px solid #e2e8f0', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '8.5px', color: '#64748b' }}>
+                    {log.ipAddress || '127.0.0.1'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Rodapé e Declaração de Autenticidade */}
+        <div style={{ marginTop: '24px', paddingTop: '14px', borderTop: '1px solid #cbd5e1', pageBreakInside: 'avoid' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
+            <div style={{ maxWidth: '440px', fontSize: '8.5px', color: '#64748b', lineHeight: 1.4 }}>
+              <b>Atestado de Integridade Digital:</b> Todos os eventos listados nesta trilha de auditoria foram registrados de forma automática e imutável pelo sistema, cumprindo integralmente os requisitos de rastreabilidade de acessos, consentimento de dados sensíveis e segurança jurídica exigidos pela LGPD (Lei nº 13.709/2018).
+            </div>
+            <div style={{ textAlign: 'center', minWidth: '220px' }}>
+              <div style={{ borderBottom: '1px solid #0f172a', width: '100%', marginBottom: '4px' }}></div>
+              <strong style={{ fontSize: '10px', color: '#0f172a', display: 'block' }}>Camila Machado</strong>
+              <span style={{ fontSize: '8.5px', color: '#64748b' }}>Terapeuta Integrativa &bull; CRT-SBHP/SC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 60px' }}>
       {/* Top Banner de Conformidade Legal */}
       <div
+        className="no-print"
         style={{
           background: 'linear-gradient(135deg, #182B38 0%, #245D80 100%)',
           borderRadius: '16px',
@@ -288,7 +504,7 @@ export default function AuditoriaPage() {
           </button>
           <button
             type="button"
-            onClick={handlePrint}
+            onClick={handleOpenPrintModal}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -303,13 +519,14 @@ export default function AuditoriaPage() {
               cursor: 'pointer',
             }}
           >
-            <Printer size={15} /> Imprimir Relatório
+            <Printer size={15} /> Imprimir / Salvar em PDF
           </button>
         </div>
       </div>
 
       {/* Cards de Métricas */}
       <div
+        className="no-print"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -364,6 +581,7 @@ export default function AuditoriaPage() {
 
       {/* Barra de Filtros e Busca */}
       <div
+        className="no-print"
         style={{
           background: '#ffffff',
           borderRadius: '16px',
@@ -504,6 +722,7 @@ export default function AuditoriaPage() {
 
       {/* Tabela de Registros de Auditoria */}
       <div
+        className="no-print"
         style={{
           background: '#ffffff',
           borderRadius: '16px',
@@ -699,6 +918,7 @@ export default function AuditoriaPage() {
         <div
           role="dialog"
           aria-modal="true"
+          className="no-print"
           style={{
             position: 'fixed',
             inset: 0,
@@ -839,6 +1059,196 @@ export default function AuditoriaPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Pré-Visualização Oficial para Impressão / Salvar PDF (A4) */}
+      {printModalOpen && (
+        <div
+          id="audit-print-modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 14px',
+            overflowY: 'auto',
+          }}
+        >
+          {/* Barra Superior do Modal (Não sai na impressão) */}
+          <div
+            className="no-print"
+            style={{
+              width: '100%',
+              maxWidth: '920px',
+              background: '#0f172a',
+              color: '#ffffff',
+              borderRadius: '16px',
+              padding: '14px 20px',
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block' }}>
+                Visualização Oficial para Impressão / Salvar PDF (A4)
+              </span>
+              <strong style={{ fontSize: '0.98rem', color: '#ffffff' }}>
+                Relatório de Auditoria &bull; {loadingPrintLogs ? 'Carregando todos os registros...' : `${printLogs.length || logs.length} evento(s) auditado(s)`}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                style={{
+                  background: 'rgba(255,255,255,0.12)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '10px',
+                  padding: '8px 14px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Download size={15} /> Exportar CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{
+                  background: '#10b981',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '9px 18px',
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+                }}
+              >
+                <Printer size={16} /> Imprimir / Salvar como PDF
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrintModalOpen(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.12)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '8px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <X size={16} /> Fechar
+              </button>
+            </div>
+          </div>
+
+          {/* Folha A4 Oficial */}
+          <div
+            id="audit-print-modal-sheet"
+            style={{
+              width: '100%',
+              maxWidth: '920px',
+              background: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+              overflow: 'hidden',
+              marginBottom: '30px',
+            }}
+          >
+            {renderPrintableAuditDocument()}
+          </div>
+        </div>
+      )}
+
+      {/* Renderizador de Fallback para Impressão Direta (Ctrl+P fora do modal) */}
+      {!printModalOpen && (
+        <div className="print-only">
+          {renderPrintableAuditDocument()}
+        </div>
+      )}
+
+      <style jsx global>{`
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 8mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          /* Oculta tudo que não faz parte da folha oficial */
+          aside, header, nav, footer, .no-print, [role="navigation"] {
+            display: none !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-audit-report, #printable-audit-report * {
+            visibility: visible !important;
+          }
+          #printable-audit-report {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #printable-audit-report table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            page-break-inside: auto !important;
+          }
+          #printable-audit-report tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+          }
+          #printable-audit-report thead {
+            display: table-header-group !important;
+          }
+          #printable-audit-report tfoot {
+            display: table-footer-group !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
