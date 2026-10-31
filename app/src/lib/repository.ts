@@ -1368,6 +1368,7 @@ function mapAppointmentSummary(row: unknown): AppointmentSummary {
       status: String(item.package_status || 'ativo'),
     } : null,
     clientPhone: item.client_phone ? String(item.client_phone) : null,
+    clientCpf: item.client_cpf ? String(item.client_cpf) : null,
     clientOverdueBalanceCents: overdueBalanceCents,
     clientDaysOverdue: daysOverdue,
     clientIsInadimplente: overdueBalanceCents > 0,
@@ -1529,7 +1530,7 @@ export async function listAppointmentsInRange(from: string, to: string): Promise
   const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
   return (await database.prepare(`
-    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone, a.service_id, s.name AS service_name,
+    SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone, c.cpf AS client_cpf, a.service_id, s.name AS service_name,
            a.modality, a.start_at, a.end_at, a.status, a.source, a.booking_kind, a.fit_in_reason,
            a.administrative_notes, a.client_package_id, a.session_number, a.updated_at,
            cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status,

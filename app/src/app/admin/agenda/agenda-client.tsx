@@ -517,11 +517,14 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   );
   const filteredAppointments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, '');
     if (!q) return appointments;
     return appointments.filter(
       (apt) =>
         apt.clientName.toLowerCase().includes(q)
-        || apt.serviceName.toLowerCase().includes(q),
+        || apt.serviceName.toLowerCase().includes(q)
+        || (apt.clientPhone && (apt.clientPhone.toLowerCase().includes(q) || (qDigits.length > 0 && apt.clientPhone.replace(/\D/g, '').includes(qDigits))))
+        || (apt.clientCpf && (apt.clientCpf.toLowerCase().includes(q) || (qDigits.length > 0 && apt.clientCpf.replace(/\D/g, '').includes(qDigits)))),
     );
   }, [appointments, searchQuery]);
   const appointmentsByDate = useMemo(() => {

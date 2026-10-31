@@ -119,6 +119,7 @@ export type AppointmentSummary = {
   sessionNumber?: number | null;
   packageSummary?: AppointmentPackageSummary | null;
   clientPhone?: string | null;
+  clientCpf?: string | null;
   clientOverdueBalanceCents?: number;
   clientDaysOverdue?: number;
   clientIsInadimplente?: boolean;

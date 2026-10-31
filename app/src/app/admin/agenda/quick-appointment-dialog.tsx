@@ -1,9 +1,30 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Check, Clock3, LoaderCircle, PencilLine, Plus, Sparkles, UserRound, X } from 'lucide-react';
+import { CalendarDays, Check, Clock3, LoaderCircle, PencilLine, Plus, Search, Sparkles, UserRound, X } from 'lucide-react';
 import type { AppointmentStatus, AppointmentSummary, ClientPackage, ClientSummary, Service } from '@/lib/domain';
 import { formatCurrency } from '@/lib/utils';
+
+function formatCpf(val?: string | null): string {
+  if (!val) return '';
+  const d = val.replace(/\D/g, '');
+  if (d.length === 11) {
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  }
+  return val;
+}
+
+function formatPhone(val?: string | null): string {
+  if (!val) return '';
+  const d = val.replace(/\D/g, '');
+  if (d.length === 11) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  }
+  if (d.length === 10) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+  return val;
+}
 
 export type QuickAppointmentSlot = {
   date: string;
@@ -134,6 +155,41 @@ export default function QuickAppointmentDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const firstFieldRef = useRef<HTMLSelectElement>(null);
+
+  // Busca e seleção rápida de clientes (Nome, CPF, Telefone)
+  const [clientSearch, setClientSearch] = useState('');
+  const [isSearchingClient, setIsSearchingClient] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === form.clientId) ?? null,
+    [clients, form.clientId],
+  );
+
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, '');
+    if (!q) return clients;
+
+    return clients.filter((c) => {
+      const matchName = c.name.toLowerCase().includes(q);
+      const phoneRaw = (c.phone || '').toLowerCase();
+      const phoneDigits = phoneRaw.replace(/\D/g, '');
+      const matchPhone =
+        phoneRaw.includes(q) ||
+        (qDigits.length > 0 && phoneDigits.includes(qDigits));
+
+      const cpfRaw = (c.cpf || '').toLowerCase();
+      const cpfDigits = cpfRaw.replace(/\D/g, '');
+      const matchCpf =
+        cpfRaw.includes(q) ||
+        (qDigits.length > 0 && cpfDigits.includes(qDigits));
+
+      const matchEmail = (c.email || '').toLowerCase().includes(q);
+
+      return matchName || matchPhone || matchCpf || matchEmail;
+    });
+  }, [clients, clientSearch]);
 
   const selectedService = useMemo(
     () => services.find((service) => service.id === form.serviceId) ?? null,
@@ -381,20 +437,279 @@ export default function QuickAppointmentDialog({
                   </div>
                 )}
 
-                <label className="gcal-quick-field">
-                  <span><UserRound size={15} /> Cliente</span>
-                  <select
-                    ref={firstFieldRef}
+                <div className="gcal-quick-field" style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.82rem', color: '#1e293b' }}>
+                      <UserRound size={15} /> Cliente *
+                    </span>
+                    {selectedClient && !isSearchingClient && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSearchingClient(true);
+                          setClientSearch('');
+                          setTimeout(() => searchInputRef.current?.focus(), 50);
+                        }}
+                        style={{
+                          fontSize: '0.74rem',
+                          color: '#0f766e',
+                          fontWeight: 700,
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                        }}
+                      >
+                        Trocar cliente
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Campo oculto com validação HTML nativa */}
+                  <input
+                    type="hidden"
                     name="clientId"
                     value={form.clientId}
-                    onChange={(event) => setForm({ ...form, clientId: event.target.value })}
                     required
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {clients.map((client) => <option value={client.id} key={client.id}>{client.name} · {client.phone}</option>)}
-                  </select>
-                </label>
-                <a className="gcal-quick-new-client" href="/admin/clientes" target="_blank" rel="noreferrer">
+                  />
+
+                  {/* 1. Cliente Selecionado (Card com Nome, CPF e Telefone) */}
+                  {selectedClient && !isSearchingClient ? (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        background: '#f8fafc',
+                        border: '1.5px solid #0f766e',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {selectedClient.name}
+                          </span>
+                          {selectedClient.isInadimplente && (
+                            <span style={{ fontSize: '0.68rem', padding: '1px 5px', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontWeight: 800 }}>
+                              Inadimplente
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '2px' }}>
+                          <span>📞 {formatPhone(selectedClient.phone)}</span>
+                          {selectedClient.cpf && (
+                            <span>🪪 CPF: <strong style={{ color: '#1e293b' }}>{formatCpf(selectedClient.cpf)}</strong></span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSearchingClient(true);
+                          setClientSearch('');
+                          setTimeout(() => searchInputRef.current?.focus(), 50);
+                        }}
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: '#0f766e',
+                          background: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          borderRadius: '6px',
+                          padding: '5px 10px',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        Alterar
+                      </button>
+                    </div>
+                  ) : (
+                    /* 2. Campo de Busca Dinâmica por Nome, CPF ou Telefone */
+                    <div>
+                      <div style={{ position: 'relative' }}>
+                        <Search
+                          size={15}
+                          style={{
+                            position: 'absolute',
+                            left: '11px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#94a3b8',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          value={clientSearch}
+                          onChange={(e) => setClientSearch(e.target.value)}
+                          placeholder="Buscar por Nome, CPF ou Telefone..."
+                          style={{
+                            width: '100%',
+                            padding: '9px 32px 9px 34px',
+                            fontSize: '0.86rem',
+                            border: '1.5px solid #0f766e',
+                            borderRadius: '10px',
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            fontWeight: 600,
+                            outline: 'none',
+                            boxShadow: '0 0 0 3px rgba(15, 118, 110, 0.12)',
+                          }}
+                          autoFocus={!selectedClient}
+                        />
+                        {clientSearch ? (
+                          <button
+                            type="button"
+                            onClick={() => setClientSearch('')}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              padding: 0,
+                            }}
+                          >
+                            <X size={15} />
+                          </button>
+                        ) : selectedClient && (
+                          <button
+                            type="button"
+                            onClick={() => setIsSearchingClient(false)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: '#64748b',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              padding: 0,
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Lista de Resultados Filtrados */}
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          maxHeight: '190px',
+                          overflowY: 'auto',
+                          background: '#ffffff',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '10px',
+                          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+                        }}
+                      >
+                        <div style={{ padding: '6px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{clientSearch ? `Resultados da busca (${filteredClients.length})` : `Selecione um cliente (${clients.length})`}</span>
+                          {clientSearch && <span style={{ color: '#0f766e' }}>Filtro: "{clientSearch}"</span>}
+                        </div>
+
+                        {filteredClients.length === 0 ? (
+                          <div style={{ padding: '16px 12px', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>
+                            <p style={{ margin: '0 0 8px' }}>Nenhum cliente encontrado com "{clientSearch}".</p>
+                            <a
+                              href="/admin/clientes"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                color: '#0f766e',
+                                fontWeight: 800,
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.78rem',
+                              }}
+                            >
+                              <Plus size={13} /> Cadastrar cliente agora
+                            </a>
+                          </div>
+                        ) : (
+                          filteredClients.map((c) => {
+                            const isChosen = form.clientId === c.id;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  setForm({ ...form, clientId: c.id });
+                                  setIsSearchingClient(false);
+                                  setClientSearch('');
+                                }}
+                                style={{
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  background: isChosen ? '#ecfdf5' : '#ffffff',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '8px',
+                                  transition: 'background 0.12s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isChosen) e.currentTarget.style.background = '#f8fafc';
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isChosen) e.currentTarget.style.background = '#ffffff';
+                                }}
+                              >
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {c.name}
+                                    </span>
+                                    {c.isInadimplente && (
+                                      <span style={{ fontSize: '0.64rem', padding: '1px 4px', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontWeight: 800 }}>
+                                        Débito
+                                      </span>
+                                    )}
+                                    {c.activePackagesCount && c.activePackagesCount > 0 ? (
+                                      <span style={{ fontSize: '0.64rem', padding: '1px 4px', background: '#dcfce7', color: '#15803d', borderRadius: '4px', fontWeight: 800 }}>
+                                        Pacote
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div style={{ fontSize: '0.73rem', color: '#64748b', display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '1px' }}>
+                                    <span>📞 {formatPhone(c.phone)}</span>
+                                    {c.cpf ? (
+                                      <span style={{ color: '#334155', fontWeight: 600 }}>🪪 CPF: {formatCpf(c.cpf)}</span>
+                                    ) : (
+                                      <span style={{ color: '#94a3b8' }}>Sem CPF</span>
+                                    )}
+                                  </div>
+                                </div>
+                                {isChosen && <Check size={16} color="#0f766e" style={{ flexShrink: 0 }} />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <a className="gcal-quick-new-client" href="/admin/clientes" target="_blank" rel="noreferrer" style={{ marginTop: '2px' }}>
                   <Plus size={13} /> Cadastrar novo cliente
                 </a>
 
