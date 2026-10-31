@@ -2,6 +2,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { createClient, listClients } from '@/lib/repository';
 import { clientSchema } from '@/lib/validation';
 import { errorResponse } from '@/lib/http';
+import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
+import { IDS } from '@/lib/db';
 
 export async function GET(request: Request) {
   if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
@@ -10,9 +12,34 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
   try {
-    const client = await createClient(clientSchema.parse(await request.json()));
+    const parsed = clientSchema.parse(await request.json());
+    const client = await createClient(parsed);
+
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: currentUser.userId,
+      actorName: currentUser.name,
+      category: 'paciente',
+      action: 'cliente_cadastrado',
+      title: 'Novo Paciente Cadastrado',
+      description: `Paciente "${parsed.name}" cadastrado(a) manualmente no sistema por ${currentUser.name}.`,
+      severity: 'info',
+      ipAddress: ip,
+      userAgent,
+      details: {
+        clientId: client.id,
+        name: parsed.name,
+        phone: parsed.phone,
+        email: parsed.email || null,
+        status: parsed.status,
+      },
+    }).catch(() => null);
+
     return Response.json({ client }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && (error.message.includes('UNIQUE') || error.message.includes('duplicate key') || error.message.includes('unique constraint'))) {

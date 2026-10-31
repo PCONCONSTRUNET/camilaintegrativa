@@ -9,7 +9,8 @@ export type AuditCategory =
   | 'financeiro'
   | 'acesso_login'
   | 'seguranca'
-  | 'comunicacao';
+  | 'comunicacao'
+  | 'paciente';
 
 export type AuditSeverity = 'info' | 'aviso' | 'critico';
 
@@ -34,6 +35,100 @@ export interface AuditLogEntry {
 
 let tableEnsured = false;
 
+async function syncHistoricalLogs() {
+  const db = getDatabase();
+  try {
+    // 1. Sincronizar prontuario_access_logs anteriores para a nova tabela
+    const existingProntLogs = (await db.prepare(`
+      SELECT pal.id, pal.client_id, pal.actor_user_id, pal.actor_name, pal.action_type, pal.details, pal.created_at, c.name as client_name
+      FROM prontuario_access_logs pal
+      LEFT JOIN clients c ON c.id = pal.client_id
+      WHERE pal.id NOT IN (SELECT id FROM system_audit_logs)
+      LIMIT 100
+    `).all()) as Array<{
+      id: string;
+      client_id: string;
+      actor_user_id: string | null;
+      actor_name: string;
+      action_type: string;
+      details: string;
+      created_at: string;
+      client_name?: string | null;
+    }>;
+
+    for (const p of existingProntLogs) {
+      await db.prepare(`
+        INSERT INTO system_audit_logs (
+          id, clinic_id, actor_type, actor_id, actor_name, category, action, title, description, severity, details, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        p.id,
+        IDS.clinic,
+        'admin',
+        p.actor_user_id,
+        p.actor_name || 'Profissional Camila Machado',
+        'prontuario',
+        p.action_type,
+        'Acesso a Prontuário / Ficha Clínica',
+        p.details || `Acesso ao prontuário do paciente ${p.client_name || ''}`,
+        'info',
+        JSON.stringify({ clientId: p.client_id, clientName: p.client_name }),
+        p.created_at
+      );
+    }
+
+    // 2. Sincronizar consentimentos LGPD de clientes cadastrados
+    const clientsWithConsent = (await db.prepare(`
+      SELECT c.id, c.name, c.phone, cr.cpf, cr.consent_agreed_at, cr.updated_at
+      FROM clients c
+      JOIN client_records cr ON cr.client_id = c.id
+      WHERE cr.consent_agreed = 1 OR cr.consent_agreed_at IS NOT NULL
+      LIMIT 100
+    `).all()) as Array<{
+      id: string;
+      name: string;
+      phone: string;
+      cpf?: string | null;
+      consent_agreed_at?: string | null;
+      updated_at?: string | null;
+    }>;
+
+    for (const c of clientsWithConsent) {
+      const consentId = `consent-${c.id}`;
+      const exists = await db.prepare('SELECT id FROM system_audit_logs WHERE id = ?').get(consentId);
+      if (!exists) {
+        await db.prepare(`
+          INSERT INTO system_audit_logs (
+            id, clinic_id, actor_type, actor_id, actor_name, category, action, title, description, severity, details, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          consentId,
+          IDS.clinic,
+          'paciente',
+          c.id,
+          c.name,
+          'consentimento_lgpd',
+          'consentimento_aceito',
+          'Consentimento LGPD & Terapêutico Registrado',
+          `Paciente "${c.name}" consentiu com o tratamento de dados de saúde (LGPD Art. 11) e abordagem terapêutica.`,
+          'info',
+          JSON.stringify({
+            clientId: c.id,
+            name: c.name,
+            phone: c.phone,
+            cpf: c.cpf,
+            tipo: 'termo_lgpd_anamnese',
+          }),
+          c.consent_agreed_at || c.updated_at || new Date().toISOString()
+        );
+      }
+    }
+  } catch (err) {
+    // Falha silenciosa para não travar a aplicação caso tabelas ainda não existam no sqlite local
+    console.error('[Audit] Aviso ao sincronizar logs históricos:', err);
+  }
+}
+
 export async function ensureAuditTable() {
   if (tableEnsured) return;
   const db = getDatabase();
@@ -57,6 +152,7 @@ export async function ensureAuditTable() {
       );
     `);
     tableEnsured = true;
+    await syncHistoricalLogs();
   } catch (err) {
     console.error('[Audit] Erro ao criar tabela system_audit_logs:', err);
   }

@@ -121,6 +121,14 @@ export default function AuditoriaPage() {
   // Ícone por categoria
   function getCategoryBadge(cat: string) {
     switch (cat) {
+      case 'paciente':
+        return {
+          icon: <User size={13} />,
+          label: 'Gestão de Pacientes',
+          bg: '#fef3c7',
+          color: '#92400e',
+          border: '#fde68a',
+        };
       case 'consentimento_lgpd':
         return {
           icon: <ShieldCheck size={13} />,
@@ -414,10 +422,11 @@ export default function AuditoriaPage() {
             }}
           >
             <option value="all">Todas as Categorias</option>
+            <option value="paciente">👤 Gestão de Pacientes (Exclusões/Cadastros)</option>
             <option value="consentimento_lgpd">🛡️ Consentimentos LGPD</option>
             <option value="prontuario">📋 Prontuários & Saúde</option>
             <option value="anamnese">✨ Ficha de Anamnese</option>
-            <option value="agendamento">📅 Agendamentos</option>
+            <option value="agendamento">📅 Agendamentos & Sessões</option>
             <option value="financeiro">💵 Financeiro & Pagamentos</option>
             <option value="acesso_login">🔑 Acessos & Logins</option>
             <option value="comunicacao">📢 Notificações & Avisos</option>

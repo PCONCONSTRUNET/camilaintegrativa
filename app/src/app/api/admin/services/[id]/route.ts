@@ -2,6 +2,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { deleteAdminService, updateAdminService, BookingValidationError } from '@/lib/repository';
 import { adminServiceSchema } from '@/lib/validation';
 import { errorResponse } from '@/lib/http';
+import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
+import { IDS } from '@/lib/db';
 import { z } from 'zod';
 
 const idSchema = z.string().uuid('ID de serviço inválido.');
@@ -34,14 +36,32 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
   try {
     const { id: rawId } = await context.params;
     const id = idSchema.parse(rawId);
     const result = await deleteAdminService(id);
+
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: currentUser.userId,
+      actorName: currentUser.name,
+      category: 'seguranca',
+      action: 'servico_excluido',
+      title: 'Exclusão de Serviço da Clínica',
+      description: `Serviço (ID ${id}) excluído do catálogo clínico por ${currentUser.name}.`,
+      severity: 'aviso',
+      ipAddress: ip,
+      userAgent,
+      details: { serviceId: id },
+    }).catch(() => null);
+
     return Response.json(result);
   } catch (error) {
     if (error instanceof BookingValidationError) {

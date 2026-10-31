@@ -1198,12 +1198,34 @@ export async function updateClient(clientId: string, input: ClientInput) {
   return { id: clientId };
 }
 
-export async function deleteClient(clientId: string) {
+export async function deleteClient(
+  clientId: string,
+  actor?: { userId?: string; name?: string; ip?: string; userAgent?: string }
+) {
   const database = getDatabase();
-  const existing = await database.prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?').get(clientId, IDS.clinic);
+  const existing = (await database
+    .prepare(`
+      SELECT c.id, c.name, c.phone, c.email, cr.cpf
+      FROM clients c
+      LEFT JOIN client_records cr ON cr.client_id = c.id
+      WHERE c.id = ? AND c.clinic_id = ?
+    `)
+    .get(clientId, IDS.clinic)) as
+    | { id: string; name: string; phone: string; email?: string | null; cpf?: string | null }
+    | undefined;
+
   if (!existing) {
     throw new BookingValidationError('Cliente não encontrado.');
   }
+
+  let apptsCount = 0;
+  let recordsCount = 0;
+  try {
+    const rowA = (await database.prepare('SELECT count(*) as count FROM appointments WHERE client_id = ?').get(clientId)) as { count: number } | undefined;
+    apptsCount = rowA?.count || 0;
+    const rowR = (await database.prepare('SELECT count(*) as count FROM clinical_evolutions WHERE client_id = ?').get(clientId)) as { count: number } | undefined;
+    recordsCount = rowR?.count || 0;
+  } catch {}
 
   await database.transaction(async (tx) => {
     await tx.prepare('DELETE FROM appointment_events WHERE appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)').run(clientId);
@@ -1220,6 +1242,35 @@ export async function deleteClient(clientId: string) {
     try { await tx.prepare('DELETE FROM client_records WHERE client_id = ?').run(clientId); } catch {}
     await tx.prepare('DELETE FROM clients WHERE id = ? AND clinic_id = ?').run(clientId, IDS.clinic);
   });
+
+  // Gravar Auditoria LGPD e de Prontuário Imediatamente (Irreversível e Permanente)
+  try {
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: actor?.userId || null,
+      actorName: actor?.name || 'Administrador',
+      category: 'paciente',
+      action: 'cliente_excluido',
+      title: 'Exclusão Definitiva de Paciente / Prontuário',
+      description: `O(A) paciente "${existing.name}" foi excluído(a) do sistema por ${actor?.name || 'Administrador'}, removendo cadastro e registros vinculados.`,
+      severity: 'critico',
+      ipAddress: actor?.ip || null,
+      userAgent: actor?.userAgent || null,
+      details: {
+        clientId: existing.id,
+        name: existing.name,
+        phone: existing.phone,
+        email: existing.email || null,
+        cpf: existing.cpf || null,
+        agendamentosRemovidos: apptsCount,
+        evolucoesRemovidas: recordsCount,
+        dataExclusao: new Date().toISOString(),
+      },
+    });
+  } catch (auditErr) {
+    console.error('[Audit] Falha ao registrar log de exclusão de paciente:', auditErr);
+  }
 
   return { deleted: true };
 }

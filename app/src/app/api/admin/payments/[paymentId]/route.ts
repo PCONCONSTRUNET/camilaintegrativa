@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
+import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
+import { formatCurrency } from '@/lib/utils';
 
 export async function GET(
   request: Request,
@@ -55,6 +57,21 @@ export async function DELETE(
 
   try {
     const database = getDatabase();
+
+    // Obter dados do pagamento antes de excluir para o log de auditoria
+    const payment = (await database.prepare(`
+      SELECT p.id, p.amount_cents, p.status, p.description, c.name as client_name, c.id as client_id
+      FROM client_payments p
+      LEFT JOIN clients c ON c.id = p.client_id
+      WHERE p.id = ? AND p.clinic_id = ?
+    `).get(paymentId, IDS.clinic)) as {
+      id: string;
+      amount_cents: number;
+      status: string;
+      description?: string | null;
+      client_name?: string | null;
+      client_id?: string | null;
+    } | undefined;
     
     // Deletar transações do pagamento
     await database.prepare(`
@@ -74,6 +91,32 @@ export async function DELETE(
     await database.prepare(`
       DELETE FROM client_payments WHERE id = ? AND clinic_id = ?
     `).run(paymentId, IDS.clinic);
+
+    // Registrar log de auditoria financeira crítica
+    const { ip, userAgent } = extractClientMetadata(request);
+    const amountFormatted = payment ? formatCurrency(payment.amount_cents) : 'Valor não identificado';
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: currentUser.userId,
+      actorName: currentUser.name,
+      category: 'financeiro',
+      action: 'pagamento_excluido',
+      title: 'Exclusão de Lançamento Financeiro',
+      description: `Lançamento de ${amountFormatted} (${payment?.description || 'sem descrição'}) vinculado a "${payment?.client_name || 'Paciente'}" excluído por ${currentUser.name}.`,
+      severity: 'critico',
+      ipAddress: ip,
+      userAgent,
+      details: {
+        paymentId,
+        amountCents: payment?.amount_cents,
+        amountFormatted,
+        status: payment?.status,
+        description: payment?.description,
+        clientId: payment?.client_id,
+        clientName: payment?.client_name,
+      },
+    }).catch(() => null);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

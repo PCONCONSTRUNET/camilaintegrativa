@@ -12,6 +12,8 @@ import { internalAppointmentSchema } from '@/lib/validation';
 import { errorResponse } from '@/lib/http';
 import { triggerAppointmentBookedReminder } from '@/lib/whatsapp-reminders';
 import { notifyAdminNewAppointment } from '@/lib/admin-push-alerts';
+import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
+import { IDS } from '@/lib/db';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -54,6 +56,32 @@ export async function POST(request: Request) {
   try {
     const input = internalAppointmentSchema.parse(await request.json());
     const appointment = await createInternalAppointment(input, currentUser.userId, canManageAgenda(currentUser));
+
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: currentUser.userId,
+      actorName: currentUser.name,
+      category: 'agendamento',
+      action: 'agendamento_criado',
+      title: 'Novo Atendimento Agendado pela Clínica',
+      description: `Atendimento de "${appointment.clientName}" para "${appointment.serviceName}" agendado por ${currentUser.name}.`,
+      severity: 'info',
+      ipAddress: ip,
+      userAgent,
+      details: {
+        appointmentId: appointment.id,
+        clientId: appointment.clientId,
+        clientName: appointment.clientName,
+        serviceName: appointment.serviceName,
+        startAt: appointment.startAt,
+        endAt: appointment.endAt,
+        modality: appointment.modality,
+        bookingKind: appointment.bookingKind,
+      },
+    }).catch(() => null);
+
     if (appointment.status !== 'cancelado' && appointment.status !== 'nao_compareceu') {
       await triggerAppointmentBookedReminder(appointment.id).catch(() => null);
       await notifyAdminNewAppointment({
