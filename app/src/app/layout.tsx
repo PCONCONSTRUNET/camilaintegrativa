@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { OneSignalInit } from '@/components/onesignal-init';
 
 export const metadata: Metadata = {
   title: {
@@ -25,7 +26,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <OneSignalInit />
+        {children}
+      </body>
     </html>
   );
 }

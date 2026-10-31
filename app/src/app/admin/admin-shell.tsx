@@ -24,6 +24,7 @@ import {
   Bell,
   Clock,
   NotebookPen,
+  Radio,
 } from 'lucide-react';
 import { AdminNotificationBell } from '@/components/admin-notification-bell';
 
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { icon: Sparkles, label: 'Serviços', href: '/admin/servicos' },
   { icon: CalendarRange, label: 'Sessões em Grupo', href: '/admin/sessoes-grupo' },
   { icon: Bell, label: 'Notificações', href: '/admin/notificacoes' },
+  { icon: Radio, label: 'OneSignal Push', href: '/admin/onesignal' },
   { icon: Clock, label: 'Horários', href: '/admin/horarios' },
   { icon: Settings, label: 'Configurações', href: '/admin/configuracoes' },
 ];
@@ -65,6 +67,8 @@ export default function AdminShell({
       ? 'Serviços'
       : pathname?.startsWith('/admin/notificacoes')
       ? 'Notificações'
+      : pathname?.startsWith('/admin/onesignal')
+      ? 'OneSignal Push'
       : 'Painel');
   const isAgendaPage = pathname === '/admin/agenda';
 

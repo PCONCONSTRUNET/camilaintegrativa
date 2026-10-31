@@ -35,7 +35,13 @@ import {
   QrCode,
   Copy,
   Check,
+  Bell,
+  BellRing,
 } from 'lucide-react';
+import {
+  getOneSignalPushStatus,
+  requestOneSignalPushPermission,
+} from '@/components/onesignal-init';
 import type { AppointmentSummary } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
@@ -613,6 +619,68 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
   const [profileErrorMsg, setProfileErrorMsg] = useState('');
+
+  // OneSignal Push Notification State (PWA & Web)
+  const [pushStatus, setPushStatus] = useState<{
+    supported: boolean;
+    permission: boolean;
+  }>({ supported: false, permission: false });
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushSuccessMsg, setPushSuccessMsg] = useState<string | null>(null);
+  const [pushDismissed, setPushDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const dismissed = window.localStorage.getItem('clinica_client_push_dismissed') === 'true';
+      if (dismissed) setPushDismissed(true);
+    } catch {}
+
+    void checkClientPushStatus();
+  }, []);
+
+  async function checkClientPushStatus() {
+    try {
+      const status = await getOneSignalPushStatus();
+      setPushStatus(status);
+    } catch {}
+  }
+
+  async function handleEnablePush() {
+    setPushLoading(true);
+    setPushSuccessMsg(null);
+    try {
+      const granted = await requestOneSignalPushPermission({
+        role: 'client',
+        userId: data.client.id,
+        name: data.client.name,
+      });
+
+      if (granted) {
+        setPushStatus({ supported: true, permission: true });
+        setPushSuccessMsg('Notificações push ativadas com sucesso! Enviamos uma confirmação no seu aparelho.');
+        try {
+          await fetch('/api/client/push-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch {}
+      } else {
+        setPushSuccessMsg(null);
+      }
+    } catch (err) {
+      console.error('Erro ao ativar push no cliente:', err);
+    } finally {
+      setPushLoading(false);
+    }
+  }
+
+  function handleDismissPushBanner() {
+    setPushDismissed(true);
+    try {
+      window.localStorage.setItem('clinica_client_push_dismissed', 'true');
+    } catch {}
+  }
 
   async function handleLogout() {
     await fetch('/api/client/auth/logout', { method: 'POST' });
@@ -1390,6 +1458,132 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                 </div>
               </div>
             </section>
+
+            {/* Notificação de Sucesso Push */}
+            {pushSuccessMsg && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: '#ecfdf5',
+                  color: '#065f46',
+                  padding: '12px 18px',
+                  borderRadius: '14px',
+                  fontSize: '0.88rem',
+                  border: '1.5px solid #a7f3d0',
+                  boxShadow: '0 2px 8px rgba(6,95,70,0.06)',
+                }}
+              >
+                <CheckCircle2 size={18} color="#059669" />
+                <span>{pushSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Banner de Ativação OneSignal Push para PWA & Navegador */}
+            {!pushStatus.permission && !pushDismissed && (
+              <section
+                style={{
+                  background: 'linear-gradient(135deg, #f0fdfa 0%, #f7fee7 50%, #ffffff 100%)',
+                  border: '1.5px solid #99f6e4',
+                  borderRadius: '18px',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                  boxShadow: '0 4px 14px rgba(13,148,136,0.08)',
+                  position: 'relative',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '540px' }}>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                      color: '#ffffff',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 4px 10px rgba(13,148,136,0.25)',
+                    }}
+                  >
+                    <BellRing size={20} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
+                      <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: '#0f766e', margin: 0 }}>
+                        Lembretes de Consultas no Celular (PWA)
+                      </h3>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: '20px',
+                          background: '#ccfbf1',
+                          color: '#0f766e',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        Notificação Push
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0, lineHeight: 1.45 }}>
+                      Ative as notificações para receber avisos do seu atendimento no seu aparelho mesmo se o aplicativo estiver fechado.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleEnablePush}
+                    disabled={pushLoading}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      background: '#0d9488',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '50px',
+                      padding: '10px 18px',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      cursor: pushLoading ? 'wait' : 'pointer',
+                      boxShadow: '0 4px 12px rgba(13,148,136,0.25)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Bell size={15} />
+                    {pushLoading ? 'Ativando...' : 'Ativar Notificações no Aparelho'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDismissPushBanner}
+                    title="Lembrar mais tarde"
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '50px',
+                      padding: '8px 14px',
+                      fontSize: '0.78rem',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Agora não
+                  </button>
+                </div>
+              </section>
+            )}
 
             {/* Status da Ficha de Anamnese Digital (some quando já preenchida; fica na aba "Ficha de Anamnese" do menu) */}
             {!data.anamnese?.isCompleted && (
@@ -3359,6 +3553,105 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
               >
                 {data.anamnese?.isCompleted ? 'Ver / Atualizar Anamnese' : 'Preencher Anamnese'}
               </button>
+            </div>
+
+            {/* Notificações Push do Aparelho (PWA / Web) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '14px',
+                background: pushStatus.permission ? '#f0fdf4' : '#f8fafc',
+                border: pushStatus.permission ? '1.5px solid #86efac' : '1.5px solid #cbd5e1',
+                borderRadius: '14px',
+                padding: '16px 18px',
+                marginTop: '14px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: pushStatus.permission ? '#dcfce7' : '#e2e8f0',
+                    color: pushStatus.permission ? '#16a34a' : '#64748b',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <BellRing size={20} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '0.92rem', color: '#1e293b' }}>
+                      Notificações Push (PWA & Aparelho)
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '20px',
+                        background: pushStatus.permission ? '#bbf7d0' : '#e2e8f0',
+                        color: pushStatus.permission ? '#15803d' : '#475569',
+                      }}
+                    >
+                      {pushStatus.permission ? '✓ Ativas neste aparelho' : 'Não ativadas'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                    {pushStatus.permission
+                      ? 'Seu aparelho está autorizado a receber avisos de confirmação e lembretes da clínica na tela.'
+                      : 'Receba lembretes de consultas e confirmações direto na tela do seu aparelho celular ou computador.'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {pushStatus.permission ? (
+                  <button
+                    type="button"
+                    onClick={handleEnablePush}
+                    disabled={pushLoading}
+                    style={{
+                      background: '#ffffff',
+                      color: '#16a34a',
+                      border: '1.5px solid #86efac',
+                      borderRadius: '50px',
+                      padding: '8px 16px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: pushLoading ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {pushLoading ? 'Enviando...' : '🔔 Enviar Notificação de Teste'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleEnablePush}
+                    disabled={pushLoading}
+                    style={{
+                      background: '#0d9488',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '50px',
+                      padding: '9px 18px',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      cursor: pushLoading ? 'wait' : 'pointer',
+                      boxShadow: '0 4px 10px rgba(13,148,136,0.2)',
+                    }}
+                  >
+                    {pushLoading ? 'Ativando...' : 'Ativar Notificações no Meu Aparelho'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {profileSuccessMsg && (
