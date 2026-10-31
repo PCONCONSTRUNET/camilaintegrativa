@@ -35,7 +35,7 @@ export interface AdminNotificationItem {
 let readTableEnsured = false;
 let cachedNotificationsPayload: { data: unknown; timestamp: number } | null = null;
 
-export function invalidateNotificationsCache() {
+function invalidateNotificationsCache() {
   cachedNotificationsPayload = null;
 }
 
