@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
 import { triggerPaymentIdentifiedReminder } from '@/lib/whatsapp-reminders';
+import {
+  notifyAdminConfirmedPayment,
+  notifyAdminPendingPayment,
+} from '@/lib/admin-push-alerts';
 
 export async function GET(request: Request) {
   const currentUser = await getCurrentUser();
@@ -743,6 +747,25 @@ export async function POST(request: Request) {
           remainingCents: Number(pRow.remaining_amount_cents ?? 0),
           paymentMethod,
         }).catch(() => null);
+      }
+
+      if (pRow) {
+        if (Number(pRow.paid_amount_cents ?? 0) > 0) {
+          await notifyAdminConfirmedPayment({
+            paymentId: pRow.id,
+            clientName: pRow.client_name || 'Paciente',
+            amountCents: Number(pRow.paid_amount_cents),
+            paymentMethod,
+            serviceName: pRow.service_name || pRow.description,
+          }).catch(() => null);
+        } else if (Number(pRow.remaining_amount_cents ?? 0) > 0) {
+          await notifyAdminPendingPayment({
+            paymentId: pRow.id,
+            clientName: pRow.client_name || 'Paciente',
+            amountCents: Number(pRow.remaining_amount_cents),
+            serviceName: pRow.service_name || pRow.description,
+          }).catch(() => null);
+        }
       }
     }
 

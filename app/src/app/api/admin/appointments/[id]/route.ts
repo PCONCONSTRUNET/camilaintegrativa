@@ -14,6 +14,7 @@ import {
   triggerAppointmentBookedReminder,
   triggerAppointmentCancelledReminder,
 } from '@/lib/whatsapp-reminders';
+import { notifyAdminCancelledAppointment } from '@/lib/admin-push-alerts';
 
 export async function PATCH(request: Request, context: RouteContext<'/api/admin/appointments/[id]'>) {
   const user = await getCurrentUser();
@@ -37,6 +38,14 @@ export async function PATCH(request: Request, context: RouteContext<'/api/admin/
       const updated = await editAppointment(id, input, user.userId, canManageAgenda(user));
       if (updated.status === 'cancelado') {
         await triggerAppointmentCancelledReminder(id, 'Cancelado pela clínica', input.notes).catch(() => null);
+        await notifyAdminCancelledAppointment({
+          appointmentId: id,
+          clientName: updated.clientName,
+          serviceName: updated.serviceName,
+          startAt: updated.startAt,
+          reason: input.notes || null,
+          cancelledBy: 'pela administração',
+        }).catch(() => null);
       }
       return Response.json({ appointment: updated });
     }

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
 import { triggerPaymentIdentifiedReminder } from '@/lib/whatsapp-reminders';
+import { notifyAdminConfirmedPayment } from '@/lib/admin-push-alerts';
 
 export async function POST(
   request: Request,
@@ -119,6 +120,14 @@ export async function POST(
         paymentMethod,
       }).catch(() => null);
     }
+
+    await notifyAdminConfirmedPayment({
+      paymentId,
+      clientName: payment.client_name || 'Paciente',
+      amountCents: payAmount,
+      paymentMethod,
+      serviceName: payment.service_name || payment.description,
+    }).catch(() => null);
 
     return NextResponse.json({
       success: true,

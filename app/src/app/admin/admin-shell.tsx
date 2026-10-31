@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -71,6 +71,16 @@ export default function AdminShell({
       ? 'OneSignal Push'
       : 'Painel');
   const isAgendaPage = pathname === '/admin/agenda';
+
+  // Checagem periódica em segundo plano de alertas para a administração (30min antes, faturas vencidas)
+  useEffect(() => {
+    function checkAlerts() {
+      fetch('/api/admin/onesignal/check-alerts').catch(() => null);
+    }
+    checkAlerts();
+    const interval = setInterval(checkAlerts, 3 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });

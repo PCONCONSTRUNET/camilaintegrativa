@@ -11,6 +11,7 @@ import { dateKeyInClinicTimeZone } from '@/lib/time';
 import { internalAppointmentSchema } from '@/lib/validation';
 import { errorResponse } from '@/lib/http';
 import { triggerAppointmentBookedReminder } from '@/lib/whatsapp-reminders';
+import { notifyAdminNewAppointment } from '@/lib/admin-push-alerts';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -55,6 +56,14 @@ export async function POST(request: Request) {
     const appointment = await createInternalAppointment(input, currentUser.userId, canManageAgenda(currentUser));
     if (appointment.status !== 'cancelado' && appointment.status !== 'nao_compareceu') {
       await triggerAppointmentBookedReminder(appointment.id).catch(() => null);
+      await notifyAdminNewAppointment({
+        appointmentId: appointment.id,
+        clientName: appointment.clientName,
+        serviceName: appointment.serviceName,
+        startAt: appointment.startAt,
+        modality: appointment.modality,
+        source: 'clinica',
+      }).catch(() => null);
     }
     return Response.json({ appointment }, { status: 201 });
   } catch (error) {

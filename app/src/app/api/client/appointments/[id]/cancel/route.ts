@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { getCurrentClient } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
 import { triggerAppointmentCancelledReminder } from '@/lib/whatsapp-reminders';
+import { notifyAdminCancelledAppointment } from '@/lib/admin-push-alerts';
 
 export async function POST(
   request: Request,
@@ -63,6 +64,14 @@ export async function POST(
       'Cancelado pelo próprio cliente na Área do Cliente',
       reason || 'Cancelado pelo cliente no portal'
     ).catch(() => null);
+
+    await notifyAdminCancelledAppointment({
+      appointmentId: id,
+      clientName: clientSession.name || 'Paciente',
+      startAt: appt.start_at,
+      reason: reason || null,
+      cancelledBy: 'pelo paciente no portal',
+    }).catch(() => null);
 
     return NextResponse.json({ ok: true, status: 'cancelado' });
   } catch (error) {
