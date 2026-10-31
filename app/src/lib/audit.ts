@@ -269,9 +269,9 @@ export async function getAuditLogs(filters: AuditFilters = {}): Promise<{
   if (filters.search && filters.search.trim()) {
     const query = `%${filters.search.trim()}%`;
     conditions.push(
-      '(actor_name LIKE ? OR title LIKE ? OR description LIKE ? OR ip_address LIKE ? OR action LIKE ?)'
+      '(actor_name LIKE ? OR title LIKE ? OR description LIKE ? OR ip_address LIKE ? OR action LIKE ? OR details LIKE ?)'
     );
-    params.push(query, query, query, query, query);
+    params.push(query, query, query, query, query, query);
   }
 
   const whereClause = conditions.join(' AND ');

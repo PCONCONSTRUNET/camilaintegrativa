@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentClient } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabase, IDS } from '@/lib/db';
 import { unifyClientRecordsByIdentity } from '@/lib/repository';
+import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
 
 export async function PUT(request: Request) {
   try {
@@ -81,6 +82,28 @@ export async function PUT(request: Request) {
     }
 
     await unifyClientRecordsByIdentity(database, session.clientId, cpf || null, session.phone, email || null);
+
+    const { ip, userAgent } = extractClientMetadata(request);
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'paciente',
+      actorId: session.clientId,
+      actorName: name.trim(),
+      category: 'paciente',
+      action: 'perfil_paciente_atualizado',
+      title: 'Atualização Cadastral pelo Paciente',
+      description: `O(A) paciente "${name.trim()}" atualizou seus dados cadastrais no Portal do Paciente.`,
+      ipAddress: ip,
+      userAgent,
+      severity: 'info',
+      details: {
+        clientId: session.clientId,
+        name: name.trim(),
+        email: email?.trim() || null,
+        cpf: cpf?.trim() || null,
+        phone: session.phone,
+      },
+    }).catch(() => null);
 
     return NextResponse.json({ success: true, message: 'Perfil atualizado com sucesso!' });
   } catch (err: unknown) {

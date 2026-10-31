@@ -133,11 +133,12 @@ export default function OneSignalAdminPage() {
   async function handleActivateLocalPush() {
     setTestingLocal(true);
     try {
-      const granted = await requestOneSignalPushPermission({
+      const res = await requestOneSignalPushPermission({
         role: 'admin',
         userId: 'admin_camila_machado',
         name: 'Camila Machado (Admin)',
       });
+      const granted = typeof res === 'boolean' ? res : res.granted;
       if (granted) {
         showToast('success', '✓ Notificações Push ativadas com sucesso neste aparelho!');
         setLocalPushStatus({ supported: true, permission: true });

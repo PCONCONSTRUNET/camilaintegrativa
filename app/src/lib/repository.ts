@@ -1228,18 +1228,121 @@ export async function deleteClient(
   } catch {}
 
   await database.transaction(async (tx) => {
-    await tx.prepare('DELETE FROM appointment_events WHERE appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)').run(clientId);
+    // 1. Refunds de pagamentos do cliente
+    try {
+      await tx.prepare(`
+        DELETE FROM refunds WHERE payment_id IN (
+          SELECT p.id FROM payments p
+          JOIN charges c ON c.id = p.charge_id
+          WHERE c.client_id = ?
+        )
+      `).run(clientId);
+    } catch {}
+
+    // 2. Payments de charges do cliente
+    try {
+      await tx.prepare(`
+        DELETE FROM payments WHERE charge_id IN (
+          SELECT id FROM charges WHERE client_id = ?
+        )
+      `).run(clientId);
+    } catch {}
+
+    // 3. Desvincular e remover charges do cliente
+    try {
+      await tx.prepare(`
+        UPDATE charges SET appointment_id = NULL
+        WHERE client_id = ? OR appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)
+      `).run(clientId, clientId);
+      await tx.prepare('DELETE FROM charges WHERE client_id = ?').run(clientId);
+    } catch {}
+
+    // 4. Transações financeiras (payment_transactions) vinculadas ao cliente ou a pagamentos dele
+    try {
+      await tx.prepare(`
+        DELETE FROM payment_transactions
+        WHERE client_id = ? OR payment_id IN (SELECT id FROM client_payments WHERE client_id = ?)
+      `).run(clientId, clientId);
+    } catch {}
+
+    // 5. Desvincular e remover client_payments (desfaz chaves estrangeiras com appointments e client_packages)
+    try {
+      await tx.prepare(`
+        UPDATE client_payments
+        SET parent_payment_id = NULL, appointment_id = NULL, client_package_id = NULL
+        WHERE client_id = ? OR appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)
+      `).run(clientId, clientId);
+      await tx.prepare('DELETE FROM client_payments WHERE client_id = ?').run(clientId);
+    } catch {}
+
+    // 6. Usos de pacote (package_usages) e pacotes de sessões (client_packages)
+    try {
+      await tx.prepare(`
+        DELETE FROM package_usages
+        WHERE client_package_id IN (SELECT id FROM client_packages WHERE client_id = ?)
+           OR appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)
+      `).run(clientId, clientId);
+    } catch {}
+    try {
+      await tx.prepare('UPDATE appointments SET client_package_id = NULL WHERE client_id = ?').run(clientId);
+      await tx.prepare('DELETE FROM client_packages WHERE client_id = ?').run(clientId);
+    } catch {}
+
+    // 7. Registros de sessão (session_records e session_record_versions)
+    try {
+      await tx.prepare(`
+        DELETE FROM session_record_versions
+        WHERE session_record_id IN (
+          SELECT sr.id FROM session_records sr
+          JOIN appointments a ON a.id = sr.appointment_id
+          WHERE a.client_id = ?
+        )
+      `).run(clientId);
+      await tx.prepare(`
+        DELETE FROM session_records
+        WHERE appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)
+      `).run(clientId);
+    } catch {}
+
+    // 8. Eventos de agendamentos e desvincular evoluções
+    try {
+      await tx.prepare('DELETE FROM appointment_events WHERE appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)').run(clientId);
+    } catch {}
+    try {
+      await tx.prepare(`
+        UPDATE clinical_evolutions SET appointment_id = NULL
+        WHERE client_id = ? OR appointment_id IN (SELECT id FROM appointments WHERE client_id = ?)
+      `).run(clientId, clientId);
+    } catch {}
+
+    // 9. Agendamentos
     await tx.prepare('DELETE FROM appointments WHERE client_id = ?').run(clientId);
-    await tx.prepare('DELETE FROM waitlist_entries WHERE client_id = ?').run(clientId);
-    try { await tx.prepare('DELETE FROM client_packages WHERE client_id = ?').run(clientId); } catch {}
-    try { await tx.prepare('DELETE FROM client_payments WHERE client_id = ?').run(clientId); } catch {}
+
+    // 10. Sessões em grupo e lista de espera
+    try { await tx.prepare('DELETE FROM group_session_enrollments WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM waitlist_entries WHERE client_id = ?').run(clientId); } catch {}
+
+    // 11. Registros clínicos e prontuário
+    try {
+      await tx.prepare(`
+        DELETE FROM clinical_techniques
+        WHERE client_id = ? OR evolution_id IN (SELECT id FROM clinical_evolutions WHERE client_id = ?)
+      `).run(clientId, clientId);
+    } catch {}
     try { await tx.prepare('DELETE FROM clinical_evolutions WHERE client_id = ?').run(clientId); } catch {}
-    try { await tx.prepare('DELETE FROM clinical_techniques WHERE client_id = ?').run(clientId); } catch {}
     try { await tx.prepare('DELETE FROM treatment_goals WHERE client_id = ?').run(clientId); } catch {}
     try { await tx.prepare('DELETE FROM client_documents WHERE client_id = ?').run(clientId); } catch {}
     try { await tx.prepare('DELETE FROM client_referrals WHERE client_id = ?').run(clientId); } catch {}
     try { await tx.prepare('DELETE FROM prontuario_access_logs WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM consent_records WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM form_responses WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM private_documents WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM privacy_requests WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('DELETE FROM client_preferences WHERE client_id = ?').run(clientId); } catch {}
     try { await tx.prepare('DELETE FROM client_records WHERE client_id = ?').run(clientId); } catch {}
+    try { await tx.prepare('UPDATE whatsapp_message_logs SET client_id = NULL WHERE client_id = ?').run(clientId); } catch {}
+
+    // 12. Deletar finalmente o cliente
     await tx.prepare('DELETE FROM clients WHERE id = ? AND clinic_id = ?').run(clientId, IDS.clinic);
   });
 
@@ -2609,12 +2712,21 @@ export async function logProntuarioAccess(
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(randomUUID(), clientId, actor.userId, actor.name, actionType, details));
 
+  let clientName = 'Paciente';
+  try {
+    const c = (await database.prepare('SELECT name FROM clients WHERE id = ?').get(clientId)) as { name: string } | undefined;
+    if (c?.name) clientName = c.name;
+  } catch {}
+
   const friendlyActionTitles: Record<string, string> = {
     visualizacao: 'Visualização de Prontuário Clínico',
-    edicao_ficha: 'Atualização de Ficha Clínica',
-    criacao_ficha: 'Criação de Ficha Clínica',
+    edicao_ficha: 'Atualização de Ficha Clínica / Anamnese',
+    criacao_ficha: 'Criação de Ficha Clínica / Anamnese',
+    nova_evolucao: 'Registro de Evolução Terapêutica',
     evolucao_criada: 'Registro de Evolução Terapêutica',
     evolucao_editada: 'Edição de Evolução Terapêutica',
+    novo_objetivo: 'Cadastro de Objetivo Terapêutico',
+    alteracao_objetivo: 'Atualização de Objetivo Terapêutico',
     tecnica_registrada: 'Aplicação de Técnica Hipnótica',
     documento_adicionado: 'Upload de Documento Clínico',
     documento_excluido: 'Exclusão de Documento',
@@ -2622,16 +2734,18 @@ export async function logProntuarioAccess(
     exportacao_lgpd: 'Exportação de Dossiê LGPD (Art. 18)',
   };
 
+  const title = friendlyActionTitles[actionType] || `Prontuário: ${actionType}`;
+
   await recordAuditLog({
     actorType: 'admin',
     actorId: actor.userId,
     actorName: actor.name,
     category: 'prontuario',
     action: actionType,
-    title: friendlyActionTitles[actionType] || `Prontuário: ${actionType}`,
-    description: `${actor.name} realizou ação no prontuário do paciente: ${details}`,
+    title,
+    description: `${actor.name} realizou ação no prontuário de "${clientName}": ${details}`,
     severity: actionType === 'documento_excluido' ? 'aviso' : 'info',
-    details: { clientId, actionType, details },
+    details: { clientId, clientName, actionType, details },
   }).catch(() => null);
 }
 
@@ -3384,6 +3498,52 @@ export async function saveClientAnamneseDigital(
 
   if (input.cpf) {
     await unifyClientRecordsByIdentity(database, clientId, input.cpf.replace(/\D/g, ''), null, null);
+  }
+
+  // Gravar Auditoria LGPD e Anamnese do Paciente
+  try {
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'paciente',
+      actorId: clientId,
+      actorName: input.fullName.trim(),
+      category: 'anamnese',
+      action: 'submissao_ficha_anamnese',
+      title: 'Ficha de Anamnese Digital Salva',
+      description: `Ficha de Anamnese e histórico de saúde preenchidos pelo(a) paciente "${input.fullName.trim()}" (CPF: ${input.cpf.trim()}).`,
+      severity: 'info',
+      details: {
+        clientId,
+        name: input.fullName.trim(),
+        cpf: input.cpf.trim(),
+        consultationReason: input.consultationReason.trim(),
+        hasHealthConditions: input.hasHealthConditions,
+        hasPsychCare: input.hasPsychCare,
+        consentAgreed: input.consentAgreed,
+      },
+    });
+
+    if (input.consentAgreed) {
+      await recordAuditLog({
+        clinicId: IDS.clinic,
+        actorType: 'paciente',
+        actorId: clientId,
+        actorName: input.fullName.trim(),
+        category: 'consentimento_lgpd',
+        action: 'consentimento_aceito',
+        title: 'Consentimento LGPD & Termo Terapêutico Aceito',
+        description: `Paciente "${input.fullName.trim()}" aceitou eletronicamente o Termo de Consentimento Informado e Tratamento de Dados LGPD.`,
+        severity: 'info',
+        details: {
+          clientId,
+          cpf: input.cpf.trim(),
+          consentAgreed: true,
+          termo: 'Termo de Consentimento & Anamnese Digital',
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[Audit] Falha ao registrar log de anamnese digital:', err);
   }
 }
 
