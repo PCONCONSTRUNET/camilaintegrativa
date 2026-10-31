@@ -87,3 +87,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Erro ao gerar relatório de auditoria.' }, { status: 500 });
   }
 }
+

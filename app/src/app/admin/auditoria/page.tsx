@@ -833,3 +833,4 @@ export default function AuditoriaPage() {
     </div>
   );
 }
+
