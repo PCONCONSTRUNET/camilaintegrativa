@@ -40,6 +40,7 @@ import {
   Share2,
   PlusSquare,
   Smartphone,
+  Trash2,
 } from 'lucide-react';
 import {
   getOneSignalPushStatus,
@@ -1615,96 +1616,132 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                 style={{ cursor: 'pointer' }}
                 title="Clique para ver os detalhes completos deste agendamento"
               >
-                <div className="next-spotlight-badge">
-                  <CalendarDays size={18} />
-                  <span>Próximo Atendimento</span>
-                </div>
-                <div className="next-spotlight-content">
-                  <div>
-                    <h2>{nextAppointment.serviceName}</h2>
-                    <div className="next-meta-row">
-                      <span className="next-meta-item">
-                        <CalendarDays size={15} />
-                        {new Intl.DateTimeFormat('pt-BR', {
-                          dateStyle: 'full',
-                          timeZone: 'America/Sao_Paulo',
-                        }).format(new Date(nextAppointment.startAt))}
-                      </span>
-                      <span className="next-meta-item">
-                        <Clock3 size={15} />
-                        {new Intl.DateTimeFormat('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          timeZone: 'America/Sao_Paulo',
-                        }).format(new Date(nextAppointment.startAt))}
-                      </span>
-                      <span className="next-meta-item modality-pill">
-                        {nextAppointment.modality === 'online' ? (
-                          <>
-                            <Monitor size={15} /> Online
-                          </>
-                        ) : (
-                          <>
-                            <MapPin size={15} /> Presencial (Urussanga - SC)
-                          </>
-                        )}
-                      </span>
-                      <span className={`status-pill status-${nextAppointment.status}`}>
-                        {nextAppointment.status === 'confirmado' ? 'Confirmado' : 'Aguardando Confirmação'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAptModal(nextAppointment);
-                        }}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.22)',
-                          color: '#ffffff',
-                          border: '1px solid rgba(255, 255, 255, 0.45)',
-                          borderRadius: '999px',
-                          padding: '4px 12px',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                        }}
-                      >
-                        Ver detalhes <ChevronRight size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={cancelingAptId === nextAppointment.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleClientCancelAppointment(nextAppointment.id, nextAppointment.serviceName);
-                        }}
-                        style={{
-                          background: 'rgba(254, 226, 226, 0.18)',
-                          color: '#fecaca',
-                          border: '1px solid rgba(252, 165, 165, 0.45)',
-                          borderRadius: '999px',
-                          padding: '4px 12px',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {cancelingAptId === nextAppointment.id ? 'Cancelando...' : 'Cancelar sessão'}
-                      </button>
+                {/* Topo: Badges e Status */}
+                <div className="next-spotlight-top">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div className="next-spotlight-badge">
+                      <Sparkles size={13} />
+                      <span>Próximo Atendimento</span>
                     </div>
+                    {nextAppointment.sessionNumber && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          background: '#fef3c7',
+                          border: '1px solid #fde68a',
+                          color: '#92400e',
+                        }}
+                      >
+                        Sessão {nextAppointment.sessionNumber} do Pacote
+                      </span>
+                    )}
                   </div>
 
-                  {nextAppointment.modality === 'online' && (
-                    <div className="next-online-card">
-                      <Video size={20} />
-                      <div>
-                        <strong>Sala de Teleatendimento</strong>
-                        <p>O link seguro será disponibilizado 15 minutos antes da sessão.</p>
-                      </div>
+                  <span className={`status-pill status-${nextAppointment.status}`}>
+                    {nextAppointment.status === 'confirmado' ? (
+                      <>
+                        <Check size={12} /> Confirmado
+                      </>
+                    ) : (
+                      <>
+                        <Clock3 size={12} /> Aguardando Confirmação
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                {/* Título do Serviço */}
+                <div className="next-spotlight-title-row">
+                  <h2 className="next-spotlight-title">{nextAppointment.serviceName}</h2>
+                </div>
+
+                {/* Chips de Informações (Data, Horário, Local) */}
+                <div className="next-chips-grid">
+                  <div className="next-chip">
+                    <span className="next-chip-icon">
+                      <CalendarDays size={15} />
+                    </span>
+                    <span>
+                      {formatFullDate(nextAppointment.startAt)}
+                    </span>
+                  </div>
+
+                  <div className="next-chip">
+                    <span className="next-chip-icon">
+                      <Clock3 size={15} />
+                    </span>
+                    <span>
+                      {formatTimeRange(nextAppointment.startAt, nextAppointment.endAt)} ({formatDurationLabel(getAppointmentDurationMinutes(nextAppointment.startAt, nextAppointment.endAt))})
+                    </span>
+                  </div>
+
+                  <div className="next-chip">
+                    <span className="next-chip-icon">
+                      {nextAppointment.modality === 'online' ? <Monitor size={15} color="#0284c7" /> : <MapPin size={15} color="#d97706" />}
+                    </span>
+                    <span>
+                      {nextAppointment.modality === 'online' ? 'Atendimento Online (Vídeo)' : 'Presencial · Espaço Camila Machado'}
+                    </span>
+                  </div>
+                </div>
+
+                {nextAppointment.modality === 'online' && (
+                  <div className="next-online-card">
+                    <Video size={18} />
+                    <div>
+                      <strong style={{ fontSize: '0.84rem' }}>Sala Virtual de Atendimento</strong>
+                      <p style={{ margin: 0, fontSize: '0.76rem', color: '#334155' }}>
+                        O link exclusivo da videochamada é enviado via WhatsApp e liberado aqui antes do início da sessão.
+                      </p>
                     </div>
+                  </div>
+                )}
+
+                {/* Toolbar de Ações Responsiva */}
+                <div className="next-actions-toolbar" onClick={(e) => e.stopPropagation()}>
+                  <div className="next-actions-group">
+                    <button
+                      type="button"
+                      className="btn-spotlight-primary"
+                      onClick={() => setSelectedAptModal(nextAppointment)}
+                    >
+                      Ver Detalhes do Horário <ChevronRight size={14} />
+                    </button>
+
+                    <a
+                      href={getGoogleCalendarUrl(nextAppointment)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-spotlight-secondary"
+                    >
+                      <CalendarPlus size={14} /> Google Agenda
+                    </a>
+
+                    <a
+                      href={getAppointmentWhatsAppUrl(nextAppointment)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-spotlight-wa"
+                    >
+                      <WhatsappIcon size={15} /> WhatsApp
+                    </a>
+                  </div>
+
+                  {(nextAppointment.status === 'confirmado' || nextAppointment.status === 'solicitado') && (
+                    <button
+                      type="button"
+                      className="btn-spotlight-danger"
+                      disabled={cancelingAptId === nextAppointment.id}
+                      onClick={() =>
+                        handleClientCancelAppointment(nextAppointment.id, nextAppointment.serviceName)
+                      }
+                    >
+                      <Trash2 size={13} />
+                      {cancelingAptId === nextAppointment.id ? 'Cancelando...' : 'Cancelar sessão'}
+                    </button>
                   )}
                 </div>
               </section>
@@ -4685,6 +4722,13 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
           ? (data.packages || []).find((p) => p.id === selectedAptModal.clientPackageId)
           : (data.packages || []).find((p) => selectedAptModal.serviceId && p.serviceId === selectedAptModal.serviceId);
 
+        const pendingPayment = (data.payments || []).find(
+          (p) =>
+            (p.status === 'pendente' || p.status === 'parcial') &&
+            ((selectedAptModal.serviceId && p.serviceName?.toLowerCase().includes(selectedAptModal.serviceName.toLowerCase())) ||
+             p.description?.toLowerCase().includes(selectedAptModal.serviceName.toLowerCase()))
+        ) || (data.payments || []).find((p) => p.status === 'pendente' || p.status === 'parcial');
+
         return (
           <div
             onClick={() => setSelectedAptModal(null)}
@@ -4703,15 +4747,15 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
               onClick={(e) => e.stopPropagation()}
               style={{
                 background: '#ffffff',
-                borderRadius: '22px',
-                maxWidth: '490px',
-                width: '100%',
+                borderRadius: '24px',
+                width: 'min(500px, calc(100vw - 24px))',
+                maxWidth: '500px',
                 maxHeight: '90vh',
                 overflowY: 'auto',
-                padding: '24px',
-                boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35)',
+                padding: '24px 20px',
+                boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.4)',
                 position: 'relative',
-                border: '1px solid #e2e8f0',
+                border: '1.5px solid #e2e8f0',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '16px',
@@ -5008,7 +5052,38 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
               )}
 
               {/* Botões de Ação */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                {pendingPayment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pay = pendingPayment;
+                      setSelectedAptModal(null);
+                      setPortalPixModal(pay);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '12px 18px',
+                      borderRadius: '14px',
+                      fontSize: '0.86rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                      width: '100%',
+                      minHeight: '44px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <QrCode size={18} /> Pagar via PIX Agora ({formatCurrency(pendingPayment.remainingAmountCents || pendingPayment.amountCents)})
+                  </button>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <a
                     href={gCalUrl}
@@ -5018,20 +5093,21 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
+                      gap: '7px',
                       background: '#eff6ff',
                       color: '#1d4ed8',
-                      border: '1px solid #bfdbfe',
-                      padding: '9px 12px',
+                      border: '1.5px solid #bfdbfe',
+                      padding: '11px 14px',
                       borderRadius: '12px',
-                      fontSize: '0.78rem',
+                      fontSize: '0.82rem',
                       fontWeight: 700,
                       textDecoration: 'none',
                       textAlign: 'center',
+                      minHeight: '44px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <CalendarPlus size={16} />
-                    Google Agenda
+                    <CalendarPlus size={16} /> Google Agenda
                   </a>
 
                   <a
@@ -5042,20 +5118,21 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
+                      gap: '7px',
                       background: '#f0fdf4',
                       color: '#15803d',
-                      border: '1px solid #bbf7d0',
-                      padding: '9px 12px',
+                      border: '1.5px solid #86efac',
+                      padding: '11px 14px',
                       borderRadius: '12px',
-                      fontSize: '0.78rem',
+                      fontSize: '0.82rem',
                       fontWeight: 700,
                       textDecoration: 'none',
                       textAlign: 'center',
+                      minHeight: '44px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <WhatsappIcon size={17} />
-                    WhatsApp
+                    <WhatsappIcon size={17} /> WhatsApp
                   </a>
                 </div>
 
@@ -5069,20 +5146,24 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                       await handleClientCancelAppointment(aptId, aptName);
                     }}
                     style={{
-                      background: '#ffffff',
+                      background: '#fff5f5',
                       color: '#dc2626',
-                      border: '1px solid #fecaca',
-                      padding: '8px 14px',
+                      border: '1.5px solid #fecaca',
+                      padding: '11px 16px',
                       borderRadius: '12px',
-                      fontSize: '0.78rem',
+                      fontSize: '0.82rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
+                      gap: '7px',
+                      width: '100%',
+                      minHeight: '44px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
+                    <Trash2 size={15} />
                     {cancelingAptId === selectedAptModal.id ? 'Cancelando...' : 'Cancelar este agendamento'}
                   </button>
                 )}
@@ -5093,12 +5174,15 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                   style={{
                     background: '#f1f5f9',
                     color: '#475569',
-                    border: 'none',
-                    padding: '8px 14px',
+                    border: '1px solid #e2e8f0',
+                    padding: '10px 16px',
                     borderRadius: '12px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
                     cursor: 'pointer',
+                    width: '100%',
+                    minHeight: '42px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   Fechar

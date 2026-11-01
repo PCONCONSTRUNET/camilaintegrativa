@@ -6901,26 +6901,291 @@ a:hover { color: var(--color-primary-hover); }
   margin-top: 4px;
 }
 
+/* Status Pills Universais */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.status-pill.status-confirmado,
+.status-pill.status-pago,
+.status-pill.status-concluido {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.status-pill.status-solicitado,
+.status-pill.status-pendente {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.status-pill.status-em_atendimento {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.status-pill.status-cancelado {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.status-pill.status-nao_compareceu {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Próximo Atendimento Spotlight - Redesign Premium */
 .client-next-spotlight {
-  background: #ffffff;
-  border: 1.5px solid #c8d9e4;
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 6px 20px rgba(24, 43, 56, 0.05);
+  background: linear-gradient(135deg, #ffffff 0%, #f7fdfb 60%, #effaf6 100%);
+  border: 1.5px solid #a7f3d0;
+  border-radius: 20px;
+  padding: 22px 24px;
+  box-shadow: 0 10px 28px -6px rgba(13, 148, 136, 0.1), 0 2px 8px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.client-next-spotlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 50%, #f59e0b 100%);
+}
+
+.client-next-spotlight:hover {
+  box-shadow: 0 14px 34px -6px rgba(13, 148, 136, 0.16), 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #6ee7b7;
+}
+
+.next-spotlight-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .next-spotlight-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+  background: #ccfbf1;
+  border: 1px solid #99f6e4;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.next-spotlight-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.next-spotlight-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.next-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.next-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1px solid #d1fae5;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.next-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0d9488;
+}
+
+.next-actions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid #e6f4ea;
+}
+
+.next-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-spotlight-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #0f766e;
+  color: #ffffff !important;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(15, 118, 110, 0.22);
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-spotlight-primary:hover {
+  background: #115e59;
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn-spotlight-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #eff6ff;
+  color: #1d4ed8 !important;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-spotlight-secondary:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn-spotlight-wa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #15803d !important;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #86efac;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-spotlight-wa:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.btn-spotlight-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #dc2626 !important;
   font-size: 0.78rem;
   font-weight: 700;
-  text-transform: uppercase;
-  color: #245d80;
-  background: #eaf3f8;
-  padding: 4px 10px;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-spotlight-danger:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+@media (max-width: 680px) {
+  .client-next-spotlight {
+    padding: 16px 14px;
+    border-radius: 16px;
+  }
+  .next-spotlight-title {
+    font-size: 1.25rem;
+  }
+  .next-chips-grid {
+    gap: 6px;
+  }
+  .next-chip {
+    width: 100%;
+    font-size: 0.78rem;
+    padding: 6px 10px;
+  }
+  .next-actions-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .next-actions-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  .btn-spotlight-primary,
+  .btn-spotlight-secondary,
+  .btn-spotlight-wa,
+  .btn-spotlight-danger {
+    width: 100%;
+    min-height: 42px;
+    font-size: 0.84rem;
+  }
 }
 
 .next-meta-row {
@@ -6941,7 +7206,7 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 .next-online-card {
-  margin-top: 16px;
+  margin-top: 14px;
   background: #f0f7fb;
   border: 1px solid #d4e5f0;
   border-radius: 12px;
