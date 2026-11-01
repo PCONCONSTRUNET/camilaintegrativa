@@ -67,14 +67,21 @@ function getPgPool(): Pool {
   const globalStore = globalThis as GlobalWithClients;
   if (globalStore.__clinicaPgPool) return globalStore.__clinicaPgPool;
 
-  const connectionString = process.env.DATABASE_URL;
+  let connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL não configurada.');
+
+  // Se a conexão apontar para o pooler do Supabase na porta de sessão (5432),
+  // reescrevemos automaticamente para a porta de transação (6543) com pooling PgBouncer,
+  // evitando o erro (EMAXCONNSESSION) de limite de 15 conexões concorrentes.
+  if (connectionString.includes('pooler.supabase.com:5432')) {
+    connectionString = connectionString.replace('pooler.supabase.com:5432', 'pooler.supabase.com:6543');
+  }
 
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 10,
-    idleTimeoutMillis: 30000,
+    max: 3,
+    idleTimeoutMillis: 5000,
     connectionTimeoutMillis: 5000,
   });
 
@@ -108,9 +115,26 @@ function createPostgresClient(pool: Pool): DatabaseClient {
     async exec(sql: string): Promise<void> {
       const trimmed = sql.trim().toUpperCase();
       if (trimmed === 'BEGIN IMMEDIATE' || trimmed === 'BEGIN') {
+        const existing = txStorage.getStore();
+        if (existing?.client) {
+          try {
+            await existing.client.query('ROLLBACK');
+          } catch {}
+          try {
+            existing.client.release();
+          } catch {}
+          txStorage.disable();
+        }
         const poolClient = await pool.connect();
-        await poolClient.query('BEGIN');
-        txStorage.enterWith({ client: poolClient });
+        try {
+          await poolClient.query('BEGIN');
+          txStorage.enterWith({ client: poolClient });
+        } catch (err) {
+          try {
+            poolClient.release();
+          } catch {}
+          throw err;
+        }
         return;
       }
       if (trimmed === 'COMMIT') {
@@ -119,7 +143,9 @@ function createPostgresClient(pool: Pool): DatabaseClient {
           try {
             await store.client.query('COMMIT');
           } finally {
-            store.client.release();
+            try {
+              store.client.release();
+            } catch {}
             txStorage.disable();
           }
         }
@@ -131,7 +157,9 @@ function createPostgresClient(pool: Pool): DatabaseClient {
           try {
             await store.client.query('ROLLBACK');
           } finally {
-            store.client.release();
+            try {
+              store.client.release();
+            } catch {}
             txStorage.disable();
           }
         }
@@ -160,7 +188,9 @@ function createPostgresClient(pool: Pool): DatabaseClient {
         } catch {}
         throw err;
       } finally {
-        poolClient.release();
+        try {
+          poolClient.release();
+        } catch {}
       }
     },
   };

@@ -221,7 +221,10 @@ export default function QuickAppointmentDialog({
       fetch('/api/admin/services', { cache: 'no-store', signal: controller.signal }),
     ])
       .then(async ([clientsResponse, servicesResponse]) => {
-        const [clientsBody, servicesBody] = await Promise.all([clientsResponse.json(), servicesResponse.json()]);
+        const [clientsBody, servicesBody] = await Promise.all([
+          clientsResponse.json().catch(() => ({})),
+          servicesResponse.json().catch(() => ({})),
+        ]);
         if (!clientsResponse.ok) throw new Error(clientsBody.error ?? 'Não foi possível carregar os clientes.');
         if (!servicesResponse.ok) throw new Error(servicesBody.error ?? 'Não foi possível carregar os serviços.');
         const loadedServices: Service[] = servicesBody.services ?? [];
@@ -412,7 +415,7 @@ export default function QuickAppointmentDialog({
           fitInReason: form.bookingKind === 'encaixe' ? form.fitInReason.trim() : null,
         }),
       });
-      const body = await response.json();
+      const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         const errorMessage = body.error ?? (editing ? 'Não foi possível editar o agendamento.' : 'Não foi possível criar o agendamento.');
         if (response.status === 409) {

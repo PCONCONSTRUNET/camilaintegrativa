@@ -857,7 +857,8 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
         body: JSON.stringify({ status }),
       });
       if (!response.ok) {
-        setMessage('Não foi possível atualizar o status.');
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setMessage(body?.error || 'Não foi possível atualizar o status.');
         return;
       }
       setMessage('Status atualizado e histórico registrado.');
@@ -865,6 +866,8 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       setAppointments([]);
       setLoading(true);
       setRefreshToken((value) => value + 1);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao atualizar o status.');
     } finally {
       statusUpdatingRef.current = null;
       setStatusUpdatingId(null);
