@@ -3610,23 +3610,57 @@ export default function AdminFinanceiroPage() {
             {!receiptModal && (
               <style>{`
                 @media print {
-                  @page { size: A4 portrait; margin: 10mm 12mm; }
-                  html, body { background: #ffffff !important; height: auto !important; overflow: visible !important; }
-                  aside, header, nav, .no-print { display: none !important; }
-                  #dre-print-modal-backdrop {
+                  @page {
+                    size: A4 portrait;
+                    margin: 8mm 10mm;
+                  }
+                  html, body {
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                  }
+                  /* Oculta layout da aplicação que não deve sair na folha oficial */
+                  aside, header.topbar, nav, footer, [role="navigation"], .sidebar, .topbar, .sidebar-backdrop, .no-print, .no-print * {
+                    display: none !important;
+                  }
+                  .admin-layout, .admin-main, .page-content {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    display: block !important;
+                    width: 100% !important;
+                    min-height: auto !important;
+                    background: transparent !important;
+                  }
+                  #dre-print-modal-backdrop, .fin-modal-overlay {
                     position: static !important;
+                    display: block !important;
                     background: transparent !important;
                     backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
                     padding: 0 !important;
                     margin: 0 !important;
-                    overflow: visible !important;
-                    display: block !important;
-                  }
-                  #dre-print-modal-sheet, #printable-dre-screen-wrapper {
-                    display: block !important;
-                    max-width: 100% !important;
-                    width: 100% !important;
                     box-shadow: none !important;
+                    inset: auto !important;
+                    overflow: visible !important;
+                    z-index: auto !important;
+                  }
+                  #dre-modal-container, #dre-modal-scroll-body, #dre-modal-paper-wrapper, .fin-modal {
+                    position: static !important;
+                    display: block !important;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    max-height: none !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    border-radius: 0 !important;
                   }
                   #printable-dre {
                     border: none !important;
@@ -3635,6 +3669,26 @@ export default function AdminFinanceiroPage() {
                     margin: 0 !important;
                     width: 100% !important;
                     max-width: 100% !important;
+                    border-radius: 0 !important;
+                  }
+                  #printable-dre-screen-wrapper {
+                    display: block !important;
+                  }
+                  .dre-exec-kpi-grid, tr, .dre-kpi-block {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+                  .dre-table-scroll {
+                    overflow: visible !important;
+                    width: 100% !important;
+                  }
+                  table {
+                    page-break-inside: auto;
+                    width: 100% !important;
+                    min-width: 0 !important;
+                  }
+                  thead {
+                    display: table-header-group;
                   }
                 }
               `}</style>
@@ -3817,138 +3871,245 @@ export default function AdminFinanceiroPage() {
               {!drePrintModalOpen && renderPrintableDreDocument()}
             </div>
 
-            {/* MODAL DE VISUALIZAÇÃO DE IMPRESSÃO / PDF DO DRE (ESTILO DOCUMENTO A4 LIMPO) */}
+            {/* MODAL DE VISUALIZAÇÃO DE IMPRESSÃO / PDF DO DRE */}
             {drePrintModalOpen && (
               <div
                 id="dre-print-modal-backdrop"
                 className="fin-modal-overlay"
                 style={{
-                  zIndex: 120,
+                  zIndex: 1000,
                   display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                  padding: '20px 14px 60px 14px',
+                  overflowY: 'auto',
                 }}
                 onClick={(e) => { if (e.target === e.currentTarget) setDrePrintModalOpen(false); }}
               >
-                {/* Barra Superior Flutuante do Modal (Não sai na impressão) */}
                 <div
-                  className="no-print"
+                  id="dre-modal-container"
+                  className="fin-modal"
                   style={{
+                    maxWidth: '1040px',
                     width: '100%',
-                    maxWidth: '920px',
-                    background: '#0f172a',
-                    color: '#ffffff',
-                    borderRadius: '16px',
-                    padding: '14px 20px',
-                    marginBottom: '14px',
+                    padding: 0,
+                    margin: '0 auto',
+                    overflow: 'hidden',
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+                    flexDirection: 'column',
+                    maxHeight: 'min(94vh, calc(100dvh - 36px))',
+                    background: '#ffffff',
+                    borderRadius: '20px',
+                    border: '1.5px solid #cbd5e1',
+                    boxShadow: '0 25px 60px rgba(15, 23, 42, 0.35)',
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block' }}>
-                      Visualização Oficial para Impressão / PDF (A4)
-                    </span>
-                    <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
-                      DRE — {drePeriodLabel}
-                    </strong>
-                  </div>
+                  {/* Barra Superior Fixa do Modal (Não sai na impressão) */}
+                  <header
+                    className="no-print"
+                    style={{
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 30,
+                      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                      color: '#ffffff',
+                      padding: '14px 22px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      borderBottom: '1px solid rgba(255,255,255,0.12)',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Visualização Oficial A4 / PDF
+                        </span>
+                        <span style={{ background: 'rgba(255,255,255,0.15)', color: '#ffffff', fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}>
+                          CRT-SBHP/SC 805
+                        </span>
+                      </div>
+                      <strong style={{ fontSize: '1.05rem', color: '#ffffff', display: 'block', marginTop: '2px' }}>
+                        Demonstrativo DRE — {drePeriodLabel}
+                      </strong>
+                    </div>
 
-                  {/* Troca rápida de período dentro do preview */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    {[
-                      { key: 'hoje', label: 'Hoje' },
-                      { key: 'semanal', label: 'Semanal' },
-                      { key: 'mensal', label: 'Mensal' },
-                      { key: 'todos', label: 'Geral (Tudo)' },
-                      { key: 'custom', label: 'Por Período' },
-                    ].map((p) => {
-                      const active = periodPreset === p.key;
-                      return (
+                    {/* Troca rápida de período dentro do preview */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {[
+                        { key: 'hoje', label: 'Hoje' },
+                        { key: 'semanal', label: 'Semanal' },
+                        { key: 'mensal', label: 'Mensal' },
+                        { key: 'todos', label: 'Geral (Tudo)' },
+                        { key: 'custom', label: 'Personalizado' },
+                      ].map((p) => {
+                        const active = periodPreset === p.key;
+                        return (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => setPeriodPreset(p.key as typeof periodPreset)}
+                            style={{
+                              border: active ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.18)',
+                              background: active ? '#ffffff' : 'rgba(255,255,255,0.08)',
+                              color: active ? '#0f172a' : '#e2e8f0',
+                              borderRadius: '8px',
+                              padding: '5px 11px',
+                              fontSize: '0.74rem',
+                              fontWeight: active ? 800 : 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                      {periodPreset === 'custom' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
+                          <input
+                            type="date"
+                            value={customFrom}
+                            onChange={(e) => setCustomFrom(e.target.value)}
+                            style={{ borderRadius: '6px', border: 'none', padding: '4px 6px', fontSize: '0.74rem', color: '#0f172a' }}
+                          />
+                          <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>até</span>
+                          <input
+                            type="date"
+                            value={customTo}
+                            onChange={(e) => setCustomTo(e.target.value)}
+                            style={{ borderRadius: '6px', border: 'none', padding: '4px 6px', fontSize: '0.74rem', color: '#0f172a' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Botões de Ação Superiores: Imprimir e Fechar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        style={{
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '8px 18px',
+                          fontSize: '0.84rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                        }}
+                      >
+                        <Printer size={16} /> Imprimir / Salvar PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDrePrintModalOpen(false)}
+                        style={{
+                          background: 'rgba(255,255,255,0.14)',
+                          color: '#ffffff',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '10px',
+                          padding: '8px 14px',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                        title="Fechar janela"
+                      >
+                        <X size={15} /> Fechar
+                      </button>
+                    </div>
+                  </header>
+
+                  {/* Corpo do Documento com Rolagem Interna Limpa e Suave */}
+                  <div
+                    id="dre-modal-scroll-body"
+                    style={{
+                      overflowY: 'auto',
+                      flex: 1,
+                      padding: '24px 28px',
+                      background: '#f8fafc',
+                    }}
+                  >
+                    <div
+                      id="dre-modal-paper-wrapper"
+                      style={{
+                        background: '#ffffff',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                      }}
+                    >
+                      {renderPrintableDreDocument()}
+                    </div>
+
+                    {/* Rodapé Interno com Ações Extras */}
+                    <div
+                      className="no-print"
+                      style={{
+                        marginTop: '20px',
+                        paddingTop: '16px',
+                        borderTop: '1px solid #e2e8f0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                        Dica: Você pode salvar como <strong>PDF</strong> selecionando a opção <em>Salvar como PDF</em> na tela de impressão.
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         <button
-                          key={p.key}
                           type="button"
-                          onClick={() => setPeriodPreset(p.key as typeof periodPreset)}
+                          onClick={() => setDrePrintModalOpen(false)}
                           style={{
-                            border: '1px solid rgba(255,255,255,0.18)',
-                            background: active ? '#ffffff' : 'rgba(255,255,255,0.08)',
-                            color: active ? '#0f172a' : '#e2e8f0',
-                            borderRadius: '8px',
-                            padding: '5px 10px',
-                            fontSize: '0.74rem',
-                            fontWeight: active ? 800 : 600,
+                            background: '#e2e8f0',
+                            color: '#334155',
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '8px 16px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
                             cursor: 'pointer',
                           }}
                         >
-                          {p.label}
+                          Fechar
                         </button>
-                      );
-                    })}
-                    {periodPreset === 'custom' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
-                        <input
-                          type="date"
-                          value={customFrom}
-                          onChange={(e) => setCustomFrom(e.target.value)}
-                          style={{ borderRadius: '6px', border: 'none', padding: '4px 6px', fontSize: '0.74rem', color: '#0f172a' }}
-                        />
-                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>até</span>
-                        <input
-                          type="date"
-                          value={customTo}
-                          onChange={(e) => setCustomTo(e.target.value)}
-                          style={{ borderRadius: '6px', border: 'none', padding: '4px 6px', fontSize: '0.74rem', color: '#0f172a' }}
-                        />
+                        <button
+                          type="button"
+                          onClick={() => window.print()}
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '8px 18px',
+                            fontSize: '0.82rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <Printer size={15} /> Imprimir DRE
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      style={{
-                        background: '#10b981',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '10px',
-                        padding: '8px 16px',
-                        fontSize: '0.82rem',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <Printer size={15} /> Imprimir / Salvar PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDrePrintModalOpen(false)}
-                      style={{
-                        background: 'rgba(255,255,255,0.12)',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '10px',
-                        padding: '8px 12px',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Fechar
-                    </button>
-                  </div>
-                </div>
-
-                {/* Folha A4 do DRE */}
-                <div id="dre-print-modal-sheet" style={{ width: '100%', maxWidth: '920px', boxShadow: '0 20px 50px rgba(0,0,0,0.4)', borderRadius: '16px', background: '#ffffff' }}>
-                  {renderPrintableDreDocument()}
                 </div>
               </div>
             )}
