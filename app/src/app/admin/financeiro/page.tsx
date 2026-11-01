@@ -49,7 +49,7 @@ import {
   LineChart,
   AreaChart,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPhone, maskCpf, numberToCurrencyWords } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
 import { getInstantCache, setInstantCache } from '@/lib/client-cache';
@@ -6159,11 +6159,32 @@ export default function AdminFinanceiroPage() {
         </div>
       )}
 
-      {/* ================= MODAL: RECIBO / COMPROVANTE ================= */}
+      {/* ================= MODAL: RECIBO / COMPROVANTE OFICIAL ================= */}
       {receiptModal && (() => {
         const isPartialReceipt = receiptModal.status === 'parcial' || (receiptModal.paidAmountCents > 0 && receiptModal.remainingAmountCents > 0);
         const isPendingReceipt = receiptModal.paidAmountCents === 0 && receiptModal.remainingAmountCents > 0;
+        const isPaidReceipt = !isPendingReceipt && !isPartialReceipt;
         const isInstallmentReceipt = Boolean(receiptModal.installmentNumber && receiptModal.totalInstallments && receiptModal.totalInstallments > 1);
+
+        // Cliente associado
+        const clientInfo = receiptModal.clientId ? clients.find((c) => c.id === receiptModal.clientId) : null;
+        const clientCpf = clientInfo?.cpf ? maskCpf(clientInfo.cpf) : null;
+        const clientPhone = receiptModal.clientPhone || clientInfo?.phone || null;
+        const clientEmail = receiptModal.clientEmail || clientInfo?.email || null;
+
+        // Limpeza de descrição duplicada
+        const cleanServiceDescription = (() => {
+          const service = (receiptModal.serviceName || '').trim();
+          let desc = (receiptModal.description || '').trim();
+          if (!service) return desc || 'Atendimento Terapêutico Integrativo';
+          if (!desc) return service;
+          if (desc.toLowerCase() === service.toLowerCase()) return service;
+          if (desc.toLowerCase().startsWith(service.toLowerCase())) {
+            const remainder = desc.slice(service.length).replace(/^[\s—–-]+/, '').trim();
+            return remainder ? `${service} — ${remainder}` : service;
+          }
+          return `${service} — ${desc}`;
+        })();
 
         // Ordenar transações em ordem cronológica (1º pagamento, 2º pagamento...)
         const sortedTxs = [...(receiptModal.transactions || [])].sort(
@@ -6216,229 +6237,380 @@ export default function AdminFinanceiroPage() {
           });
         });
 
-        const statusSituationLabel = isPartialReceipt
-          ? 'Pagamento Parcial (Com Saldo em Aberto)'
-          : isPendingReceipt
-          ? 'Pendente / Em Aberto'
-          : itemizedPayments.length > 1
-          ? `Quitado Integralmente (${itemizedPayments.length} pagamentos realizados)`
-          : 'Quitado Integralmente (À Vista)';
+        const docNumber = receiptModal.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+        const authHash = `CLN-2026-${receiptModal.id.replace(/-/g, '').slice(0, 16).toUpperCase()}`;
+        const mainAmount = receiptModal.paidAmountCents > 0 ? receiptModal.paidAmountCents : receiptModal.amountCents;
+        const mainAmountWords = numberToCurrencyWords(mainAmount);
 
         return (
           <div className="fin-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setReceiptModal(null); }}>
-            <div className="fin-modal" style={{ maxWidth: '500px' }} id="printable-receipt" onClick={(e) => e.stopPropagation()}>
-              
-              <div style={{ textAlign: 'center', borderBottom: '1.5px solid #d4b896', paddingBottom: '16px', marginBottom: '18px' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1a3a4a', margin: '0 0 2px' }}>
-                  Camila Machado
-                </h2>
-                <span style={{ fontSize: '0.8rem', color: '#b8892a', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-                  Hipnose Clínica Multidimensional Integrativa
-                </span>
-              </div>
-
-              <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block' }}>
-                  {isPartialReceipt
-                    ? 'Comprovante de Pagamento Parcial'
-                    : isPendingReceipt
-                    ? 'Demonstrativo de Cobrança em Aberto'
-                    : 'Comprovante de Pagamento'}
-                </span>
-                <strong style={{ display: 'block', fontSize: '1.85rem', color: '#1a3a4a', marginTop: '4px' }}>
-                  {formatCurrency(receiptModal.paidAmountCents || receiptModal.amountCents)}
-                </strong>
-                <div style={{ marginTop: '6px' }}>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      padding: '4px 12px',
-                      borderRadius: '999px',
-                      fontSize: '0.74rem',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      background: isPartialReceipt ? '#fef3c7' : isPendingReceipt ? '#ffedd5' : '#dcfce7',
-                      color: isPartialReceipt ? '#92400e' : isPendingReceipt ? '#c2410c' : '#166534',
-                      border: `1px solid ${isPartialReceipt ? '#fde68a' : isPendingReceipt ? '#fed7aa' : '#86efac'}`,
-                    }}
-                  >
-                    {isPartialReceipt
-                      ? `⏳ Pago Parcialmente — Falta ${formatCurrency(receiptModal.remainingAmountCents)}`
-                      : isPendingReceipt
-                      ? '🕒 Aguardando Pagamento'
-                      : '✓ Pagamento Quitado'}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: '#334155', background: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                <div><strong>Recebemos de:</strong> {receiptModal.clientName}</div>
-                <div><strong>Categoria:</strong> {allCategoriesEntrada[receiptModal.category] || allCategoriesSaida[receiptModal.category] || receiptModal.category}</div>
-                <div>
-                  <strong>Referente a:</strong>{' '}
-                  {receiptModal.serviceName ? `${receiptModal.serviceName} — ${receiptModal.description}` : receiptModal.description}
-                  {isInstallmentReceipt ? ` (Parcela ${receiptModal.installmentNumber}/${receiptModal.totalInstallments})` : ''}
-                </div>
-                <div><strong>Situação / Modalidade:</strong> <span style={{ fontWeight: 700, color: isPartialReceipt ? '#b45309' : '#0f172a' }}>{statusSituationLabel}</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  <strong>Forma de Pagamento:</strong>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, color: '#0f172a' }}>
-                    {(() => {
-                      const MIcon = (PAYMENT_METHODS[receiptModal.paymentMethod] || PAYMENT_METHODS.pix).icon;
-                      return <MIcon size={15} />;
-                    })()}
-                    {PAYMENT_METHODS[receiptModal.paymentMethod]?.label || receiptModal.paymentMethod}
-                  </span>
-                </div>
-                <div><strong>Data e Hora da Emissão:</strong> {formatDateTime(receiptModal.paidAt || receiptModal.createdAt)}</div>
-
-                {/* Resumo de Valores (Bruto, Desconto, Líquido) */}
-                <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Valor Bruto Original:</span>
-                    <strong>{formatCurrency(receiptModal.amountCents + (receiptModal.discountCents || 0))}</strong>
-                  </div>
-                  {receiptModal.discountCents > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
-                      <span>(-) Desconto Concedido:</span>
-                      <strong>- {formatCurrency(receiptModal.discountCents)}</strong>
+            <div
+              className="fin-modal"
+              style={{
+                maxWidth: '680px',
+                width: '100%',
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '24px 28px',
+                border: '1.5px solid #cbd5e1',
+                boxShadow: '0 20px 40px -15px rgba(0,0,0,0.18)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* FOLHA OFICIAL TIMBRADA PARA TELA E IMPRESSÃO A4 */}
+              <div id="official-receipt-sheet" style={{ background: '#ffffff', color: '#0f172a', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                
+                {/* 1. CABEÇALHO TIMBRADO DA CLÍNICA */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #1a3a4a 0%, #2f7567 100%)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: '#ffffff',
+                        fontWeight: 900,
+                        fontSize: '1.25rem',
+                        letterSpacing: '-0.02em',
+                        boxShadow: '0 4px 10px rgba(47, 117, 103, 0.25)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      CM
                     </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#0f172a' }}>
-                    <span>(=) Valor Líquido Total Cobrado:</span>
-                    <strong>{formatCurrency(receiptModal.amountCents)}</strong>
+                    <div>
+                      <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#1a3a4a', margin: 0, letterSpacing: '-0.01em' }}>
+                        Camila Machado
+                      </h2>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#b8892a', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
+                        Hipnose Clínica Multidimensional Integrativa
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600, marginTop: '2px' }}>
+                        CRT-SBHP/SC 805 • Urussanga - SC • WhatsApp: (48) 99691-5303
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CAIXA FORMAL DE IDENTIFICAÇÃO DO RECIBO */}
+                  <div style={{ textAlign: 'right', minWidth: '180px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1a3a4a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {isPendingReceipt
+                        ? 'Demonstrativo de Cobrança'
+                        : isPartialReceipt
+                        ? 'Recibo de Pagamento Parcial'
+                        : 'Recibo & Quitação'}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                      Documento: <strong>#{docNumber}</strong>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                      Emissão: <strong>{formatDateTime(receiptModal.paidAt || receiptModal.createdAt)}</strong>
+                    </div>
+                    <div style={{ marginTop: '5px' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          background: isPaidReceipt ? '#ecfdf5' : isPartialReceipt ? '#fffbeb' : '#fff7ed',
+                          color: isPaidReceipt ? '#065f46' : isPartialReceipt ? '#92400e' : '#c2410c',
+                          border: `1px solid ${isPaidReceipt ? '#a7f3d0' : isPartialReceipt ? '#fde68a' : '#fed7aa'}`,
+                        }}
+                      >
+                        {isPaidReceipt ? '✓ Quitado Integralmente' : isPartialReceipt ? '⏳ Pagamento Parcial' : '🕒 Aguardando Pagamento'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Detalhamento de cada pagamento parcial / entrada */}
-                {itemizedPayments.length > 0 && (
-                  <div
-                    style={{
-                      borderTop: '1px dashed #cbd5e1',
-                      paddingTop: '10px',
-                      marginTop: '4px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {isPartialReceipt || itemizedPayments.length > 1
-                        ? `Pagamentos / Entradas Parciais Realizadas (${itemizedPayments.length}):`
-                        : 'Detalhamento do Pagamento Recebido:'}
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {itemizedPayments.map((item, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '10px',
-                            padding: '8px 10px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            gap: '8px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <strong style={{ fontSize: '0.8rem', color: '#0f172a' }}>
-                              {itemizedPayments.length > 1 ? `${idx + 1}º Pagamento: ` : ''}
-                              {item.label}
-                            </strong>
-                            <span style={{ fontSize: '0.73rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                              <span>Forma:</span>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, color: '#0f172a' }}>
-                                {item.methodLabel === 'Cartão' ? (
-                                  <CardIconImg size={13} />
-                                ) : item.methodLabel === 'Dinheiro' ? (
-                                  <MoneyIconImg size={13} />
-                                ) : (
-                                  <PixIconImg size={13} />
-                                )}
-                                {item.methodLabel}
-                              </span>
-                              <span>• Data: {item.dateStr}</span>
+                {/* FAIXA DIVISÓRIA DE PRESTÍGIO */}
+                <div style={{ height: '2px', background: 'linear-gradient(90deg, #1a3a4a 0%, #b8892a 50%, #2f7567 100%)', margin: '14px 0 16px' }} />
+
+                {/* 2. DADOS DO PACIENTE / PAGADOR */}
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '16px',
+                    fontSize: '0.82rem',
+                    color: '#334155',
+                  }}
+                >
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                    Dados do Paciente / Tomador do Serviço
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px 16px' }}>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Nome do Paciente: </span>
+                      <strong style={{ color: '#0f172a' }}>{receiptModal.clientName}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>CPF: </span>
+                      <strong style={{ color: '#0f172a' }}>{clientCpf || 'Sob sigilo / conforme prontuário'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Telefone / WhatsApp: </span>
+                      <strong style={{ color: '#0f172a' }}>{clientPhone ? formatPhone(clientPhone) : 'Não informado'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Localidade: </span>
+                      <strong style={{ color: '#0f172a' }}>Urussanga - SC • Atendimento Clínico</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. DISCRIMINAÇÃO DO SERVIÇO PRESTADO */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                    Discriminação dos Serviços Prestados
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', color: '#334155', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Descrição do Serviço / Tratamento</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Categoria</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Forma</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 700, textAlign: 'right' }}>Valor Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+                        <td style={{ padding: '10px 12px', color: '#0f172a' }}>
+                          <strong>{cleanServiceDescription}</strong>
+                          {isInstallmentReceipt && (
+                            <span style={{ display: 'block', fontSize: '0.74rem', color: '#64748b', marginTop: '2px' }}>
+                              Parcela {receiptModal.installmentNumber} de {receiptModal.totalInstallments}
                             </span>
-                          </div>
-                          <strong style={{ fontSize: '0.88rem', color: '#059669', whiteSpace: 'nowrap' }}>
-                            {formatCurrency(item.amountCents)}
-                          </strong>
-                        </div>
-                      ))}
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#475569' }}>
+                          {allCategoriesEntrada[receiptModal.category] || receiptModal.category}
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#475569', textTransform: 'uppercase' }}>
+                          {PAYMENT_METHODS[receiptModal.paymentMethod]?.label || receiptModal.paymentMethod}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                          {formatCurrency(receiptModal.amountCents + (receiptModal.discountCents || 0))}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 4. HISTÓRICO DE BAIXAS / TRANSAÇÕES (SE HOUVER DETALHAMENTO DE ENTRADAS) */}
+                {itemizedPayments.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                      {isPartialReceipt || itemizedPayments.length > 1
+                        ? `Histórico de Pagamentos & Entradas Recebidas (${itemizedPayments.length}):`
+                        : 'Detalhamento da Liquidação:'}
                     </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                          <th style={{ padding: '6px 10px', fontWeight: 700 }}>Ordem / Etapa</th>
+                          <th style={{ padding: '6px 10px', fontWeight: 700 }}>Data da Liquidação</th>
+                          <th style={{ padding: '6px 10px', fontWeight: 700 }}>Forma</th>
+                          <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'right' }}>Valor Recebido</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemizedPayments.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#ffffff' : '#fafafa' }}>
+                            <td style={{ padding: '6px 10px', color: '#0f172a', fontWeight: 600 }}>{item.label}</td>
+                            <td style={{ padding: '6px 10px', color: '#475569' }}>{item.dateStr}</td>
+                            <td style={{ padding: '6px 10px', color: '#475569' }}>{item.methodLabel}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#059669', fontWeight: 800 }}>
+                              {formatCurrency(item.amountCents)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
 
-                {/* Totais Finais: Total Pago e Saldo Restante */}
-                <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      color: '#059669',
-                      fontWeight: 800,
-                      background: '#ecfdf5',
-                      border: '1px solid #a7f3d0',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <span>
-                      ✓ {isPartialReceipt ? 'Total Pago até o Momento (Parcial):' : 'Total Pago (Entrada / Baixas):'}
-                    </span>
-                    <strong style={{ fontSize: '0.96rem' }}>{formatCurrency(receiptModal.paidAmountCents)}</strong>
+                {/* 5. QUADRO RESUMO DE VALORES E TOTAIS */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                    gap: '8px',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 12px' }}>
+                    <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Valor Original</span>
+                    <strong style={{ fontSize: '0.98rem', color: '#0f172a', display: 'block', marginTop: '2px' }}>
+                      {formatCurrency(receiptModal.amountCents + (receiptModal.discountCents || 0))}
+                    </strong>
                   </div>
 
-                  {receiptModal.remainingAmountCents > 0 ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        background: '#fffbeb',
-                        border: '1px solid #fcd34d',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        color: '#b45309',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
-                        <span>⏳ Saldo Restante em Aberto a Pagar:</span>
-                        <strong style={{ fontSize: '0.96rem' }}>{formatCurrency(receiptModal.remainingAmountCents)}</strong>
-                      </div>
-                      {receiptModal.dueAt && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#92400e' }}>
-                          <span>Previsão / Vencimento do Saldo:</span>
-                          <strong>{formatDateOnly(receiptModal.dueAt)}</strong>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', fontSize: '0.82rem', fontWeight: 700, padding: '2px 4px' }}>
-                      <span>Saldo Restante em Aberto:</span>
-                      <strong>R$ 0,00 (Quitado)</strong>
+                  {receiptModal.discountCents > 0 && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '8px 12px' }}>
+                      <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#991b1b', textTransform: 'uppercase', display: 'block' }}>Desconto</span>
+                      <strong style={{ fontSize: '0.98rem', color: '#dc2626', display: 'block', marginTop: '2px' }}>
+                        - {formatCurrency(receiptModal.discountCents)}
+                      </strong>
                     </div>
                   )}
+
+                  <div style={{ background: '#ecfdf5', border: '1.5px solid #a7f3d0', borderRadius: '8px', padding: '8px 12px' }}>
+                    <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#065f46', textTransform: 'uppercase', display: 'block' }}>Total Pago (Entrada / Baixas)</span>
+                    <strong style={{ fontSize: '1.05rem', color: '#059669', display: 'block', marginTop: '2px' }}>
+                      {formatCurrency(receiptModal.paidAmountCents)}
+                    </strong>
+                  </div>
+
+                  <div
+                    style={{
+                      background: receiptModal.remainingAmountCents > 0 ? '#fffbeb' : '#f0fdf4',
+                      border: `1.5px solid ${receiptModal.remainingAmountCents > 0 ? '#fde68a' : '#bbf7d0'}`,
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.64rem', fontWeight: 800, color: receiptModal.remainingAmountCents > 0 ? '#92400e' : '#166534', textTransform: 'uppercase', display: 'block' }}>
+                      Saldo em Aberto
+                    </span>
+                    <strong style={{ fontSize: '1.05rem', color: receiptModal.remainingAmountCents > 0 ? '#b45309' : '#15803d', display: 'block', marginTop: '2px' }}>
+                      {receiptModal.remainingAmountCents > 0 ? formatCurrency(receiptModal.remainingAmountCents) : 'R$ 0,00 (Quitado)'}
+                    </strong>
+                    {receiptModal.remainingAmountCents > 0 && receiptModal.dueAt && (
+                      <span style={{ fontSize: '0.62rem', color: '#92400e', display: 'block', marginTop: '1px' }}>
+                        Vencimento: {formatDateOnly(receiptModal.dueAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {/* 6. DECLARAÇÃO FORMAL DE RECEBIMENTO / QUITAÇÃO */}
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderLeft: '3px solid #2f7567',
+                    borderRadius: '6px',
+                    padding: '10px 14px',
+                    fontSize: '0.76rem',
+                    color: '#334155',
+                    lineHeight: '1.45',
+                    marginBottom: '18px',
+                  }}
+                >
+                  <strong style={{ color: '#0f172a' }}>Declaração de Prestação de Serviços &amp; Fins Comprobatórios: </strong>
+                  {isPendingReceipt ? (
+                    <span>
+                      Declara-se que consta registrado em aberto para cobrança ao(à) paciente <strong>{receiptModal.clientName}</strong> o montante de <strong>{formatCurrency(mainAmount)}</strong> ({mainAmountWords}), referente aos serviços terapêuticos discriminados neste demonstrativo.
+                    </span>
+                  ) : (
+                    <span>
+                      Declaramos para os devidos fins de comprovação e reembolso (perante operadoras de planos de saúde, declaração de imposto de renda e fins legais) que recebemos de <strong>{receiptModal.clientName}</strong>{clientCpf ? ` (CPF: ${clientCpf})` : ''} a importância de <strong>{formatCurrency(mainAmount)}</strong> ({mainAmountWords}), referente à prestação dos serviços terapêuticos de Hipnose Clínica Integrativa acima discriminados.
+                    </span>
+                  )}
+                </div>
+
+                {/* 7. ASSINATURA & AUTENTICIDADE DIGITAL */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap', paddingTop: '10px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#64748b', maxWidth: '320px', lineHeight: '1.4' }}>
+                    <div style={{ fontWeight: 800, color: '#1a3a4a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Autenticidade &amp; Conformidade LGPD
+                    </div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#0f172a', fontWeight: 700, margin: '2px 0' }}>
+                      {authHash}
+                    </div>
+                    <div>
+                      Emissão eletrônica pelo Sistema de Gestão Clínica Integrativa • Conforme Lei Federal 13.709/2018 (LGPD).
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'center', minWidth: '220px' }}>
+                    <div style={{ width: '180px', borderBottom: '1px solid #475569', margin: '0 auto 6px' }} />
+                    <strong style={{ fontSize: '0.84rem', color: '#1a3a4a', display: 'block' }}>Camila Machado</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#475569', display: 'block' }}>
+                      Terapeuta Responsável • CRT-SBHP/SC 805
+                    </span>
+                  </div>
+                </div>
+
               </div>
 
+              {/* ESTILO DE IMPRESSÃO EMBUTIDO QUE TRANSFORMA A FOLHA EM A4 PERFEITA */}
               <style>{`
                 @media print {
-                  body * { visibility: hidden !important; }
-                  #printable-receipt, #printable-receipt * { visibility: visible !important; }
-                  #printable-receipt { position: absolute !important; left: 0; top: 0; width: 100% !important; max-width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; }
-                  .no-print, .no-print * { display: none !important; }
+                  @page {
+                    size: A4 portrait;
+                    margin: 12mm 15mm;
+                  }
+                  html, body {
+                    background: #ffffff !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                  }
+                  /* Oculta tudo que não faz parte do documento oficial */
+                  aside, header, nav, footer, [role="navigation"], .fin-modal-overlay {
+                    background: transparent !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    position: static !important;
+                    display: block !important;
+                  }
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  #official-receipt-sheet, #official-receipt-sheet * {
+                    visibility: visible !important;
+                  }
+                  #official-receipt-sheet {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    page-break-inside: avoid !important;
+                  }
+                  .no-print, .no-print * {
+                    display: none !important;
+                  }
                 }
               `}</style>
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginTop: '16px', paddingBottom: '10px', flexWrap: 'wrap' }}>
+
+              {/* BOTÕES DE AÇÃO VISÍVEIS SOMENTE NA TELA (NO-PRINT) */}
+              <div
+                className="no-print"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginTop: '22px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #e2e8f0',
+                  flexWrap: 'wrap',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setReceiptModal(null)}
                   className="btn btn-secondary"
+                  style={{ minWidth: '100px' }}
                 >
                   Fechar
                 </button>
@@ -6446,9 +6618,16 @@ export default function AdminFinanceiroPage() {
                   type="button"
                   onClick={() => window.print()}
                   className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(180deg, #10b981 0%, #059669 100%)',
+                    borderColor: '#059669',
+                    fontWeight: 700,
+                  }}
                 >
-                  <Printer size={16} /> Imprimir Comprovante
+                  <Printer size={16} /> Imprimir Comprovante Oficial (PDF)
                 </button>
               </div>
 

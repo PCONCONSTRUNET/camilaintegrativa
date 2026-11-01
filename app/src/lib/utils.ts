@@ -106,3 +106,71 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   pago: 'Pago',
   reembolsado: 'Reembolsado',
 };
+
+export function numberToCurrencyWords(amountCents: number): string {
+  const reais = Math.floor(amountCents / 100);
+  const centavos = amountCents % 100;
+
+  const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+  const dezenasEspeciais: Record<number, string> = {
+    10: 'dez',
+    11: 'onze',
+    12: 'doze',
+    13: 'treze',
+    14: 'quatorze',
+    15: 'quinze',
+    16: 'dezesseis',
+    17: 'dezessete',
+    18: 'dezoito',
+    19: 'dezenove',
+  };
+  const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+  function trioParaExtenso(num: number): string {
+    if (num === 0) return '';
+    if (num === 100) return 'cem';
+    const c = Math.floor(num / 100);
+    const d = Math.floor((num % 100) / 10);
+    const u = num % 10;
+    const partes: string[] = [];
+    if (c > 0) partes.push(centenas[c]);
+    const resto = num % 100;
+    if (resto >= 10 && resto <= 19) {
+      partes.push(dezenasEspeciais[resto]);
+    } else {
+      if (d > 0) partes.push(dezenas[d]);
+      if (u > 0) partes.push(unidades[u]);
+    }
+    return partes.join(' e ');
+  }
+
+  let textoReais = '';
+  if (reais === 0) {
+    textoReais = 'zero reais';
+  } else if (reais === 1) {
+    textoReais = 'um real';
+  } else if (reais < 1000) {
+    textoReais = `${trioParaExtenso(reais)} reais`;
+  } else if (reais < 1000000) {
+    const milhar = Math.floor(reais / 1000);
+    const resto = reais % 1000;
+    const txtMilhar = milhar === 1 ? 'um mil' : `${trioParaExtenso(milhar)} mil`;
+    if (resto === 0) {
+      textoReais = `${txtMilhar} reais`;
+    } else if (resto < 100 || resto % 100 === 0) {
+      textoReais = `${txtMilhar} e ${trioParaExtenso(resto)} reais`;
+    } else {
+      textoReais = `${txtMilhar}, ${trioParaExtenso(resto)} reais`;
+    }
+  } else {
+    textoReais = `${reais.toLocaleString('pt-BR')} reais`;
+  }
+
+  if (centavos > 0) {
+    const txtCentavos = trioParaExtenso(centavos);
+    return `${textoReais} e ${txtCentavos} ${centavos === 1 ? 'centavo' : 'centavos'}`;
+  }
+
+  return textoReais;
+}
