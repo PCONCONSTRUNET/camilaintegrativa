@@ -117,22 +117,22 @@ export function PwaInstallPrompt() {
   };
 
   const title = isCliente
-    ? 'Instalar App do Paciente'
+    ? 'Instalar Camila Integrativa'
     : isAdmin
-    ? 'Instalar Painel da Clínica'
-    : 'Instalar App Camila Machado';
+    ? 'Instalar Admin Camila'
+    : 'Instalar Camila Integrativa';
 
   const subtitle = isCliente
-    ? 'Consultas, sessões e lembretes na tela inicial'
+    ? 'Consultas, sessões e lembretes na sua tela inicial'
     : isAdmin
-    ? 'Agenda, prontuários e pacientes na tela inicial'
+    ? 'Agenda, prontuários e pacientes na sua tela inicial'
     : 'Acesso rápido e notificações no seu celular';
 
   const modalTitle = isCliente
-    ? 'Instalar Portal do Paciente no iPhone'
+    ? 'Instalar Camila Integrativa no iPhone'
     : isAdmin
-    ? 'Instalar Painel Clínico no iPhone'
-    : 'Instalar no seu iPhone';
+    ? 'Instalar Admin Camila no iPhone'
+    : 'Instalar Camila Integrativa no iPhone';
 
   const modalSubtitle = isCliente
     ? 'Abra direto seu portal de consultas e receba lembretes de atendimento no celular:'

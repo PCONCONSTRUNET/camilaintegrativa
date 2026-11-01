@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/web-manifest-combined.json",
   "id": "/cliente",
-  "name": "Portal do Paciente | Camila Machado",
-  "short_name": "Meu Portal",
+  "name": "Camila Integrativa",
+  "short_name": "Camila Integrativa",
   "description": "Seus agendamentos, sessões, prontuário e acompanhamento terapêutico.",
   "start_url": "/cliente",
   "scope": "/",

@@ -5,6 +5,7 @@ import {
   AgendaPermissionError,
   BookingConflictError,
   BookingValidationError,
+  deleteAppointment,
   editAppointment,
   resizeAppointment,
   updateAppointmentStatus,
@@ -183,6 +184,62 @@ export async function PATCH(request: Request, context: RouteContext<'/api/admin/
     if (error instanceof BookingValidationError) {
       return Response.json({ error: error.message }, { status: 422 });
     }
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request, context: RouteContext<'/api/admin/appointments/[id]'>) {
+  const user = await getCurrentUser();
+  if (!user || !canManageAgenda(user)) {
+    return Response.json({ error: 'Não autorizado a excluir agendamentos.' }, { status: 403 });
+  }
+
+  try {
+    const { id } = await context.params;
+    const { ip, userAgent } = extractClientMetadata(request);
+
+    // Buscar dados do agendamento antes da exclusão para detalhar a auditoria
+    const db = getDatabase();
+    const apt = (await db.prepare(`
+      SELECT a.client_id, c.name as client_name, s.name as service_name, a.start_at
+      FROM appointments a
+      LEFT JOIN clients c ON c.id = a.client_id
+      LEFT JOIN services s ON s.id = a.service_id
+      WHERE a.id = ? AND a.clinic_id = ?
+    `).get(id, IDS.clinic)) as {
+      client_id?: string;
+      client_name?: string;
+      service_name?: string;
+      start_at?: string;
+    } | undefined;
+
+    const deleted = await deleteAppointment(id, IDS.clinic);
+    if (!deleted) {
+      return Response.json({ error: 'Agendamento não encontrado.' }, { status: 404 });
+    }
+
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: user.userId,
+      actorName: user.name,
+      category: 'agendamento',
+      action: 'agendamento_excluido',
+      title: 'Exclusão Definitiva de Atendimento',
+      description: `Atendimento de "${apt?.client_name || 'Paciente'}" (${apt?.service_name || 'Serviço'}) excluído permanentemente da agenda por ${user.name}.`,
+      severity: 'aviso',
+      ipAddress: ip,
+      userAgent,
+      details: {
+        appointmentId: id,
+        clientName: apt?.client_name,
+        serviceName: apt?.service_name,
+        startAt: apt?.start_at,
+      },
+    }).catch(() => null);
+
+    return Response.json({ ok: true });
+  } catch (error) {
     return errorResponse(error);
   }
 }

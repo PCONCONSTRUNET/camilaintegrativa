@@ -20,11 +20,11 @@ export const metadata: Metadata = {
     'Conheça os serviços e solicite um horário no espaço de atendimento de Camila Machado.',
   keywords: ['hipnose integrativa', 'Camila Machado', 'atendimento presencial', 'atendimento online', 'agendamento'],
   manifest: '/manifest.json',
-  applicationName: 'Camila Machado',
+  applicationName: 'Camila Integrativa',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Camila Machado',
+    title: 'Camila Integrativa',
   },
   formatDetection: {
     telephone: true,

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/web-manifest-combined.json",
   "id": "/admin",
-  "name": "Painel Clínico | Camila Machado",
-  "short_name": "Admin Clínica",
+  "name": "Admin Camila",
+  "short_name": "Admin Camila",
   "description": "Gestão de agenda, prontuários, financeiro e pacientes.",
   "start_url": "/admin",
   "scope": "/",

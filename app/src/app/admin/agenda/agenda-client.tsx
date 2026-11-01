@@ -841,6 +841,41 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const statusUpdatingRef = useRef<string | null>(null);
 
+  async function deleteAppointmentAction(appointment: AppointmentSummary) {
+    const { confirmed } = await confirmDialog({
+      title: 'Excluir atendimento definitivamente',
+      description: 'Deseja excluir permanentemente este atendimento da agenda? Esta ação é irreversível.',
+      highlightText: `${appointment.clientName} — ${appointment.serviceName}`,
+      confirmLabel: 'Sim, excluir definitivamente',
+      cancelLabel: 'Voltar',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    statusUpdatingRef.current = appointment.id;
+    setStatusUpdatingId(appointment.id);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/admin/appointments/' + appointment.id, {
+        method: 'DELETE',
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setMessage(data?.error || 'Não foi possível excluir o atendimento.');
+        return;
+      }
+      setSelectedId(null);
+      setAppointments((items) => items.filter((item) => item.id !== appointment.id));
+      setMessage('Atendimento excluído permanentemente da agenda.');
+    } catch {
+      setMessage('Erro de conexão ao excluir agendamento.');
+    } finally {
+      setStatusUpdatingId(null);
+      statusUpdatingRef.current = null;
+    }
+  }
+
   async function update(id: string, status: AppointmentStatus) {
     if (statusUpdatingRef.current === id) return;
     if (status === 'cancelado') {
@@ -2608,6 +2643,18 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
             {!['cancelado', 'concluido', 'nao_compareceu'].includes(selectedAppointment.status) && (
               <button type="button" className="btn btn-ghost btn-sm danger-text" disabled={statusUpdatingId === selectedAppointment.id} onClick={() => update(selectedAppointment.id, 'cancelado')}>
                 Cancelar
+              </button>
+            )}
+            {canManageAgenda && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm danger-text"
+                disabled={statusUpdatingId === selectedAppointment.id}
+                onClick={() => void deleteAppointmentAction(selectedAppointment)}
+                title="Excluir este agendamento definitivamente"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Trash2 size={14} /> Excluir
               </button>
             )}
           </div>

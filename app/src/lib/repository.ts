@@ -2100,6 +2100,72 @@ export async function resizeAppointment(
   }
 }
 
+export async function deleteAppointment(appointmentId: string, clinicId: string): Promise<boolean> {
+  const database = getDatabase();
+  (await database.exec('BEGIN IMMEDIATE'));
+  try {
+    const apt = (await database.prepare(`
+      SELECT id, client_id, client_package_id, service_id, status, start_at, end_at
+      FROM appointments
+      WHERE id = ? AND clinic_id = ?
+    `).get(appointmentId, clinicId)) as {
+      id: string;
+      client_id: string;
+      client_package_id: string | null;
+      service_id: string;
+      status: string;
+      start_at: string;
+      end_at: string;
+    } | undefined;
+
+    if (!apt) {
+      (await database.exec('ROLLBACK'));
+      return false;
+    }
+
+    // 1. Estornar / limpar vínculos de usos de pacotes
+    try {
+      await database.prepare('DELETE FROM package_usages WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+
+    // 2. Desvincular agendamento de pagamentos e cobranças (para preservar os registros financeiros)
+    try {
+      await database.prepare('UPDATE payments SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+    try {
+      await database.prepare('UPDATE charges SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+
+    // 3. Registros de sessão (se houver)
+    try {
+      await database.prepare(`
+        DELETE FROM session_record_versions
+        WHERE session_record_id IN (SELECT id FROM session_records WHERE appointment_id = ?)
+      `).run(appointmentId);
+      await database.prepare('DELETE FROM session_records WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+
+    // 4. Desvincular de evoluções clínicas
+    try {
+      await database.prepare('UPDATE clinical_evolutions SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+
+    // 5. Deletar histórico de eventos do agendamento
+    try {
+      await database.prepare('DELETE FROM appointment_events WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
+
+    // 6. Excluir o agendamento
+    await database.prepare('DELETE FROM appointments WHERE id = ? AND clinic_id = ?').run(appointmentId, clinicId);
+
+    (await database.exec('COMMIT'));
+    return true;
+  } catch (error) {
+    (await database.exec('ROLLBACK'));
+    throw error;
+  }
+}
+
 export async function getAgendaSettings(): Promise<AgendaSettings> {
   const database = getDatabase();
   const settings = (await database.prepare(`

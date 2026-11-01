@@ -7,14 +7,14 @@ import AdminShell from './admin-shell';
 export const metadata: Metadata = {
   manifest: '/manifest-admin.json',
   title: {
-    default: 'Painel Clínico | Camila Machado',
-    template: '%s | Camila Machado',
+    default: 'Admin Camila',
+    template: '%s | Admin Camila',
   },
   description: 'Gestão de agenda, prontuários, financeiro e pacientes.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Admin Clínica',
+    title: 'Admin Camila',
   },
 };
 
