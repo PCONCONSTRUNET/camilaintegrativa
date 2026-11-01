@@ -722,6 +722,14 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   }
 
   function selectMiniDate(date: string) {
+    if (view === 'month' || view === 'year' || view === 'list') {
+      openDate(date, 'day');
+      return;
+    }
+    if (view === 'week' && anchorDate === date) {
+      openDate(date, 'day');
+      return;
+    }
     selectDate(date);
     if (compactSidebar) setMobileSidebarOpen(false);
   }
@@ -1331,6 +1339,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                   className={
                     'gcal-time-column'
                     + (date === initialDate ? ' is-today' : '')
+                    + (date === anchorDate ? ' is-selected' : '')
                     + (moveDraft?.date === date ? ' is-move-target' : '')
                   }
                   style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}
@@ -2003,7 +2012,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                     const visibleAppointments = dayAppointments.slice(0, dayBlocks.length || dayGroupSessions.length ? 2 : 3);
                     const hiddenItems = Math.max(0, dayAppointments.length - visibleAppointments.length) + Math.max(0, dayBlocks.length - 1);
                     return (
-                      <div className={'gcal-month-day' + (date.slice(0, 7) !== anchorDate.slice(0, 7) ? ' is-outside' : '')} key={date}>
+                      <div className={'gcal-month-day' + (date.slice(0, 7) !== anchorDate.slice(0, 7) ? ' is-outside' : '') + (date === anchorDate ? ' is-selected' : '')} key={date}>
                         <button type="button" className={'gcal-month-number' + (date === initialDate ? ' is-today' : '') + (date === anchorDate ? ' is-selected' : '')} onClick={() => openDate(date, 'day')} aria-label={formatFullDate(date)}>
                           {Number(date.slice(-2))}
                         </button>
