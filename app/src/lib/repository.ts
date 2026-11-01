@@ -2614,7 +2614,7 @@ export async function getDashboard() {
     for (const r of payRows) {
       const pid = String(r.id);
       const entryType = String(r.entry_type ?? 'entrada');
-      const statusVal = String(r.status ?? 'pago');
+      const statusVal = String(r.status || (Number(r.remaining_amount_cents ?? 0) > 0 ? 'pendente' : 'pago'));
       const amountCents = Number(r.amount_cents ?? 0);
       let paidCents = Number(r.paid_amount_cents ?? 0);
       let remCents = Number(r.remaining_amount_cents ?? 0);
@@ -4650,7 +4650,7 @@ export async function getClientPortalData(clientId: string) {
       const discountCents = Number(r.discount_cents ?? 0);
       let paidAmountCents = Number(r.paid_amount_cents ?? 0);
       let remainingAmountCents = Number(r.remaining_amount_cents ?? 0);
-      const statusVal = String(r.status ?? 'pago');
+      const statusVal = String(r.status || (Number(r.remaining_amount_cents ?? 0) > 0 ? 'pendente' : 'pago'));
       const dueAt = r.due_at ? String(r.due_at) : null;
 
       if (statusVal === 'pago' && paidAmountCents === 0 && remainingAmountCents === 0 && amountCents > 0) {

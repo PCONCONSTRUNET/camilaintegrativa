@@ -475,8 +475,8 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao disparar cobrança.');
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(data?.error || 'Erro ao disparar cobrança.');
       setChargeSuccessMsg('✓ Mensagem enviada automaticamente no WhatsApp!');
       setTimeout(() => setChargeSuccessMsg(null), 5000);
     } catch (err) {
@@ -1051,8 +1051,9 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           expectedUpdatedAt: appointment.updatedAt,
         }),
       });
-      const body = await response.json();
-      if (!response.ok) throw Object.assign(new Error(body.error ?? 'Não foi possível reagendar o atendimento.'), { status: response.status });
+      const body = (await response.json().catch(() => null)) as { appointment?: AppointmentSummary; error?: string } | null;
+      if (!response.ok) throw Object.assign(new Error(body?.error ?? 'Não foi possível reagendar o atendimento.'), { status: response.status });
+      if (!body?.appointment) throw new Error('Não foi possível obter os dados atualizados do atendimento.');
       const updated = body.appointment as AppointmentSummary;
       setAppointments((items) => items.map((item) => item.id === updated.id ? updated : item));
       setMessage('Atendimento reagendado para ' + formatCompactDate(draft.date) + ', ' + draft.time + '.');
@@ -1220,8 +1221,9 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           expectedEndAt: appointment.endAt,
         }),
       });
-      const body = await response.json();
-      if (!response.ok) throw Object.assign(new Error(body.error ?? 'Não foi possível alterar a duração.'), { status: response.status });
+      const body = (await response.json().catch(() => null)) as { appointment?: AppointmentSummary; error?: string } | null;
+      if (!response.ok) throw Object.assign(new Error(body?.error ?? 'Não foi possível alterar a duração.'), { status: response.status });
+      if (!body?.appointment) throw new Error('Não foi possível obter os dados atualizados da duração.');
       const updated = body.appointment as AppointmentSummary;
       setAppointments((items) => items.map((item) => item.id === updated.id ? updated : item));
       setResizeDraft(null);

@@ -63,26 +63,43 @@ export function toPgSql(sql: string): string {
   return result;
 }
 
+function normalizePgConnectionString(raw: string): string {
+  let conn = raw.trim();
+  try {
+    const url = new URL(conn);
+    if (url.hostname.includes('pooler.supabase.com')) {
+      // O Supabase Pooler possui modo de sessão (porta 5432 - max 15 conexões / EMAXCONNSESSION)
+      // e modo de transação (porta 6543 - PgBouncer que suporta milhares de conexões serverless).
+      // Forçamos a porta 6543 em qualquer URL apontando para o pooler.
+      url.port = '6543';
+      return url.toString();
+    }
+  } catch {
+    // Fallback via regex caso a URL não seja parseável por URL padrão
+  }
+  return conn.replace(/(pooler\.supabase\.com)(?::\d+)?/g, '$1:6543');
+}
+
 function getPgPool(): Pool {
   const globalStore = globalThis as GlobalWithClients;
   if (globalStore.__clinicaPgPool) return globalStore.__clinicaPgPool;
 
-  let connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('DATABASE_URL não configurada.');
+  const rawConn = process.env.DATABASE_URL;
+  if (!rawConn) throw new Error('DATABASE_URL não configurada.');
 
-  // Se a conexão apontar para o pooler do Supabase na porta de sessão (5432),
-  // reescrevemos automaticamente para a porta de transação (6543) com pooling PgBouncer,
-  // evitando o erro (EMAXCONNSESSION) de limite de 15 conexões concorrentes.
-  if (connectionString.includes('pooler.supabase.com:5432')) {
-    connectionString = connectionString.replace('pooler.supabase.com:5432', 'pooler.supabase.com:6543');
-  }
+  const connectionString = normalizePgConnectionString(rawConn);
 
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 3,
-    idleTimeoutMillis: 5000,
-    connectionTimeoutMillis: 5000,
+    max: 2, // Ideal para ambientes serverless (Vercel Lambdas) conectados ao pooler
+    idleTimeoutMillis: 1500, // Libera conexões ociosas rapidamente
+    connectionTimeoutMillis: 6000,
+    allowExitOnIdle: true,
+  });
+
+  pool.on('error', (err) => {
+    console.error('PgPool client error (ignoring transient disconnect):', err?.message || err);
   });
 
   globalStore.__clinicaPgPool = pool;

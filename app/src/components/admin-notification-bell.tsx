@@ -130,7 +130,8 @@ export function AdminNotificationBell({
       setLoading(true);
       const res = await fetch('/api/admin/notifications', { cache: 'no-store' });
       if (!res.ok) return;
-      const data = await res.json();
+      const data = (await res.json().catch(() => null)) as { notifications?: AdminNotificationItem[]; summary?: { unread?: number } } | null;
+      if (!data) return;
       const list = (data.notifications ?? []) as AdminNotificationItem[];
       const unread = Number(data.summary?.unread ?? list.filter((i) => !i.read).length);
       setItems(list);

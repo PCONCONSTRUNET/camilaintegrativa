@@ -373,12 +373,12 @@ export default function QuickAppointmentDialog({
               modalities: ['presencial', 'online'],
             }),
           });
-          const svcData = await svcRes.json();
-          if (!svcRes.ok || !svcData.service?.id) {
-            throw new Error(svcData.error || 'Não foi possível cadastrar o serviço personalizado.');
+          const svcData = (await svcRes.json().catch(() => null)) as { service?: Service; error?: string } | null;
+          if (!svcRes.ok || !svcData?.service?.id) {
+            throw new Error(svcData?.error || 'Não foi possível cadastrar o serviço personalizado.');
           }
           finalServiceId = svcData.service.id;
-          setServices((prev) => [...prev, svcData.service]);
+          setServices((prev) => [...prev, svcData.service!]);
         } catch (err) {
           setSubmitting(false);
           setError(err instanceof Error ? err.message : 'Erro ao cadastrar serviço personalizado.');
