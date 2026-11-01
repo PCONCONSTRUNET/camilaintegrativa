@@ -1433,8 +1433,8 @@ export default function ClientesPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
-            gap: '1rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+            gap: '1.15rem',
           }}
         >
           {filteredClients.map((client) => {
@@ -1448,7 +1448,7 @@ export default function ClientesPage() {
                 className="client-card-item"
                 style={{
                   background: '#ffffff',
-                  border: '2px solid #94a3b8',
+                  border: '1.5px solid #cbd5e1',
                   borderLeft: '5px solid #1a3a4a',
                   borderRadius: '20px',
                   padding: '1.15rem 1.25rem',
@@ -1644,41 +1644,36 @@ export default function ClientesPage() {
                 <div
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    borderTop: '1.5px solid #cbd5e1',
-                    paddingTop: '0.75rem',
+                    borderTop: '1.5px solid #e2e8f0',
+                    paddingTop: '0.85rem',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.4rem',
+                    flexDirection: 'column',
+                    gap: '0.55rem',
                   }}
                 >
-                  <div style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                    {client.isInadimplente && (
-                      <button
-                        type="button"
-                        onClick={() => handleAutomaticCharge(client.id, client.name)}
-                        disabled={chargingClientId === client.id}
-                        title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          padding: '0.36rem 0.7rem',
-                          borderRadius: '999px',
-                          background: '#fee2e2',
-                          color: '#b91c1c',
-                          border: '1.5px solid #f87171',
-                          fontSize: '0.74rem',
-                          fontWeight: 800,
-                          cursor: chargingClientId === client.id ? 'wait' : 'pointer',
-                          boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
-                          opacity: chargingClientId === client.id ? 0.7 : 1,
-                        }}
-                      >
-                        <WhatsappIcon size={14} color="#b91c1c" />
-                        {chargingClientId === client.id ? 'Enviando...' : 'Cobrar'}
-                      </button>
-                    )}
+                  {/* Linha 1: Ações Principais (Prontuário + WhatsApp) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: waUrl ? '1fr 1fr' : '1fr', gap: '0.45rem' }}>
+                    <Link
+                      href={`/admin/prontuarios/${client.id}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '10px',
+                        background: '#1a3a4a',
+                        color: '#ffffff',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        textDecoration: 'none',
+                        boxShadow: '0 2px 6px rgba(26,58,74,0.18)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <FileText size={14} /> Prontuário
+                    </Link>
+
                     {waUrl && (
                       <a
                         href={waUrl}
@@ -1687,80 +1682,133 @@ export default function ClientesPage() {
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.3rem',
-                          padding: '0.36rem 0.7rem',
-                          borderRadius: '999px',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '10px',
                           background: '#dcfce7',
                           color: '#15803d',
-                          border: '1.5px solid #4ade80',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
+                          border: '1.5px solid #86efac',
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
                           textDecoration: 'none',
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        <WhatsappIcon size={15} /> WhatsApp
+                        <WhatsappIcon size={14} /> WhatsApp
                       </a>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(client)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        padding: '0.36rem 0.7rem',
-                        borderRadius: '999px',
-                        background: '#eff6ff',
-                        color: '#1d4ed8',
-                        border: '1.5px solid #93c5fd',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Pencil size={13} /> Editar
-                    </button>
                   </div>
 
-                  <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                  {/* Se estiver inadimplente: Banner de Cobrança com WhatsApp */}
+                  {client.isInadimplente && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setDocPrefill({
-                          clientName: client.name,
-                          clientCpf: client.cpf,
-                          clientPhone: client.phone,
-                          clientBirthDate: client.birthDate,
-                        });
-                        setDocModalOpen(true);
+                      onClick={() => handleAutomaticCharge(client.id, client.name)}
+                      disabled={chargingClientId === client.id}
+                      title="Disparar mensagem automática de cobrança no WhatsApp do cliente"
+                      style={{
+                        width: '100%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.45rem',
+                        padding: '0.48rem 0.85rem',
+                        borderRadius: '10px',
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        border: '1.5px solid #f87171',
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        cursor: chargingClientId === client.id ? 'wait' : 'pointer',
+                        boxShadow: '0 2px 6px rgba(220, 38, 38, 0.12)',
+                        opacity: chargingClientId === client.id ? 0.7 : 1,
+                        transition: 'all 0.15s ease',
                       }}
-                      className="btn btn-secondary btn-sm"
-                      style={{ borderRadius: '999px', padding: '0.38rem 0.72rem', fontSize: '0.74rem', border: '1.5px solid #94a3b8' }}
-                      title="Gerar Declaração, Recibo ou Termo LGPD em PDF"
                     >
-                      <FileText size={13} /> Doc
+                      <WhatsappIcon size={14} color="#b91c1c" />
+                      {chargingClientId === client.id
+                        ? 'Enviando cobrança...'
+                        : `Cobrar Fatura (${formatCurrency(client.overdueBalanceCents ?? 0)})`}
                     </button>
-                    <Link
-                      href={`/admin/prontuarios/${client.id}`}
-                      className="btn btn-primary btn-sm"
-                      style={{ borderRadius: '999px', padding: '0.38rem 0.8rem', fontSize: '0.75rem', border: '1.5px solid #163242' }}
-                    >
-                      <FileText size={13} /> Prontuário
-                    </Link>
+                  )}
+
+                  {/* Linha 2: Ações Auxiliares (Documentos, Editar e Excluir) */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocPrefill({
+                            clientName: client.name,
+                            clientCpf: client.cpf,
+                            clientPhone: client.phone,
+                            clientBirthDate: client.birthDate,
+                          });
+                          setDocModalOpen(true);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.38rem 0.72rem',
+                          borderRadius: '8px',
+                          background: '#f8fafc',
+                          color: '#334155',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                        title="Gerar Declaração, Recibo ou Termo LGPD em PDF"
+                      >
+                        <FileText size={13} /> Doc
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(client)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.38rem 0.72rem',
+                          borderRadius: '8px',
+                          background: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1.5px solid #bfdbfe',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                        title="Editar cadastro"
+                      >
+                        <Pencil size={13} /> Editar
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => setDeletingClient(client)}
                       style={{
                         width: '32px',
                         height: '32px',
-                        borderRadius: '999px',
+                        borderRadius: '8px',
                         background: '#fef2f2',
                         color: '#dc2626',
-                        border: '1.5px solid #fca5a5',
+                        border: '1.5px solid #fecaca',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
+                        flexShrink: 0,
                       }}
                       title="Excluir cliente"
                     >
