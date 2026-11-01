@@ -44,6 +44,15 @@ import {
   WhatsappTemplatesMap,
   WhatsappTriggerType,
 } from '@/lib/whatsapp-templates';
+import {
+  DEFAULT_CLINIC_PIX_CONFIG,
+  type ClinicPixConfig,
+  type PixKeyType,
+  generatePixCopiaECola,
+  getPixQrCodeImageUrl,
+  formatPixKeyDisplay,
+  formatPixKeyForBacen,
+} from '@/lib/pix';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { getInstantCache, setInstantCache } from '@/lib/client-cache';
 
@@ -205,7 +214,10 @@ export default function ConfiguracoesPage() {
   const [checkingOverdue, setCheckingOverdue] = useState(false);
   const [sendingTest, setSendingTest] = useState<WhatsappTriggerType | 'global' | null>(null);
 
-  const [activeSection, setActiveSection] = useState<'todos' | 'lembretes' | 'api' | 'historico' | 'backup'>('todos');
+  const [activeSection, setActiveSection] = useState<'todos' | 'pix' | 'lembretes' | 'api' | 'historico' | 'backup'>('todos');
+  const [pixConfig, setPixConfig] = useState<ClinicPixConfig>(DEFAULT_CLINIC_PIX_CONFIG);
+  const [pixSaving, setPixSaving] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
   const [activeTriggerTab, setActiveTriggerTab] = useState<WhatsappTriggerType>('sessao_agendada');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showPayloadExample, setShowPayloadExample] = useState(false);
@@ -316,7 +328,33 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => {
     void loadSettings();
+    fetch('/api/admin/pix-settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.config) setPixConfig(d.config);
+      })
+      .catch(() => {});
   }, [loadSettings]);
+
+  const handleSavePix = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPixSaving(true);
+    try {
+      const res = await fetch('/api/admin/pix-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pixConfig),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar chave PIX.');
+      setPixConfig(data.config);
+      showToast('success', '✓ Chave PIX e dados de recebimento atualizados com sucesso!');
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Erro ao salvar chave PIX.');
+    } finally {
+      setPixSaving(false);
+    }
+  };
 
   const loadBackupSummary = useCallback(async () => {
     try {
@@ -881,6 +919,7 @@ export default function ConfiguracoesPage() {
         >
           {[
             { id: 'todos', label: 'Visão Completa', icon: Settings2 },
+            { id: 'pix', label: 'Chave PIX da Clínica', icon: QrCode },
             { id: 'lembretes', label: `Mensagens Automáticas (${activeTriggersCount}/${TRIGGER_ORDER.length})`, icon: MessageSquare },
             { id: 'api', label: 'Conexão API WhatsApp', icon: Webhook },
             { id: 'historico', label: `Histórico de Envios (${logs.length})`, icon: History },
@@ -962,6 +1001,410 @@ export default function ConfiguracoesPage() {
           </span>
         </div>
       </div>
+
+      {/* =====================================================================
+          SEÇÃO: CHAVE PIX DA CLÍNICA & RECEBIMENTOS ONLINE
+         ===================================================================== */}
+      {(activeSection === 'todos' || activeSection === 'pix') && (() => {
+        const previewPayload = generatePixCopiaECola({
+          key: pixConfig.key,
+          name: pixConfig.recipientName,
+          city: pixConfig.city,
+          amount: 150.0,
+          txid: 'PREVIEW',
+        });
+        const previewQr = getPixQrCodeImageUrl(previewPayload, 180);
+
+        return (
+          <section
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              border: '1.5px solid #10b981',
+              padding: '24px',
+              boxShadow: '0 4px 20px rgba(16, 185, 129, 0.06)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+                gap: '14px',
+                borderBottom: '1px solid #f1f5f9',
+                paddingBottom: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '14px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #a7f3d0',
+                  }}
+                >
+                  <QrCode size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    Chave PIX da Clínica & Recebimentos Online
+                  </h3>
+                  <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '4px 0 0' }}>
+                    Configure os dados bancários do PIX da clínica. As informações são usadas para gerar o QR Code dinâmico no Agendamento Online e no Portal do Paciente.
+                  </p>
+                </div>
+              </div>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#f0fdf4',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                  padding: '5px 12px',
+                  borderRadius: '999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                <CheckCircle2 size={13} /> Chave Ativa no Agendamento
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '24px',
+                alignItems: 'start',
+              }}
+            >
+              {/* Formulário de Configuração */}
+              <form onSubmit={handleSavePix} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                    Tipo de Chave PIX
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[
+                      { type: 'telefone', label: 'Telefone Celular' },
+                      { type: 'cpf', label: 'CPF' },
+                      { type: 'cnpj', label: 'CNPJ' },
+                      { type: 'email', label: 'E-mail' },
+                      { type: 'aleatoria', label: 'Chave Aleatória (EVP)' },
+                    ].map((item) => {
+                      const isSel = pixConfig.keyType === item.type;
+                      return (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => {
+                            setPixConfig((prev) => ({
+                              ...prev,
+                              keyType: item.type as PixKeyType,
+                            }));
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '0.78rem',
+                            fontWeight: isSel ? 700 : 500,
+                            background: isSel ? '#059669' : '#f8fafc',
+                            color: isSel ? '#ffffff' : '#475569',
+                            border: `1px solid ${isSel ? '#059669' : '#cbd5e1'}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                    Chave PIX
+                  </label>
+                  <input
+                    type="text"
+                    value={pixConfig.key}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPixConfig((prev) => ({
+                        ...prev,
+                        key: val,
+                        keyDisplay: prev.keyDisplay === prev.key ? val : prev.keyDisplay,
+                      }));
+                    }}
+                    placeholder={
+                      pixConfig.keyType === 'telefone'
+                        ? '(48) 99691-5303 ou +5548996915303'
+                        : pixConfig.keyType === 'cpf'
+                        ? '123.456.789-00'
+                        : pixConfig.keyType === 'cnpj'
+                        ? '12.345.678/0001-90'
+                        : pixConfig.keyType === 'email'
+                        ? 'contato@camilaintegrativa.com.br'
+                        : 'chave aleatória (ex: 123e4567-e89b-12d3-a456-426614174000)'
+                    }
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      fontFamily: 'monospace',
+                      fontWeight: 600,
+                      outline: 'none',
+                    }}
+                    required
+                  />
+                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '3px', display: 'block' }}>
+                    Digite a chave exatamente como cadastrada no banco da Camila (telefone com DDD, CPF, CNPJ, e-mail ou código aleatório).
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                      Nome do Favorecido / Titular
+                    </label>
+                    <input
+                      type="text"
+                      value={pixConfig.recipientName}
+                      onChange={(e) => setPixConfig((prev) => ({ ...prev, recipientName: e.target.value }))}
+                      placeholder="Camila Machado"
+                      maxLength={25}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                      }}
+                      required
+                    />
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Máx 25 caracteres (padrão BACEN).</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                      Cidade da Conta
+                    </label>
+                    <input
+                      type="text"
+                      value={pixConfig.city}
+                      onChange={(e) => setPixConfig((prev) => ({ ...prev, city: e.target.value }))}
+                      placeholder="Urussanga"
+                      maxLength={15}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                      }}
+                      required
+                    />
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Máx 15 caracteres (sem acentos).</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                      Nome de Exibição da Chave
+                    </label>
+                    <input
+                      type="text"
+                      value={pixConfig.keyDisplay}
+                      onChange={(e) => setPixConfig((prev) => ({ ...prev, keyDisplay: e.target.value }))}
+                      placeholder="(48) 99691-5303"
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                      }}
+                    />
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Como aparece para o cliente ler.</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                      WhatsApp para Comprovantes
+                    </label>
+                    <input
+                      type="text"
+                      value={pixConfig.whatsappDisplay}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPixConfig((prev) => ({
+                          ...prev,
+                          whatsappDisplay: val,
+                          whatsappNumber: val.replace(/\D/g, '') || prev.whatsappNumber,
+                        }));
+                      }}
+                      placeholder="(48) 99691-5303"
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.84rem',
+                      }}
+                    />
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Número para envio do recibo.</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                    Instruções ao Paciente
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={pixConfig.instructions}
+                    onChange={(e) => setPixConfig((prev) => ({ ...prev, instructions: e.target.value }))}
+                    placeholder="Instruções exibidas abaixo do QR Code..."
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '6px' }}>
+                  <button
+                    type="submit"
+                    disabled={pixSaving}
+                    style={{
+                      background: '#059669',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '11px 22px',
+                      fontSize: '0.86rem',
+                      fontWeight: 800,
+                      cursor: pixSaving ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                    }}
+                  >
+                    {pixSaving ? <RefreshCw size={16} className="spin" /> : <Save size={16} />}
+                    {pixSaving ? 'Salvando Chave PIX…' : 'Salvar Configurações do PIX'}
+                  </button>
+                  <span style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                    Sincronização imediata no site e aplicativo.
+                  </span>
+                </div>
+              </form>
+
+              {/* Pré-visualização em Tempo Real do Paciente */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', fontWeight: 800, fontSize: '0.88rem' }}>
+                  <Smartphone size={16} color="#059669" /> Pré-visualização do Paciente
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#64748b', margin: 0 }}>
+                  Simulação exata do que o cliente vê na etapa de pagamento:
+                </p>
+
+                {/* QR Code gerado ao vivo */}
+                <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewQr}
+                    alt="QR Code PIX Preview"
+                    width={170}
+                    height={170}
+                    style={{ display: 'block', borderRadius: '6px' }}
+                  />
+                </div>
+
+                {/* Informações da Chave */}
+                <div style={{ width: '100%', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '10px 12px', textAlign: 'left', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Titular:</span>
+                    <strong style={{ color: '#0f172a' }}>{pixConfig.recipientName || 'Camila Machado'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Cidade:</span>
+                    <strong style={{ color: '#0f172a' }}>{pixConfig.city || 'Urussanga'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Chave ({pixConfig.keyType}):</span>
+                    <strong style={{ color: '#059669' }}>{pixConfig.keyDisplay || pixConfig.key}</strong>
+                  </div>
+                </div>
+
+                {/* Botão Copiar Código PIX Preview */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(previewPayload);
+                    setPixCopied(true);
+                    setTimeout(() => setPixCopied(false), 2500);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    background: pixCopied ? '#059669' : '#0f766e',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {pixCopied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                  {pixCopied ? 'Código PIX Copiado!' : 'Testar Copiar Código PIX'}
+                </button>
+
+                <span style={{ fontSize: '0.7rem', color: '#059669', fontStyle: 'italic' }}>
+                  ✓ Padrão oficial BACEN EMV QRCPS-MPM compatível com todos os bancos
+                </span>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* =====================================================================
           SEÇÃO 1: CONEXÃO DA API PRIVADA (CONTABO VPS)

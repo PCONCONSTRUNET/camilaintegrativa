@@ -25,7 +25,7 @@ import {
 import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
-import { generatePixCopiaECola, getPixQrCodeImageUrl, CLINIC_PIX_CONFIG } from '@/lib/pix';
+import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, type ClinicPixConfig } from '@/lib/pix';
 
 type Slot = { time: string; startAt: string };
 type Step = 'servico' | 'horario' | 'dados' | 'revisao' | 'sucesso';
@@ -88,6 +88,7 @@ function AgendarContent() {
     therapeuticConsentAccepted: false,
   });
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro' | 'cartao' | ''>('');
+  const [pixConfig, setPixConfig] = useState<ClinicPixConfig>(DEFAULT_CLINIC_PIX_CONFIG);
   const [copiedPix, setCopiedPix] = useState(false);
   const [copiedPixKey, setCopiedPixKey] = useState(false);
   const [activePackage, setActivePackage] = useState<{
@@ -130,6 +131,9 @@ function AgendarContent() {
         const groups: GroupSession[] = groupBody.sessions ?? [];
         setServices(list);
         setGroupSessions(groups);
+        if (servicesBody.pixConfig) {
+          setPixConfig(servicesBody.pixConfig);
+        }
 
         if (groupSessionIdParam && groups.some((g) => g.id === groupSessionIdParam)) {
           setBookingMode('grupo');
@@ -314,7 +318,13 @@ function AgendarContent() {
     const groupPriceReais = (selectedGroup.priceCents || 0) / 100;
     const groupPixPayload =
       paymentMethod === 'pix' && groupPriceReais > 0
-        ? generatePixCopiaECola({ amount: groupPriceReais, txid: reference || 'GRUPO' })
+        ? generatePixCopiaECola({
+            key: pixConfig.key,
+            name: pixConfig.recipientName,
+            city: pixConfig.city,
+            amount: groupPriceReais,
+            txid: reference || 'GRUPO',
+          })
         : null;
     const groupPixQr = groupPixPayload ? getPixQrCodeImageUrl(groupPixPayload, 220) : null;
 
@@ -435,11 +445,14 @@ function AgendarContent() {
 
               {/* Chave PIX Alternativa */}
               <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span><strong>Chave Celular:</strong> {CLINIC_PIX_CONFIG.keyDisplay} (Camila Machado)</span>
+                <span>
+                  <strong>{pixConfig.keyType === 'telefone' ? 'Chave Celular' : pixConfig.keyType === 'cpf' ? 'Chave CPF' : pixConfig.keyType === 'cnpj' ? 'Chave CNPJ' : pixConfig.keyType === 'email' ? 'Chave E-mail' : 'Chave Aleatória'}:</strong>{' '}
+                  {pixConfig.keyDisplay || pixConfig.key} ({pixConfig.recipientName})
+                </span>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(CLINIC_PIX_CONFIG.key);
+                    navigator.clipboard.writeText(pixConfig.key);
                     setCopiedPixKey(true);
                     setTimeout(() => setCopiedPixKey(false), 2500);
                   }}
@@ -472,7 +485,13 @@ function AgendarContent() {
     const indPriceReais = indPriceCents / 100;
     const indPixPayload =
       paymentMethod === 'pix' && indPriceReais > 0
-        ? generatePixCopiaECola({ amount: indPriceReais, txid: reference || 'SESSAO' })
+        ? generatePixCopiaECola({
+            key: pixConfig.key,
+            name: pixConfig.recipientName,
+            city: pixConfig.city,
+            amount: indPriceReais,
+            txid: reference || 'SESSAO',
+          })
         : null;
     const indPixQr = indPixPayload ? getPixQrCodeImageUrl(indPixPayload, 220) : null;
 
@@ -601,11 +620,14 @@ function AgendarContent() {
 
               {/* Chave PIX Alternativa */}
               <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span><strong>Chave Celular:</strong> {CLINIC_PIX_CONFIG.keyDisplay} (Camila Machado)</span>
+                <span>
+                  <strong>{pixConfig.keyType === 'telefone' ? 'Chave Celular' : pixConfig.keyType === 'cpf' ? 'Chave CPF' : pixConfig.keyType === 'cnpj' ? 'Chave CNPJ' : pixConfig.keyType === 'email' ? 'Chave E-mail' : 'Chave Aleatória'}:</strong>{' '}
+                  {pixConfig.keyDisplay || pixConfig.key} ({pixConfig.recipientName})
+                </span>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(CLINIC_PIX_CONFIG.key);
+                    navigator.clipboard.writeText(pixConfig.key);
                     setCopiedPixKey(true);
                     setTimeout(() => setCopiedPixKey(false), 2500);
                   }}

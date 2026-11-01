@@ -26,6 +26,7 @@ import { getDatabase, IDS } from './db';
 import { recordAuditLog } from './audit';
 import { hashPassword, verifyPassword } from './auth';
 import { dateKeyInClinicTimeZone, localDateBounds, timeKeyInClinicTimeZone, weekdayForLocalDate, zonedDateTimeToUtc } from './time';
+import { getClinicPixConfig } from './pix-settings';
 import type { z } from 'zod';
 import type {
   agendaSettingsPatchSchema,
@@ -4866,6 +4867,7 @@ export async function getClientPortalData(clientId: string) {
     documents,
     payments,
     packages,
+    pixConfig: await getClinicPixConfig(),
   };
 }
 

@@ -53,6 +53,7 @@ import {
   generatePixCopiaECola,
   getPixQrCodeImageUrl,
   CLINIC_PIX_CONFIG,
+  type ClinicPixConfig,
 } from '@/lib/pix';
 
 function getPortalMethodInfo(m: string) {
@@ -294,6 +295,7 @@ export type PortalData = {
   }>;
   payments: PaymentItem[];
   packages: PackageItem[];
+  pixConfig?: ClinicPixConfig;
   goals?: Array<{
     id: string;
     title: string;
@@ -4314,7 +4316,13 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
             ? Math.max(0, netCents - paidCents)
             : 0);
         const amountReais = remCents / 100;
-        const pixPayload = generatePixCopiaECola({ amount: amountReais });
+        const currentPix = data.pixConfig || CLINIC_PIX_CONFIG;
+        const pixPayload = generatePixCopiaECola({
+          key: currentPix.key,
+          name: currentPix.recipientName,
+          city: currentPix.city,
+          amount: amountReais,
+        });
         const qrCodeUrl = getPixQrCodeImageUrl(pixPayload, 260);
 
         return (
@@ -4552,17 +4560,17 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                 >
                   <div>
                     <span style={{ display: 'block', color: '#64748b' }}>
-                      Chave PIX: <strong style={{ color: '#0f172a' }}>{CLINIC_PIX_CONFIG.keyDisplay}</strong> ({CLINIC_PIX_CONFIG.keyType})
+                      Chave PIX: <strong style={{ color: '#0f172a' }}>{currentPix.keyDisplay || currentPix.key}</strong> ({currentPix.keyType})
                     </span>
                     <span style={{ display: 'block', color: '#64748b' }}>
-                      Favorecida: <strong style={{ color: '#0f172a' }}>{CLINIC_PIX_CONFIG.recipientName}</strong>
+                      Favorecida: <strong style={{ color: '#0f172a' }}>{currentPix.recipientName}</strong>
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(CLINIC_PIX_CONFIG.keyDisplay);
+                        await navigator.clipboard.writeText(currentPix.key);
                         setPixKeyCopied(true);
                         setTimeout(() => setPixKeyCopied(false), 3000);
                       } catch {

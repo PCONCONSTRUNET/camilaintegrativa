@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getDatabase, IDS } from './db';
+import { getClinicPixConfig } from './pix-settings';
 import {
   DEFAULT_WHATSAPP_TEMPLATES,
   WhatsappAutomationSettings,
@@ -888,9 +889,9 @@ export async function processOverdueInvoiceReminders(options?: {
     }
 
     const dispatchedLogs: WhatsappMessageLog[] = [];
-    const clinicPhoneClean = settings.adminNotifyPhone ? normalizePhoneForWhatsapp(settings.adminNotifyPhone) : '';
-    const pixKey = clinicPhoneClean
-      ? `(48) 99691-5303 (Chave Telefone)`
+    const pixCfg = await getClinicPixConfig().catch(() => null);
+    const pixKey = pixCfg
+      ? `${pixCfg.keyDisplay || pixCfg.key} (${pixCfg.recipientName})`
       : '(48) 99691-5303 (Camila Machado)';
 
     for (const group of clientGroups.values()) {
