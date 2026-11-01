@@ -102,7 +102,7 @@ function HomeContent() {
         <section className="linktree-profile">
           <div className="linktree-avatar-wrapper">
             <Image
-              src="/camila-site.png"
+              src="/camila-home.jpeg"
               alt="Camila Machado"
               width={140}
               height={140}
