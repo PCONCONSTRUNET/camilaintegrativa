@@ -25,7 +25,7 @@ import {
 import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
-import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, formatPixKeyDisplay, type ClinicPixConfig } from '@/lib/pix';
+import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, type ClinicPixConfig } from '@/lib/pix';
 
 type Slot = { time: string; startAt: string };
 type Step = 'servico' | 'horario' | 'dados' | 'revisao' | 'sucesso';
@@ -90,7 +90,6 @@ function AgendarContent() {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro' | 'cartao' | ''>('');
   const [pixConfig, setPixConfig] = useState<ClinicPixConfig>(DEFAULT_CLINIC_PIX_CONFIG);
   const [copiedPix, setCopiedPix] = useState(false);
-  const [copiedPixKey, setCopiedPixKey] = useState(false);
   const [activePackage, setActivePackage] = useState<{
     id: string;
     serviceId: string | null;
@@ -320,14 +319,14 @@ function AgendarContent() {
       paymentMethod === 'pix' && groupPriceReais > 0
         ? generatePixCopiaECola({
             key: pixConfig.key,
+            keyType: pixConfig.keyType,
             name: pixConfig.recipientName,
             city: pixConfig.city,
             amount: groupPriceReais,
-            txid: reference || 'GRUPO',
+            txid: '***',
           })
         : null;
     const groupPixQr = groupPixPayload ? getPixQrCodeImageUrl(groupPixPayload, 140) : null;
-    const groupFormattedKey = formatPixKeyDisplay(pixConfig.keyDisplay || pixConfig.key, pixConfig.keyType);
 
     return (
       <main className="booking-page">
@@ -424,31 +423,8 @@ function AgendarContent() {
                   {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
 
-                <div className="booking-pix-key-box">
-                  <span>
-                    <strong>
-                      {pixConfig.keyType === 'telefone'
-                        ? 'Chave Telefone'
-                        : pixConfig.keyType === 'cpf'
-                        ? 'Chave CPF'
-                        : pixConfig.keyType === 'cnpj'
-                        ? 'Chave CNPJ'
-                        : pixConfig.keyType === 'email'
-                        ? 'Chave E-mail'
-                        : 'Chave Aleatória'}:
-                    </strong>{' '}
-                    {groupFormattedKey} ({pixConfig.recipientName})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(pixConfig.key);
-                      setCopiedPixKey(true);
-                      setTimeout(() => setCopiedPixKey(false), 2500);
-                    }}
-                  >
-                    {copiedPixKey ? '✓ Copiada' : 'Copiar'}
-                  </button>
+                <div style={{ fontSize: '0.74rem', color: '#166534', fontWeight: 600, textAlign: 'center' }}>
+                  Beneficiária: <strong>{pixConfig.recipientName}</strong>
                 </div>
 
                 <span className="booking-pix-note">
@@ -470,14 +446,14 @@ function AgendarContent() {
       paymentMethod === 'pix' && indPriceReais > 0
         ? generatePixCopiaECola({
             key: pixConfig.key,
+            keyType: pixConfig.keyType,
             name: pixConfig.recipientName,
             city: pixConfig.city,
             amount: indPriceReais,
-            txid: reference || 'SESSAO',
+            txid: '***',
           })
         : null;
     const indPixQr = indPixPayload ? getPixQrCodeImageUrl(indPixPayload, 140) : null;
-    const formattedKey = formatPixKeyDisplay(pixConfig.keyDisplay || pixConfig.key, pixConfig.keyType);
 
     return (
       <main className="booking-page">
@@ -582,31 +558,8 @@ function AgendarContent() {
                   {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
 
-                <div className="booking-pix-key-box">
-                  <span>
-                    <strong>
-                      {pixConfig.keyType === 'telefone'
-                        ? 'Chave Telefone'
-                        : pixConfig.keyType === 'cpf'
-                        ? 'Chave CPF'
-                        : pixConfig.keyType === 'cnpj'
-                        ? 'Chave CNPJ'
-                        : pixConfig.keyType === 'email'
-                        ? 'Chave E-mail'
-                        : 'Chave Aleatória'}:
-                    </strong>{' '}
-                    {formattedKey} ({pixConfig.recipientName})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(pixConfig.key);
-                      setCopiedPixKey(true);
-                      setTimeout(() => setCopiedPixKey(false), 2500);
-                    }}
-                  >
-                    {copiedPixKey ? '✓ Copiada' : 'Copiar'}
-                  </button>
+                <div style={{ fontSize: '0.74rem', color: '#166534', fontWeight: 600, textAlign: 'center' }}>
+                  Beneficiária: <strong>{pixConfig.recipientName}</strong>
                 </div>
 
                 <span className="booking-pix-note">

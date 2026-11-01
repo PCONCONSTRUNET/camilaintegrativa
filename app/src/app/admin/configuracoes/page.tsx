@@ -1008,10 +1008,11 @@ export default function ConfiguracoesPage() {
       {(activeSection === 'todos' || activeSection === 'pix') && (() => {
         const previewPayload = generatePixCopiaECola({
           key: pixConfig.key,
+          keyType: pixConfig.keyType,
           name: pixConfig.recipientName,
           city: pixConfig.city,
           amount: 150.0,
-          txid: 'PREVIEW',
+          txid: '***',
         });
         const previewQr = getPixQrCodeImageUrl(previewPayload, 180);
 

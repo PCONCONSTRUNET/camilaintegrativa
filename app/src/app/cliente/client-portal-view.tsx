@@ -4319,9 +4319,11 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
         const currentPix = data.pixConfig || CLINIC_PIX_CONFIG;
         const pixPayload = generatePixCopiaECola({
           key: currentPix.key,
+          keyType: currentPix.keyType,
           name: currentPix.recipientName,
           city: currentPix.city,
           amount: amountReais,
+          txid: '***',
         });
         const qrCodeUrl = getPixQrCodeImageUrl(pixPayload, 260);
 

@@ -31,26 +31,42 @@ export const DEFAULT_CLINIC_PIX_CONFIG: ClinicPixConfig = {
 // Mantido para compatibilidade com importações legadas
 export const CLINIC_PIX_CONFIG = DEFAULT_CLINIC_PIX_CONFIG;
 
-export function formatPixKeyForBacen(rawKey: string, keyType: PixKeyType = 'telefone'): string {
+export function formatPixKeyForBacen(rawKey: string, keyType?: PixKeyType): string {
   const trimmed = (rawKey || '').trim();
   if (!trimmed) return '';
 
-  if (keyType === 'telefone') {
-    const digits = trimmed.replace(/\D/g, '');
+  let type = keyType;
+  if (!type) {
+    if (trimmed.includes('@')) type = 'email';
+    else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) type = 'aleatoria';
+    else {
+      const digits = trimmed.replace(/\D/g, '');
+      if (digits.length === 14) type = 'cnpj';
+      else if (digits.length === 11) {
+        if (trimmed.startsWith('+55') || trimmed.startsWith('+')) type = 'telefone';
+        else type = 'cpf';
+      } else if (digits.length === 10) {
+        type = 'telefone';
+      }
+    }
+  }
+
+  if (type === 'telefone') {
+    let digits = trimmed.replace(/\D/g, '');
+    if (digits.startsWith('55') && digits.length >= 12) {
+      return `+${digits}`;
+    }
     if (digits.length === 11 || digits.length === 10) {
       return `+55${digits}`;
-    }
-    if (digits.length === 13 && digits.startsWith('55')) {
-      return `+${digits}`;
     }
     return trimmed.startsWith('+') ? trimmed : `+${digits}`;
   }
 
-  if (keyType === 'cpf' || keyType === 'cnpj') {
+  if (type === 'cpf' || type === 'cnpj') {
     return trimmed.replace(/\D/g, '');
   }
 
-  if (keyType === 'email') {
+  if (type === 'email') {
     return trimmed.toLowerCase();
   }
 
@@ -117,6 +133,7 @@ function tlv(tag: string, val: string): string {
 
 export type GeneratePixParams = {
   key?: string;
+  keyType?: PixKeyType;
   name?: string;
   city?: string;
   amount?: number; // em Reais (ex: 1650.00)
@@ -124,26 +141,44 @@ export type GeneratePixParams = {
 };
 
 /**
- * Gera o payload oficial do PIX Copia e Cola (EMV QRCPS-MPM)
+ * Gera o payload oficial do PIX Copia e Cola (EMV QRCPS-MPM / BR Code)
+ * 100% aderente ao padrão BACEN para QR Code Estático, compatível com todos os bancos (Nubank, Itaú, Inter, Caixa, BB, etc.)
  */
 export function generatePixCopiaECola({
   key = DEFAULT_CLINIC_PIX_CONFIG.key,
+  keyType,
   name = DEFAULT_CLINIC_PIX_CONFIG.recipientName,
   city = DEFAULT_CLINIC_PIX_CONFIG.city,
   amount,
   txid = '***',
 }: GeneratePixParams): string {
-  let cleanKey = (key || '').trim();
-  const digitsOnly = cleanKey.replace(/\D/g, '');
+  // Normaliza e limpa a chave estritamente conforme o padrão do Banco Central
+  const cleanKey = formatPixKeyForBacen(key, keyType);
 
-  // Se parecer telefone com 10 ou 11 dígitos e sem +, prefixa +55 para o BACEN
-  if ((digitsOnly.length === 10 || digitsOnly.length === 11) && !cleanKey.startsWith('+') && !cleanKey.includes('@')) {
-    cleanKey = `+55${digitsOnly}`;
-  }
+  const cleanName = (name || 'CLINICA INTEGRATIVA')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .trim()
+    .slice(0, 25)
+    .toUpperCase();
+
+  const cleanCity = (city || 'BRASIL')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .trim()
+    .slice(0, 15)
+    .toUpperCase();
+
+  const cleanTxid = (txid || '***')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 25) || '***';
 
   const merchantAccount = tlv('00', 'br.gov.bcb.pix') + tlv('01', cleanKey);
   let payload =
     tlv('00', '01') +
+    tlv('01', '11') + // 11 = QR Code Estático (conforme norma BACEN)
     tlv('26', merchantAccount) +
     tlv('52', '0000') +
     tlv('53', '986');
@@ -152,23 +187,11 @@ export function generatePixCopiaECola({
     payload += tlv('54', Number(amount).toFixed(2));
   }
 
-  const cleanName = (name || 'CLINICA INTEGRATIVA')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .slice(0, 25)
-    .toUpperCase();
-
-  const cleanCity = (city || 'BRASIL')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .slice(0, 15)
-    .toUpperCase();
-
   payload +=
     tlv('58', 'BR') +
     tlv('59', cleanName) +
     tlv('60', cleanCity) +
-    tlv('62', tlv('05', txid)) +
+    tlv('62', tlv('05', cleanTxid)) +
     '6304';
 
   const checksum = crc16(payload);
