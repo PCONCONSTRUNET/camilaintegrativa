@@ -25,7 +25,7 @@ import {
 import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
-import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, type ClinicPixConfig } from '@/lib/pix';
+import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, formatPixKeyDisplay, type ClinicPixConfig } from '@/lib/pix';
 
 type Slot = { time: string; startAt: string };
 type Step = 'servico' | 'horario' | 'dados' | 'revisao' | 'sucesso';
@@ -326,153 +326,136 @@ function AgendarContent() {
             txid: reference || 'GRUPO',
           })
         : null;
-    const groupPixQr = groupPixPayload ? getPixQrCodeImageUrl(groupPixPayload, 220) : null;
+    const groupPixQr = groupPixPayload ? getPixQrCodeImageUrl(groupPixPayload, 140) : null;
+    const groupFormattedKey = formatPixKeyDisplay(pixConfig.keyDisplay || pixConfig.key, pixConfig.keyType);
 
     return (
       <main className="booking-page">
         <BookingHeader />
-        <section className="booking-success">
-          <div className="booking-success-head">
-            <span className="success-seal"><Check size={22} /></span>
-            <div>
-              <span className="eyebrow">Inscrição registrada</span>
-              <h1>Vaga reservada no grupo!</h1>
-            </div>
-          </div>
-          <p className="booking-success-sub">
-            Sua vaga está reservada. O pedido já entrou no sistema com status <strong>Pendente</strong>.
-          </p>
-
-          <div className="booking-success-summary">
-            <div className="summary-row">
-              <strong>Evento / Sessão</strong>
-              <span>{selectedGroup.title}</span>
-            </div>
-            <div className="summary-row">
-              <strong>Data e Horário</strong>
-              <span>
-                {selectedGroup.date.split('-').reverse().join('/')} · {selectedGroup.startTime}
-                {selectedGroup.endTime ? ` às ${selectedGroup.endTime}` : ''}
-              </span>
-            </div>
-            <div className="summary-row">
-              <strong>Modalidade</strong>
-              <span>
-                {selectedGroup.modality === 'online' ? 'Online' : 'Presencial'}
-                {selectedGroup.locationNotes ? ` (${selectedGroup.locationNotes})` : ''}
-              </span>
-            </div>
-            {selectedGroup.priceCents != null && selectedGroup.priceCents > 0 && (
-              <div className="summary-row">
-                <strong>Valor</strong>
-                <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(selectedGroup.priceCents)}</span>
+        <section className={`booking-success ${groupPixPayload ? 'has-pix-layout' : ''}`}>
+          <div className={`booking-success-grid ${groupPixPayload ? 'has-pix' : ''}`}>
+            {/* Coluna Principal: Detalhes e Ações */}
+            <div className="booking-success-main">
+              <div className="booking-success-head">
+                <span className="success-seal"><Check size={20} /></span>
+                <div>
+                  <span className="eyebrow">Inscrição registrada</span>
+                  <h1>Vaga reservada no grupo!</h1>
+                </div>
               </div>
-            )}
-            <div className="summary-row">
-              <strong>Status do Pagamento</strong>
-              <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
-            </div>
-            <div className="summary-row">
-              <strong>Código do Pedido</strong>
-              <span className="summary-code">#{reference}</span>
-            </div>
-          </div>
 
-          {/* CARD DE PAGAMENTO PIX */}
-          {groupPixPayload && groupPixQr && (
-            <div
-              style={{
-                marginTop: '18px',
-                padding: '20px',
-                borderRadius: '16px',
-                background: '#f0fdf4',
-                border: '1.5px solid #86efac',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                gap: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.92rem' }}>
-                <QrCode size={20} /> Pague via PIX para Garantir sua Vaga
-              </div>
-              <p style={{ fontSize: '0.82rem', color: '#15803d', margin: 0, maxWidth: '420px', lineHeight: 1.4 }}>
-                Escaneie o QR Code abaixo no app do seu banco ou use a chave PIX / Copia e Cola:
+              <p className="booking-success-sub">
+                Sua vaga está reservada. O pedido já entrou no sistema com status <strong>Pendente</strong>.
               </p>
 
-              {/* QR Code */}
-              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={groupPixQr}
-                  alt="QR Code PIX"
-                  width={200}
-                  height={200}
-                  style={{ display: 'block', borderRadius: '8px' }}
-                />
+              <div className="booking-success-summary">
+                <div className="summary-row">
+                  <strong>Evento / Sessão</strong>
+                  <span>{selectedGroup.title}</span>
+                </div>
+                <div className="summary-row">
+                  <strong>Data e Horário</strong>
+                  <span>
+                    {selectedGroup.date.split('-').reverse().join('/')} · {selectedGroup.startTime}
+                    {selectedGroup.endTime ? ` às ${selectedGroup.endTime}` : ''}
+                  </span>
+                </div>
+                <div className="summary-row">
+                  <strong>Modalidade</strong>
+                  <span>
+                    {selectedGroup.modality === 'online' ? 'Online' : 'Presencial'}
+                    {selectedGroup.locationNotes ? ` (${selectedGroup.locationNotes})` : ''}
+                  </span>
+                </div>
+                {selectedGroup.priceCents != null && selectedGroup.priceCents > 0 && (
+                  <div className="summary-row">
+                    <strong>Valor</strong>
+                    <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(selectedGroup.priceCents)}</span>
+                  </div>
+                )}
+                <div className="summary-row">
+                  <strong>Status do Pagamento</strong>
+                  <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
+                </div>
+                <div className="summary-row">
+                  <strong>Código do Pedido</strong>
+                  <span className="summary-code">#{reference}</span>
+                </div>
               </div>
 
-              {/* Botão Copiar Código PIX Copia e Cola */}
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(groupPixPayload);
-                  setCopiedPix(true);
-                  setTimeout(() => setCopiedPix(false), 3000);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '11px 18px',
-                  borderRadius: '10px',
-                  background: copiedPix ? '#15803d' : '#0f766e',
-                  color: '#ffffff',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  border: 'none',
-                  cursor: 'pointer',
-                  width: '100%',
-                  maxWidth: '380px',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)',
-                }}
-              >
-                {copiedPix ? <Check size={16} /> : <Copy size={16} />}
-                {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
-              </button>
+              <div className="button-row booking-success-actions">
+                <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
+                <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
+                  Ver meu agendamento <ChevronRight size={14} />
+                </Link>
+              </div>
+            </div>
 
-              {/* Chave PIX Alternativa */}
-              <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>
-                  <strong>{pixConfig.keyType === 'telefone' ? 'Chave Celular' : pixConfig.keyType === 'cpf' ? 'Chave CPF' : pixConfig.keyType === 'cnpj' ? 'Chave CNPJ' : pixConfig.keyType === 'email' ? 'Chave E-mail' : 'Chave Aleatória'}:</strong>{' '}
-                  {pixConfig.keyDisplay || pixConfig.key} ({pixConfig.recipientName})
-                </span>
+            {/* Coluna Lateral: Card PIX Compacto */}
+            {groupPixPayload && groupPixQr && (
+              <div className="booking-pix-card">
+                <div className="booking-pix-header">
+                  <QrCode size={17} />
+                  <span>Pague via PIX para Garantir sua Vaga</span>
+                </div>
+
+                <div className="booking-pix-qr-box">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={groupPixQr}
+                    alt="QR Code PIX"
+                    width={135}
+                    height={135}
+                    style={{ display: 'block', borderRadius: '6px' }}
+                  />
+                </div>
+
                 <button
                   type="button"
+                  className="booking-pix-copy-btn"
                   onClick={() => {
-                    navigator.clipboard.writeText(pixConfig.key);
-                    setCopiedPixKey(true);
-                    setTimeout(() => setCopiedPixKey(false), 2500);
+                    navigator.clipboard.writeText(groupPixPayload);
+                    setCopiedPix(true);
+                    setTimeout(() => setCopiedPix(false), 3000);
                   }}
-                  style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 800, fontSize: '0.74rem' }}
+                  style={{ background: copiedPix ? '#15803d' : '#0f766e' }}
                 >
-                  {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                  {copiedPix ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
+
+                <div className="booking-pix-key-box">
+                  <span>
+                    <strong>
+                      {pixConfig.keyType === 'telefone'
+                        ? 'Chave Telefone'
+                        : pixConfig.keyType === 'cpf'
+                        ? 'Chave CPF'
+                        : pixConfig.keyType === 'cnpj'
+                        ? 'Chave CNPJ'
+                        : pixConfig.keyType === 'email'
+                        ? 'Chave E-mail'
+                        : 'Chave Aleatória'}:
+                    </strong>{' '}
+                    {groupFormattedKey} ({pixConfig.recipientName})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixConfig.key);
+                      setCopiedPixKey(true);
+                      setTimeout(() => setCopiedPixKey(false), 2500);
+                    }}
+                  >
+                    {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                  </button>
+                </div>
+
+                <span className="booking-pix-note">
+                  💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
+                </span>
               </div>
-
-              <span style={{ fontSize: '0.74rem', color: '#166534', fontStyle: 'italic' }}>
-                💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
-              </span>
-            </div>
-          )}
-
-          <div className="button-row booking-success-actions">
-            <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
-            <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
-              Ver meu agendamento <ChevronRight size={15} />
-            </Link>
+            )}
           </div>
         </section>
       </main>
@@ -493,161 +476,144 @@ function AgendarContent() {
             txid: reference || 'SESSAO',
           })
         : null;
-    const indPixQr = indPixPayload ? getPixQrCodeImageUrl(indPixPayload, 220) : null;
+    const indPixQr = indPixPayload ? getPixQrCodeImageUrl(indPixPayload, 140) : null;
+    const formattedKey = formatPixKeyDisplay(pixConfig.keyDisplay || pixConfig.key, pixConfig.keyType);
 
     return (
       <main className="booking-page">
         <BookingHeader />
-        <section className="booking-success">
-          <div className="booking-success-head">
-            <span className="success-seal"><Check size={22} /></span>
-            <div>
-              <span className="eyebrow">{confirmed ? 'Agendamento confirmado' : 'Solicitação enviada'}</span>
-              <h1>{confirmed ? 'Horário confirmado!' : 'Reserva recebida!'}</h1>
-            </div>
-          </div>
-          <p className="booking-success-sub">
-            {confirmed
-              ? 'Seu atendimento foi confirmado. Acompanhe tudo pelo Portal do Cliente.'
-              : 'Sua reserva entrou no sistema. O status atual do pagamento é Pendente.'}
-          </p>
-
-          {selectedTier && selectedTier.isPackage && selectedTier.sessionCount && selectedTier.sessionCount > 1 && (
-            <div className="booking-success-package">
-              <div className="booking-success-package-title">
-                <Sparkles size={15} />
-                <span>Pacote de {selectedTier.sessionCount} Sessões Ativado!</span>
+        <section className={`booking-success ${indPixPayload ? 'has-pix-layout' : ''}`}>
+          <div className={`booking-success-grid ${indPixPayload ? 'has-pix' : ''}`}>
+            {/* Coluna Principal: Detalhes e Ações */}
+            <div className="booking-success-main">
+              <div className="booking-success-head">
+                <span className="success-seal"><Check size={20} /></span>
+                <div>
+                  <span className="eyebrow">{confirmed ? 'Agendamento confirmado' : 'Solicitação enviada'}</span>
+                  <h1>{confirmed ? 'Horário confirmado!' : 'Reserva recebida!'}</h1>
+                </div>
               </div>
-              <p>
-                <strong>1ª sessão:</strong> {date.split('-').reverse().join('/')} às {time}. As outras{' '}
-                <strong>{selectedTier.sessionCount - 1} sessões</strong> ficam disponíveis no seu portal para agendar quando preferir.
-              </p>
-            </div>
-          )}
 
-          <div className="booking-success-summary">
-            <div className="summary-row">
-              <strong>Serviço</strong>
-              <span>
-                {service?.name}
-                {selectedTier ? ` (${selectedTier.name} · ${formatCurrency(selectedTier.priceCents)})` : ''}
-              </span>
-            </div>
-            <div className="summary-row">
-              <strong>Data e Horário</strong>
-              <span>{date.split('-').reverse().join('/')} às {time} ({modality === 'online' ? 'Online' : 'Presencial'})</span>
-            </div>
-            {indPriceCents > 0 && (
-              <div className="summary-row">
-                <strong>Valor Total</strong>
-                <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(indPriceCents)}</span>
-              </div>
-            )}
-            <div className="summary-row">
-              <strong>Status do Pagamento</strong>
-              <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
-            </div>
-            <div className="summary-row">
-              <strong>Código do Agendamento</strong>
-              <span className="summary-code">#{reference}</span>
-            </div>
-          </div>
-
-          {/* CARD DE PAGAMENTO PIX */}
-          {indPixPayload && indPixQr && (
-            <div
-              style={{
-                marginTop: '18px',
-                padding: '20px',
-                borderRadius: '16px',
-                background: '#f0fdf4',
-                border: '1.5px solid #86efac',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                gap: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.92rem' }}>
-                <QrCode size={20} /> Pague via PIX para Confirmar o Atendimento
-              </div>
-              <p style={{ fontSize: '0.82rem', color: '#15803d', margin: 0, maxWidth: '420px', lineHeight: 1.4 }}>
-                Escaneie o QR Code abaixo no app do seu banco ou use a chave PIX / Copia e Cola:
+              <p className="booking-success-sub">
+                {confirmed
+                  ? 'Seu atendimento foi confirmado. Acompanhe tudo pelo Portal do Cliente.'
+                  : 'Sua reserva entrou no sistema. O status atual do pagamento é Pendente.'}
               </p>
 
-              {/* QR Code */}
-              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={indPixQr}
-                  alt="QR Code PIX"
-                  width={200}
-                  height={200}
-                  style={{ display: 'block', borderRadius: '8px' }}
-                />
+              {selectedTier && selectedTier.isPackage && selectedTier.sessionCount && selectedTier.sessionCount > 1 && (
+                <div className="booking-success-package">
+                  <div className="booking-success-package-title">
+                    <Sparkles size={14} />
+                    <span>Pacote de {selectedTier.sessionCount} Sessões Ativado!</span>
+                  </div>
+                  <p>
+                    <strong>1ª sessão:</strong> {date.split('-').reverse().join('/')} às {time}. As outras{' '}
+                    <strong>{selectedTier.sessionCount - 1} sessões</strong> ficam disponíveis no seu portal para agendar quando preferir.
+                  </p>
+                </div>
+              )}
+
+              <div className="booking-success-summary">
+                <div className="summary-row">
+                  <strong>Serviço</strong>
+                  <span>
+                    {service?.name}
+                    {selectedTier ? ` (${selectedTier.name} · ${formatCurrency(selectedTier.priceCents)})` : ''}
+                  </span>
+                </div>
+                <div className="summary-row">
+                  <strong>Data e Horário</strong>
+                  <span>{date.split('-').reverse().join('/')} às {time} ({modality === 'online' ? 'Online' : 'Presencial'})</span>
+                </div>
+                {indPriceCents > 0 && (
+                  <div className="summary-row">
+                    <strong>Valor Total</strong>
+                    <span style={{ fontWeight: 800, color: '#0f766e' }}>{formatCurrency(indPriceCents)}</span>
+                  </div>
+                )}
+                <div className="summary-row">
+                  <strong>Status do Pagamento</strong>
+                  <span style={{ color: '#d97706', fontWeight: 800 }}>⏳ Pendente de Confirmação</span>
+                </div>
+                <div className="summary-row">
+                  <strong>Código</strong>
+                  <span className="summary-code">#{reference}</span>
+                </div>
               </div>
 
-              {/* Botão Copiar Código PIX Copia e Cola */}
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(indPixPayload);
-                  setCopiedPix(true);
-                  setTimeout(() => setCopiedPix(false), 3000);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '11px 18px',
-                  borderRadius: '10px',
-                  background: copiedPix ? '#15803d' : '#0f766e',
-                  color: '#ffffff',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  border: 'none',
-                  cursor: 'pointer',
-                  width: '100%',
-                  maxWidth: '380px',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)',
-                }}
-              >
-                {copiedPix ? <Check size={16} /> : <Copy size={16} />}
-                {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
-              </button>
+              <div className="button-row booking-success-actions">
+                <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
+                <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
+                  Ver meu agendamento <ChevronRight size={14} />
+                </Link>
+              </div>
+            </div>
 
-              {/* Chave PIX Alternativa */}
-              <div style={{ fontSize: '0.78rem', color: '#334155', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', maxWidth: '380px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>
-                  <strong>{pixConfig.keyType === 'telefone' ? 'Chave Celular' : pixConfig.keyType === 'cpf' ? 'Chave CPF' : pixConfig.keyType === 'cnpj' ? 'Chave CNPJ' : pixConfig.keyType === 'email' ? 'Chave E-mail' : 'Chave Aleatória'}:</strong>{' '}
-                  {pixConfig.keyDisplay || pixConfig.key} ({pixConfig.recipientName})
-                </span>
+            {/* Coluna Lateral: Card PIX Compacto */}
+            {indPixPayload && indPixQr && (
+              <div className="booking-pix-card">
+                <div className="booking-pix-header">
+                  <QrCode size={17} />
+                  <span>Pague via PIX para Confirmar</span>
+                </div>
+
+                <div className="booking-pix-qr-box">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={indPixQr}
+                    alt="QR Code PIX"
+                    width={135}
+                    height={135}
+                    style={{ display: 'block', borderRadius: '6px' }}
+                  />
+                </div>
+
                 <button
                   type="button"
+                  className="booking-pix-copy-btn"
                   onClick={() => {
-                    navigator.clipboard.writeText(pixConfig.key);
-                    setCopiedPixKey(true);
-                    setTimeout(() => setCopiedPixKey(false), 2500);
+                    navigator.clipboard.writeText(indPixPayload);
+                    setCopiedPix(true);
+                    setTimeout(() => setCopiedPix(false), 3000);
                   }}
-                  style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontWeight: 800, fontSize: '0.74rem' }}
+                  style={{ background: copiedPix ? '#15803d' : '#0f766e' }}
                 >
-                  {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                  {copiedPix ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
+
+                <div className="booking-pix-key-box">
+                  <span>
+                    <strong>
+                      {pixConfig.keyType === 'telefone'
+                        ? 'Chave Telefone'
+                        : pixConfig.keyType === 'cpf'
+                        ? 'Chave CPF'
+                        : pixConfig.keyType === 'cnpj'
+                        ? 'Chave CNPJ'
+                        : pixConfig.keyType === 'email'
+                        ? 'Chave E-mail'
+                        : 'Chave Aleatória'}:
+                    </strong>{' '}
+                    {formattedKey} ({pixConfig.recipientName})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixConfig.key);
+                      setCopiedPixKey(true);
+                      setTimeout(() => setCopiedPixKey(false), 2500);
+                    }}
+                  >
+                    {copiedPixKey ? '✓ Copiada' : 'Copiar'}
+                  </button>
+                </div>
+
+                <span className="booking-pix-note">
+                  💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
+                </span>
               </div>
-
-              <span style={{ fontSize: '0.74rem', color: '#166534', fontStyle: 'italic' }}>
-                💡 Assim que a Camila confirmar o recebimento pelo painel, você receberá a notificação de confirmação no WhatsApp e por Push!
-              </span>
-            </div>
-          )}
-
-          <div className="button-row booking-success-actions">
-            <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
-            <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
-              Ver meu agendamento <ChevronRight size={15} />
-            </Link>
+            )}
           </div>
         </section>
       </main>
