@@ -105,6 +105,7 @@ export default function AdminServicosPage() {
   const [editingService, setEditingService] = useState<AdminService | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Modal de Confirmação de Exclusão
   const [deletingService, setDeletingService] = useState<AdminService | null>(null);
@@ -132,6 +133,7 @@ export default function AdminServicosPage() {
     setEditingService(null);
     setForm(INITIAL_FORM);
     setFormError('');
+    setFieldErrors({});
     setIsModalOpen(true);
   }
 
@@ -173,6 +175,7 @@ export default function AdminServicosPage() {
       audioName: service.audioName ?? null,
     });
     setFormError('');
+    setFieldErrors({});
     setIsModalOpen(true);
   }
 
@@ -205,13 +208,21 @@ export default function AdminServicosPage() {
   async function handleSaveService(e: FormEvent) {
     e.preventDefault();
     setFormError('');
+    setFieldErrors({});
 
-    // Validações
+    const newFieldErrors: Record<string, string> = {};
+
+    // Validações locais preliminares
     if (!form.name.trim()) {
-      return setFormError('Informe o nome do serviço.');
+      newFieldErrors.name = 'Informe o nome do serviço.';
     }
     if (!form.presencial && !form.online) {
-      return setFormError('Selecione ao menos uma modalidade de atendimento (Presencial ou Online).');
+      newFieldErrors.modalities = 'Selecione ao menos uma modalidade (Presencial ou Online).';
+    }
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      return setFormError(Object.values(newFieldErrors).join(' '));
     }
 
     const modalities: Array<'presencial' | 'online'> = [];
@@ -219,11 +230,11 @@ export default function AdminServicosPage() {
     if (form.online) modalities.push('online');
 
     let priceCents: number | null = null;
-    let pricingTiers: Array<{ id: string; name: string; priceCents: number; isPackage?: boolean; sessionCount?: number }> | undefined = undefined;
+    let pricingTiers: Array<{ id: string; name: string; priceCents: number; isPackage?: boolean; sessionCount?: number }> | null = null;
 
     if (form.pricingMode === 'unico') {
       priceCents = parsePriceToCents(form.priceRaw);
-      pricingTiers = undefined;
+      pricingTiers = null;
     } else if (form.pricingMode === 'pacotes') {
       const validTiers = form.tiers
         .map((t) => {
@@ -239,28 +250,32 @@ export default function AdminServicosPage() {
         .filter((t) => t.name.length > 0 && t.priceCents > 0);
 
       if (validTiers.length === 0) {
+        setFieldErrors({ pricingTiers: 'Adicione ao menos uma opção ou pacote com nome e valor definidos.' });
         return setFormError('Adicione ao menos uma opção ou pacote com nome e valor definidos.');
       }
       pricingTiers = validTiers;
       priceCents = Math.min(...validTiers.map((t) => t.priceCents));
     } else {
       priceCents = null;
-      pricingTiers = undefined;
+      pricingTiers = null;
     }
+
+    const durationVal = parseInt(String(form.durationMinutes), 10);
+    const intervalVal = parseInt(String(form.intervalMinutes), 10);
 
     const payload = {
       name: form.name.trim(),
       description: form.description.trim(),
-      durationMinutes: Number(form.durationMinutes),
-      intervalMinutes: Number(form.intervalMinutes),
+      durationMinutes: isNaN(durationVal) || durationVal < 15 ? 60 : Math.min(durationVal, 720),
+      intervalMinutes: isNaN(intervalVal) || intervalVal < 0 ? 0 : Math.min(intervalVal, 240),
       priceCents,
-      priceVisible: form.priceVisible,
-      published: form.published,
+      priceVisible: Boolean(form.priceVisible),
+      published: Boolean(form.published),
       modalities,
-      pricingTiers,
+      pricingTiers: pricingTiers && pricingTiers.length > 0 ? pricingTiers : null,
       packageBookingMode: form.packageBookingMode,
-      audioUrl: form.audioUrl,
-      audioName: form.audioName,
+      audioUrl: form.audioUrl?.trim() || null,
+      audioName: form.audioName?.trim() || null,
     };
 
     setSaving(true);
@@ -278,6 +293,30 @@ export default function AdminServicosPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.fields && typeof data.fields === 'object') {
+          const errorsMap: Record<string, string> = {};
+          const fieldLabels: Record<string, string> = {
+            name: 'Nome do Serviço',
+            description: 'Descrição e Proposta de Valor',
+            durationMinutes: 'Duração da Sessão',
+            intervalMinutes: 'Intervalo entre Atendimentos',
+            priceCents: 'Valor da Sessão',
+            modalities: 'Modalidades (Presencial / Online)',
+            pricingTiers: 'Opções e Pacotes',
+            packageBookingMode: 'Modo de Agendamento',
+            audioUrl: 'Áudio Explicativo',
+            audioName: 'Nome do Áudio',
+          };
+          const lines: string[] = [];
+          for (const [key, val] of Object.entries(data.fields)) {
+            const msg = Array.isArray(val) ? val.join(', ') : String(val);
+            errorsMap[key] = msg;
+            const label = fieldLabels[key] || key;
+            lines.push(`• ${label}: ${msg}`);
+          }
+          setFieldErrors(errorsMap);
+          throw new Error(`Por favor, verifique os campos informados:\n${lines.join('\n')}`);
+        }
         throw new Error(data.error ?? 'Erro ao salvar o serviço.');
       }
 
@@ -1132,9 +1171,26 @@ export default function AdminServicosPage() {
               }}
             >
               {formError && (
-                <div className="form-alert" role="alert" style={{ marginBottom: '1.25rem' }}>
-                  <AlertCircle size={17} />
-                  <span>{formError}</span>
+                <div
+                  className="form-alert"
+                  role="alert"
+                  style={{
+                    marginBottom: '1.25rem',
+                    whiteSpace: 'pre-line',
+                    lineHeight: 1.5,
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#fef2f2',
+                    border: '1.5px solid #fca5a5',
+                    color: '#991b1b',
+                    fontSize: '0.86rem',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                  }}
+                >
+                  <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ flex: 1 }}>{formError}</span>
                 </div>
               )}
 
@@ -1146,23 +1202,47 @@ export default function AdminServicosPage() {
                   required
                   placeholder="Ex: Hipnoterapia Clínica & Regressão"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value });
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  style={fieldErrors.name ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
                   autoFocus
                 />
+                {fieldErrors.name && (
+                  <span style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                    {fieldErrors.name}
+                  </span>
+                )}
               </label>
 
               {/* Descrição (Opcional) */}
               <label className="form-group">
-                <span className="form-label">
-                  Descrição e Proposta de Valor <small style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</small>
+                <span className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>
+                    Descrição e Proposta de Valor <small style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(opcional)</small>
+                  </span>
+                  <span style={{ fontSize: '0.74rem', color: form.description.length > 4500 ? '#dc2626' : 'var(--color-text-muted)', fontWeight: 600 }}>
+                    {form.description.length} / 5.000 caracteres
+                  </span>
                 </span>
                 <textarea
                   className="form-textarea"
-                  rows={3}
+                  rows={4}
+                  maxLength={5000}
                   placeholder="Explique o que é abordado neste atendimento, para quem é indicado e os benefícios esperados..."
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, description: e.target.value });
+                    if (fieldErrors.description) setFieldErrors((prev) => ({ ...prev, description: '' }));
+                  }}
+                  style={fieldErrors.description ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
                 />
+                {fieldErrors.description && (
+                  <span style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                    {fieldErrors.description}
+                  </span>
+                )}
               </label>
 
               {/* Upload de Áudio Explicativo (MP3) */}
@@ -1268,19 +1348,28 @@ export default function AdminServicosPage() {
               </div>
 
               {/* Duração da Sessão */}
-              <div style={{ background: '#f8fafc', padding: '1.15rem 1.25rem', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ background: '#f8fafc', padding: '1.15rem 1.25rem', borderRadius: '16px', border: fieldErrors.durationMinutes ? '1.5px solid #ef4444' : '1.5px solid var(--color-border)', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
                 <label className="form-group" style={{ marginBottom: 0 }}>
                   <span className="form-label">Duração da sessão (minutos) *</span>
                   <input
                     type="number"
                     className="form-input"
                     min={15}
-                    max={480}
+                    max={720}
                     step={5}
                     required
                     value={form.durationMinutes}
-                    onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
+                    onChange={(e) => {
+                      setForm({ ...form, durationMinutes: Number(e.target.value) });
+                      if (fieldErrors.durationMinutes) setFieldErrors((prev) => ({ ...prev, durationMinutes: '' }));
+                    }}
+                    style={fieldErrors.durationMinutes ? { borderColor: '#ef4444', background: '#fef2f2' } : undefined}
                   />
+                  {fieldErrors.durationMinutes && (
+                    <span style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                      {fieldErrors.durationMinutes}
+                    </span>
+                  )}
                   {/* Pills de atalho */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
                     {DURATION_PRESETS.map((dur) => (
@@ -1386,19 +1475,32 @@ export default function AdminServicosPage() {
                       </span>
                       <input
                         className="form-input"
-                        style={{ paddingLeft: '38px' }}
+                        style={{ paddingLeft: '38px', ...(fieldErrors.priceCents ? { borderColor: '#ef4444', background: '#fef2f2' } : {}) }}
                         placeholder="0,00"
                         value={form.priceRaw}
-                        onChange={(e) => setForm({ ...form, priceRaw: maskCurrency(e.target.value) })}
+                        onChange={(e) => {
+                          setForm({ ...form, priceRaw: maskCurrency(e.target.value) });
+                          if (fieldErrors.priceCents) setFieldErrors((prev) => ({ ...prev, priceCents: '' }));
+                        }}
                         onBlur={(e) => setForm({ ...form, priceRaw: finalizeCurrency(e.target.value) })}
                       />
                     </div>
+                    {fieldErrors.priceCents && (
+                      <span style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                        {fieldErrors.priceCents}
+                      </span>
+                    )}
                   </label>
                 )}
 
                 {/* Caso 2: Múltiplos Valores / Pacotes */}
                 {form.pricingMode === 'pacotes' && (
                   <div style={{ marginBottom: '1rem' }}>
+                    {fieldErrors.pricingTiers && (
+                      <div style={{ padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600, marginBottom: '10px' }}>
+                        {fieldErrors.pricingTiers}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                       <div>
                         <span className="form-label" style={{ marginBottom: '2px', display: 'block' }}>
@@ -1654,7 +1756,7 @@ export default function AdminServicosPage() {
               </div>
 
               {/* Modalidades de Atendimento (Presencial vs Online) */}
-              <div style={{ background: '#f8fafc', padding: '1.15rem 1.25rem', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+              <div style={{ background: '#f8fafc', padding: '1.15rem 1.25rem', borderRadius: '16px', border: fieldErrors.modalities ? '1.5px solid #ef4444' : '1.5px solid var(--color-border)', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px', marginBottom: '0.75rem' }}>
                   <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-text)' }}>
                     Modalidades de Atendimento *
@@ -1682,7 +1784,10 @@ export default function AdminServicosPage() {
                     <input
                       type="checkbox"
                       checked={form.presencial}
-                      onChange={(e) => setForm({ ...form, presencial: e.target.checked })}
+                      onChange={(e) => {
+                        setForm({ ...form, presencial: e.target.checked });
+                        if (fieldErrors.modalities) setFieldErrors((prev) => ({ ...prev, modalities: '' }));
+                      }}
                       style={{ marginTop: '2px', accentColor: 'var(--color-primary)' }}
                     />
                     <div>
@@ -1712,7 +1817,10 @@ export default function AdminServicosPage() {
                     <input
                       type="checkbox"
                       checked={form.online}
-                      onChange={(e) => setForm({ ...form, online: e.target.checked })}
+                      onChange={(e) => {
+                        setForm({ ...form, online: e.target.checked });
+                        if (fieldErrors.modalities) setFieldErrors((prev) => ({ ...prev, modalities: '' }));
+                      }}
                       style={{ marginTop: '2px', accentColor: 'var(--color-primary)' }}
                     />
                     <div>
@@ -1725,6 +1833,12 @@ export default function AdminServicosPage() {
                     </div>
                   </label>
                 </div>
+
+                {fieldErrors.modalities && (
+                  <span style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '8px', display: 'block', fontWeight: 600 }}>
+                    {fieldErrors.modalities}
+                  </span>
+                )}
               </div>
 
               {/* Publicação na Agenda */}

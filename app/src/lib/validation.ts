@@ -419,11 +419,11 @@ export const clientReferralSchema = z.object({
 });
 
 export const servicePriceTierSchema = z.object({
-  id: z.string(),
-  name: z.string().trim().min(1, 'Informe o nome da opção/pacote.'),
-  priceCents: z.number().int().min(0, 'Valor deve ser positivo.'),
-  isPackage: z.boolean().default(false).optional(),
-  sessionCount: z.number().int().min(1, 'Quantidade de sessões deve ser no mínimo 1.').default(1).optional(),
+  id: z.string().optional().default(() => Math.random().toString(36).substring(2, 9)),
+  name: z.string().trim().min(1, 'Informe o nome da opção/pacote.').max(150),
+  priceCents: z.coerce.number().int().min(0, 'Valor deve ser positivo.'),
+  isPackage: z.coerce.boolean().default(false).optional(),
+  sessionCount: z.coerce.number().int().min(1, 'Quantidade de sessões deve ser no mínimo 1.').default(1).optional(),
 });
 
 export const clientPackageSchema = z.object({
@@ -438,18 +438,18 @@ export const clientPackageSchema = z.object({
 });
 
 export const adminServiceSchema = z.object({
-  name: z.string().trim().min(2, 'O nome deve ter no mínimo 2 caracteres.').max(100),
-  description: z.string().trim().max(1000).default('').optional(),
-  durationMinutes: z.number().int().min(15, 'Mínimo de 15 minutos.').max(480, 'Máximo de 480 minutos.'),
-  intervalMinutes: z.number().int().min(0, 'Mínimo de 0 minutos.').max(180, 'Máximo de 180 minutos.').default(15),
-  priceCents: z.number().int().min(0).nullable().optional(),
-  priceVisible: z.boolean().default(true),
-  published: z.boolean().default(true),
+  name: z.string().trim().min(2, 'O nome deve ter no mínimo 2 caracteres.').max(150, 'O nome deve ter no máximo 150 caracteres.'),
+  description: z.string().trim().max(5000, 'A descrição deve ter no máximo 5.000 caracteres.').default('').nullish().transform((v) => v ?? ''),
+  durationMinutes: z.coerce.number().int().min(15, 'Mínimo de 15 minutos.').max(720, 'Máximo de 720 minutos (12h).'),
+  intervalMinutes: z.coerce.number().int().min(0, 'Mínimo de 0 minutos.').max(240, 'Máximo de 240 minutos.').default(0),
+  priceCents: z.coerce.number().int().min(0, 'Valor deve ser maior ou igual a zero.').nullish(),
+  priceVisible: z.coerce.boolean().default(true),
+  published: z.coerce.boolean().default(true),
   modalities: z.array(z.enum(['presencial', 'online'])).min(1, 'Selecione ao menos uma modalidade (presencial ou online).'),
-  pricingTiers: z.array(servicePriceTierSchema).optional().nullable(),
+  pricingTiers: z.array(servicePriceTierSchema).nullish(),
   packageBookingMode: z.enum(['sequencial', 'livre']).default('sequencial'),
-  audioUrl: z.string().optional().nullable(),
-  audioName: z.string().max(255).optional().nullable(),
+  audioUrl: z.string().nullish(),
+  audioName: z.string().max(255).nullish(),
 });
 
 export type AdminServiceInput = z.infer<typeof adminServiceSchema>;

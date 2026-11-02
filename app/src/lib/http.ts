@@ -2,8 +2,20 @@ import { ZodError } from 'zod';
 
 export function errorResponse(error: unknown) {
   if (error instanceof ZodError) {
+    const flat = error.flatten();
+    const fieldEntries = Object.entries(flat.fieldErrors);
+    let detail = '';
+    if (fieldEntries.length > 0) {
+      const [fieldName, fieldMsgs] = fieldEntries[0];
+      const msg = Array.isArray(fieldMsgs) ? fieldMsgs[0] : String(fieldMsgs);
+      detail = msg ? `${fieldName}: ${msg}` : fieldName;
+    }
+    const message = detail
+      ? `Verifique os campos informados (${detail}).`
+      : 'Verifique os campos informados.';
+
     return Response.json(
-      { error: 'Verifique os campos informados.', fields: error.flatten().fieldErrors },
+      { error: message, fields: flat.fieldErrors },
       { status: 422 },
     );
   }
