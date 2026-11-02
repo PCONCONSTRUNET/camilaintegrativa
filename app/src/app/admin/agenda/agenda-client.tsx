@@ -199,19 +199,38 @@ function calendarGridDates(date: string, fixedSixWeeks = false) {
   return Array.from({ length }, (_, index) => shiftDate(gridStart, index));
 }
 
-function getViewRange(view: AgendaView, date: string) {
-  if (view === 'day') return { from: date, to: date };
-  if (view === 'three_days') return { from: date, to: shiftDate(date, 2) };
+function getViewRange(view: AgendaView, date: string, pickerDate?: string) {
+  if (view === 'year') return null;
+
+  // O mini calendário precisa sempre dos dados do mês ativo (grid completo de 6 semanas)
+  const grid1 = calendarGridDates(date, true);
+  let from = grid1[0];
+  let to = grid1[grid1.length - 1];
+
+  // Garante que o intervalo da view principal também esteja totalmente coberto
   if (view === 'week') {
-    const from = startOfWeek(date);
-    return { from, to: shiftDate(from, 6) };
+    const wFrom = startOfWeek(date);
+    const wTo = shiftDate(wFrom, 6);
+    if (wFrom < from) from = wFrom;
+    if (wTo > to) to = wTo;
+  } else if (view === 'three_days') {
+    const tTo = shiftDate(date, 2);
+    if (tTo > to) to = tTo;
+  } else if (view === 'list') {
+    const lFrom = startOfMonth(date);
+    const lTo = endOfMonth(date);
+    if (lFrom < from) from = lFrom;
+    if (lTo > to) to = lTo;
   }
-  if (view === 'month') {
-    const dates = calendarGridDates(date);
-    return { from: dates[0], to: dates[dates.length - 1] };
+
+  // Se o seletor modal do mobile estiver navegando em outro mês, inclui ele também
+  if (pickerDate && pickerDate.slice(0, 7) !== date.slice(0, 7)) {
+    const grid2 = calendarGridDates(pickerDate, true);
+    if (grid2[0] < from) from = grid2[0];
+    if (grid2[grid2.length - 1] > to) to = grid2[grid2.length - 1];
   }
-  if (view === 'list') return { from: startOfMonth(date), to: endOfMonth(date) };
-  return null;
+
+  return { from, to };
 }
 
 function formatMonthOnly(date: string) {
@@ -221,9 +240,93 @@ function formatMonthOnly(date: string) {
   }).format(dateFromKey(date)).toLowerCase();
 }
 
-function rangeKey(view: AgendaView, date: string) {
-  const range = getViewRange(view, date);
+function rangeKey(view: AgendaView, date: string, pickerDate?: string) {
+  const range = getViewRange(view, date, pickerDate);
   return range ? range.from + ':' + range.to : 'year:' + date.slice(0, 4);
+}
+
+interface DayDot {
+  key: string;
+  className: string;
+  color: string;
+  label: string;
+}
+
+function getDayDots(
+  date: string,
+  appointmentsByDate: Map<string, AppointmentSummary[]>,
+  groupSessionsByDate: Map<string, GroupSession[]>,
+  blocksByDate: Map<string, TimeBlock[]>,
+): DayDot[] {
+  const appts = appointmentsByDate.get(date) ?? [];
+  const groups = groupSessionsByDate.get(date) ?? [];
+  const blocks = blocksByDate.get(date) ?? [];
+
+  if (appts.length === 0 && groups.length === 0 && blocks.length === 0) {
+    return [];
+  }
+
+  const dots: DayDot[] = [];
+
+  const solicitados = appts.filter((a) => a.status === 'solicitado');
+  const confirmados = appts.filter((a) => a.status === 'confirmado' || a.status === 'em_atendimento' || a.status === 'concluido');
+  const cancelados = appts.filter((a) => a.status === 'cancelado' || a.status === 'nao_compareceu');
+  const activeGroups = groups.filter((g) => g.status !== 'cancelado');
+
+  // 1. Solicitados (aguardando confirmação - âmbar/dourado #D9951F)
+  if (solicitados.length > 0) {
+    dots.push({
+      key: 'solicitado',
+      className: 'event-solicitado',
+      color: '#D9951F',
+      label: `${solicitados.length} atendimento(s) solicitado(s)`,
+    });
+  }
+
+  // 2. Confirmados / Atendimentos confirmados (verde #2E9A66)
+  if (confirmados.length > 0) {
+    const maxConfDots = Math.min(confirmados.length, 3 - dots.length);
+    for (let i = 0; i < maxConfDots; i++) {
+      dots.push({
+        key: `confirmado-${i}`,
+        className: 'event-confirmado',
+        color: '#2E9A66',
+        label: `${confirmados.length} atendimento(s) confirmado(s)`,
+      });
+      if (dots.length >= 3) break;
+    }
+  }
+
+  // 3. Sessões em grupo ativas (roxo #8B5CF6)
+  if (activeGroups.length > 0 && dots.length < 3) {
+    dots.push({
+      key: 'grupo',
+      className: 'event-grupo',
+      color: '#8B5CF6',
+      label: `${activeGroups.length} sessão(ões) em grupo`,
+    });
+  }
+
+  // 4. Se não há agendamentos nem grupos ativos:
+  if (dots.length === 0) {
+    if (blocks.length > 0) {
+      dots.push({
+        key: 'bloqueio',
+        className: 'event-bloqueio',
+        color: '#64748B',
+        label: `${blocks.length} bloqueio(s) no dia`,
+      });
+    } else if (cancelados.length > 0) {
+      dots.push({
+        key: 'cancelado',
+        className: 'event-cancelado',
+        color: '#D6534D',
+        label: `${cancelados.length} atendimento(s) cancelado(s)`,
+      });
+    }
+  }
+
+  return dots.slice(0, 3);
 }
 
 function eventDateKey(value: string) {
@@ -517,7 +620,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     }
   }, [compactSidebar]);
 
-  const visibleRange = useMemo(() => getViewRange(view, anchorDate), [view, anchorDate]);
+  const visibleRange = useMemo(() => getViewRange(view, anchorDate, pickerMonthDate), [view, anchorDate, pickerMonthDate]);
   const requestKey = visibleRange ? visibleRange.from + ':' + visibleRange.to : 'year:' + anchorDate.slice(0, 4);
   const threeDaysDates = useMemo(
     () => [anchorDate, shiftDate(anchorDate, 1), shiftDate(anchorDate, 2)],
@@ -665,7 +768,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     setSelectedId(null);
     setSelectedBlockId(null);
     setSelectedGroupSessionId(null);
-    const nextRange = getViewRange(nextView, nextDate);
+    const nextRange = getViewRange(nextView, nextDate, pickerMonthDate);
     if (!nextRange) {
       setAppointments([]);
       setTimeBlocks([]);
@@ -673,7 +776,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       setLoading(false);
       return;
     }
-    if (rangeKey(nextView, nextDate) !== requestKey) {
+    if (rangeKey(nextView, nextDate, pickerMonthDate) !== requestKey) {
       setAppointments([]);
       setTimeBlocks([]);
       setGroupSessions([]);
@@ -1308,6 +1411,22 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
               >
                 <span>{WEEK_DAYS[dateFromKey(dates[0]).getUTCDay()]}.</span>
                 <strong>{Number(dates[0].slice(-2))}</strong>
+                {(() => {
+                  const dots = getDayDots(dates[0], appointmentsByDate, groupSessionsByDate, blocksByDate);
+                  if (dots.length === 0) return null;
+                  return (
+                    <span className="gcal-time-day-dots-row">
+                      {dots.map((d) => (
+                        <i
+                          key={d.key}
+                          className={`gcal-mini-dot ${d.className}`}
+                          style={{ backgroundColor: d.color }}
+                          title={d.label}
+                        />
+                      ))}
+                    </span>
+                  );
+                })()}
               </button>
               <div className="gcal-mobile-day-banner">
                 <span className="gcal-mobile-day-banner-text">
@@ -1337,6 +1456,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                     ? MINI_WEEK_DAYS[weekdayIndex]
                     : WEEK_DAYS[weekdayIndex] + '.'
                   : WEEK_DAYS[weekdayIndex];
+                const dots = getDayDots(date, appointmentsByDate, groupSessionsByDate, blocksByDate);
                 return (
                   <button
                     type="button"
@@ -1346,6 +1466,18 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                   >
                     <span>{dayLabel}</span>
                     <strong>{Number(date.slice(-2))}</strong>
+                    {dots.length > 0 && (
+                      <span className="gcal-time-day-dots-row">
+                        {dots.map((d) => (
+                          <i
+                            key={d.key}
+                            className={`gcal-mini-dot ${d.className}`}
+                            style={{ backgroundColor: d.color }}
+                            title={d.label}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1874,17 +2006,32 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
               {MINI_WEEK_DAYS.map((day, index) => <span key={day + index}>{day}</span>)}
             </div>
             <div className="gcal-mini-grid">
-              {miniDates.map((date) => (
-                <button
-                  type="button"
-                  className={(date.slice(0, 7) !== anchorDate.slice(0, 7) ? 'is-outside ' : '') + (date === initialDate ? 'is-today ' : '') + (date === anchorDate ? 'is-selected' : '')}
-                  onClick={() => selectMiniDate(date)}
-                  aria-label={formatFullDate(date)}
-                  key={date}
-                >
-                  {Number(date.slice(-2))}
-                </button>
-              ))}
+              {miniDates.map((date) => {
+                const dots = getDayDots(date, appointmentsByDate, groupSessionsByDate, blocksByDate);
+                return (
+                  <button
+                    type="button"
+                    className={(date.slice(0, 7) !== anchorDate.slice(0, 7) ? 'is-outside ' : '') + (date === initialDate ? 'is-today ' : '') + (date === anchorDate ? 'is-selected' : '')}
+                    onClick={() => selectMiniDate(date)}
+                    aria-label={formatFullDate(date)}
+                    key={date}
+                  >
+                    <span className="gcal-mini-day-num">{Number(date.slice(-2))}</span>
+                    {dots.length > 0 && (
+                      <span className="gcal-mini-dots-row">
+                        {dots.map((d) => (
+                          <i
+                            key={d.key}
+                            className={`gcal-mini-dot ${d.className}`}
+                            style={{ backgroundColor: d.color }}
+                            title={d.label}
+                          />
+                        ))}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -2440,7 +2587,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                 const isOutside = date.slice(0, 7) !== pickerMonthDate.slice(0, 7);
                 const isToday = date === initialDate;
                 const isSelected = date === anchorDate;
-                const hasEvents = (appointmentsByDate.get(date)?.length ?? 0) > 0;
+                const dots = getDayDots(date, appointmentsByDate, groupSessionsByDate, blocksByDate);
                 return (
                   <button
                     type="button"
@@ -2458,7 +2605,18 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                     aria-label={formatFullDate(date)}
                   >
                     <span>{Number(date.slice(-2))}</span>
-                    {hasEvents && <i className="gcal-calendar-day-dot" aria-hidden="true" />}
+                    {dots.length > 0 && (
+                      <span className="gcal-calendar-modal-dots-row">
+                        {dots.map((d) => (
+                          <i
+                            key={d.key}
+                            className={`gcal-mini-dot ${d.className}`}
+                            style={{ backgroundColor: d.color }}
+                            title={d.label}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </button>
                 );
               })}

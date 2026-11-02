@@ -2908,17 +2908,21 @@ a:hover { color: var(--color-primary-hover); }
   font-weight: 600;
 }
 .gcal-mini-grid button {
-  width: 27px;
-  height: 27px;
+  width: 28px;
+  height: 28px;
   place-self: center;
-  display: grid;
-  place-items: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 50%;
   color: #3c4043;
   background: transparent;
   font-size: 10px;
+  line-height: 1;
   cursor: pointer;
 }
 .gcal-mini-grid button:hover { background: #e8efed; }
@@ -2926,6 +2930,36 @@ a:hover { color: var(--color-primary-hover); }
 .gcal-mini-grid button.is-selected { border-color: #2f7567; color: #245d52; background: #e3f0ec; }
 .gcal-mini-grid button.is-today { border-color: #2f7567; color: #fff; background: #2f7567; }
 .gcal-mini-grid button.is-today.is-selected { box-shadow: 0 0 0 2px rgba(47, 117, 103, .22); }
+
+.gcal-mini-day-num {
+  line-height: 1;
+  margin-top: -2px;
+}
+
+.gcal-mini-dots-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5px;
+  position: absolute;
+  bottom: 2.5px;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.gcal-mini-dot {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.7);
+}
+
+.gcal-mini-grid button.is-today .gcal-mini-dot {
+  box-shadow: 0 0 0 0.8px rgba(255, 255, 255, 0.95);
+}
 .gcal-sidebar-section { margin-top: 25px; padding: 0 9px; }
 .gcal-sidebar-online {
   display: flex;
@@ -3095,6 +3129,24 @@ a:hover { color: var(--color-primary-hover); }
 }
 .gcal-time-day.is-today.is-selected strong {
   box-shadow: 0 0 0 3px #a7f3d0, 0 2px 8px rgba(47, 117, 103, 0.35);
+}
+.gcal-time-day-dots-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 5px;
+  margin-top: 1px;
+  pointer-events: none;
+}
+.gcal-time-day .gcal-mini-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.8px rgba(255, 255, 255, 0.85);
+}
+.gcal-time-day.is-today .gcal-mini-dot {
+  box-shadow: 0 0 0 0.8px rgba(255, 255, 255, 0.95);
 }
 .gcal-time-body { display: grid; }
 .gcal-hour-rail {
@@ -9225,6 +9277,26 @@ a:hover { color: var(--color-primary-hover); }
   color: #ffffff;
   font-weight: 800;
   box-shadow: 0 3px 10px rgba(26, 58, 74, 0.25);
+}
+
+.gcal-calendar-modal-dots-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5px;
+  margin-top: 3px;
+  pointer-events: none;
+}
+
+.gcal-calendar-modal-day .gcal-mini-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.7px rgba(255, 255, 255, 0.8);
+}
+
+.gcal-calendar-modal-day.is-selected .gcal-mini-dot {
+  box-shadow: 0 0 0 0.8px rgba(255, 255, 255, 0.95);
 }
 
 .gcal-calendar-day-dot {
