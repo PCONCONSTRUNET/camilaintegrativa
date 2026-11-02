@@ -2103,9 +2103,8 @@ export async function resizeAppointment(
 
 export async function deleteAppointment(appointmentId: string, clinicId: string): Promise<boolean> {
   const database = getDatabase();
-  (await database.exec('BEGIN IMMEDIATE'));
-  try {
-    const apt = (await database.prepare(`
+  return await database.transaction(async (tx) => {
+    const apt = (await tx.prepare(`
       SELECT id, client_id, client_package_id, service_id, status, start_at, end_at
       FROM appointments
       WHERE id = ? AND clinic_id = ?
@@ -2120,51 +2119,67 @@ export async function deleteAppointment(appointmentId: string, clinicId: string)
     } | undefined;
 
     if (!apt) {
-      (await database.exec('ROLLBACK'));
       return false;
     }
 
     // 1. Estornar / limpar vínculos de usos de pacotes
     try {
-      await database.prepare('DELETE FROM package_usages WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('DELETE FROM package_usages WHERE appointment_id = ?').run(appointmentId);
     } catch {}
 
-    // 2. Desvincular agendamento de pagamentos e cobranças (para preservar os registros financeiros)
+    // Se o agendamento estava consumindo uma sessão de pacote, restaura a sessão
+    if (apt.client_package_id) {
+      try {
+        const pkg = (await tx.prepare('SELECT id, used_sessions FROM client_packages WHERE id = ?').get(apt.client_package_id)) as {
+          id: string;
+          used_sessions: number;
+        } | undefined;
+        if (pkg && pkg.used_sessions > 0) {
+          await tx.prepare(`
+            UPDATE client_packages
+            SET used_sessions = ?, status = 'ativo', updated_at = ?
+            WHERE id = ?
+          `).run(Math.max(0, pkg.used_sessions - 1), new Date().toISOString(), pkg.id);
+        }
+      } catch {}
+    }
+
+    // 2. Desvincular agendamento de faturas/pagamentos (client_payments) preservando os registros contábeis
     try {
-      await database.prepare('UPDATE payments SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('UPDATE client_payments SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
     } catch {}
     try {
-      await database.prepare('UPDATE charges SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('UPDATE charges SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
     } catch {}
 
     // 3. Registros de sessão (se houver)
     try {
-      await database.prepare(`
+      await tx.prepare(`
         DELETE FROM session_record_versions
         WHERE session_record_id IN (SELECT id FROM session_records WHERE appointment_id = ?)
       `).run(appointmentId);
-      await database.prepare('DELETE FROM session_records WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('DELETE FROM session_records WHERE appointment_id = ?').run(appointmentId);
     } catch {}
 
     // 4. Desvincular de evoluções clínicas
     try {
-      await database.prepare('UPDATE clinical_evolutions SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('UPDATE clinical_evolutions SET appointment_id = NULL WHERE appointment_id = ?').run(appointmentId);
     } catch {}
 
     // 5. Deletar histórico de eventos do agendamento
     try {
-      await database.prepare('DELETE FROM appointment_events WHERE appointment_id = ?').run(appointmentId);
+      await tx.prepare('DELETE FROM appointment_events WHERE appointment_id = ?').run(appointmentId);
     } catch {}
 
-    // 6. Excluir o agendamento
-    await database.prepare('DELETE FROM appointments WHERE id = ? AND clinic_id = ?').run(appointmentId, clinicId);
+    // 6. Limpar eventuais notificações em fila vinculadas ao agendamento
+    try {
+      await tx.prepare('DELETE FROM notification_jobs WHERE appointment_id = ?').run(appointmentId);
+    } catch {}
 
-    (await database.exec('COMMIT'));
-    return true;
-  } catch (error) {
-    (await database.exec('ROLLBACK'));
-    throw error;
-  }
+    // 7. Excluir o agendamento da agenda
+    const res = await tx.prepare('DELETE FROM appointments WHERE id = ? AND clinic_id = ?').run(appointmentId, clinicId);
+    return res.changes > 0;
+  });
 }
 
 export async function getAgendaSettings(): Promise<AgendaSettings> {

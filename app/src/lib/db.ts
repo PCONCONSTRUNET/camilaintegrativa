@@ -92,9 +92,9 @@ function getPgPool(): Pool {
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 2, // Ideal para ambientes serverless (Vercel Lambdas) conectados ao pooler
-    idleTimeoutMillis: 1500, // Libera conexões ociosas rapidamente
-    connectionTimeoutMillis: 6000,
+    max: 10,
+    idleTimeoutMillis: 5000,
+    connectionTimeoutMillis: 15000,
     allowExitOnIdle: true,
   });
 
@@ -107,23 +107,25 @@ function getPgPool(): Pool {
 }
 
 function createPostgresClient(pool: Pool): DatabaseClient {
+  let fallbackTxClient: PoolClient | null = null;
+
   const client: DatabaseClient = {
     isPostgres: true,
     prepare(sql: string) {
       const pgSql = toPgSql(sql);
       return {
         async all<T = unknown>(...params: unknown[]): Promise<T[]> {
-          const txClient = txStorage.getStore()?.client;
+          const txClient = txStorage.getStore()?.client || fallbackTxClient;
           const res = txClient ? await txClient.query(pgSql, params) : await pool.query(pgSql, params);
           return res.rows as T[];
         },
         async get<T = unknown>(...params: unknown[]): Promise<T | undefined> {
-          const txClient = txStorage.getStore()?.client;
+          const txClient = txStorage.getStore()?.client || fallbackTxClient;
           const res = txClient ? await txClient.query(pgSql, params) : await pool.query(pgSql, params);
           return (res.rows[0] ?? undefined) as T | undefined;
         },
         async run(...params: unknown[]): Promise<{ changes: number }> {
-          const txClient = txStorage.getStore()?.client;
+          const txClient = txStorage.getStore()?.client || fallbackTxClient;
           const res = txClient ? await txClient.query(pgSql, params) : await pool.query(pgSql, params);
           return { changes: res.rowCount ?? 0 };
         },
@@ -132,21 +134,24 @@ function createPostgresClient(pool: Pool): DatabaseClient {
     async exec(sql: string): Promise<void> {
       const trimmed = sql.trim().toUpperCase();
       if (trimmed === 'BEGIN IMMEDIATE' || trimmed === 'BEGIN') {
-        const existing = txStorage.getStore();
-        if (existing?.client) {
+        const existing = txStorage.getStore()?.client || fallbackTxClient;
+        if (existing) {
           try {
-            await existing.client.query('ROLLBACK');
+            await existing.query('ROLLBACK');
           } catch {}
           try {
-            existing.client.release();
+            existing.release();
           } catch {}
-          txStorage.disable();
+          fallbackTxClient = null;
+          try { txStorage.disable(); } catch {}
         }
         const poolClient = await pool.connect();
+        fallbackTxClient = poolClient;
         try {
           await poolClient.query('BEGIN');
           txStorage.enterWith({ client: poolClient });
         } catch (err) {
+          fallbackTxClient = null;
           try {
             poolClient.release();
           } catch {}
@@ -155,35 +160,37 @@ function createPostgresClient(pool: Pool): DatabaseClient {
         return;
       }
       if (trimmed === 'COMMIT') {
-        const store = txStorage.getStore();
-        if (store?.client) {
+        const clientToRelease = txStorage.getStore()?.client || fallbackTxClient;
+        fallbackTxClient = null;
+        if (clientToRelease) {
           try {
-            await store.client.query('COMMIT');
+            await clientToRelease.query('COMMIT');
           } finally {
             try {
-              store.client.release();
+              clientToRelease.release();
             } catch {}
-            txStorage.disable();
+            try { txStorage.disable(); } catch {}
           }
         }
         return;
       }
       if (trimmed === 'ROLLBACK') {
-        const store = txStorage.getStore();
-        if (store?.client) {
+        const clientToRelease = txStorage.getStore()?.client || fallbackTxClient;
+        fallbackTxClient = null;
+        if (clientToRelease) {
           try {
-            await store.client.query('ROLLBACK');
+            await clientToRelease.query('ROLLBACK');
           } finally {
             try {
-              store.client.release();
+              clientToRelease.release();
             } catch {}
-            txStorage.disable();
+            try { txStorage.disable(); } catch {}
           }
         }
         return;
       }
 
-      const txClient = txStorage.getStore()?.client;
+      const txClient = txStorage.getStore()?.client || fallbackTxClient;
       if (txClient) {
         await txClient.query(sql);
       } else {
