@@ -2849,9 +2849,6 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
             <Users size={13} /> Sessão em Grupo
           </div>
           <h2>{selectedGroupSession.title}</h2>
-          <p className="gcal-popover-client" style={{ fontSize: '0.9rem', color: '#475569', marginTop: '2px' }}>
-            {selectedGroupSession.description || 'Sessão terapêutica coletiva'}
-          </p>
           <div className="gcal-popover-meta">
             <span><CalendarDays size={16} /> {formatFullDate(selectedGroupSession.date)}</span>
             <span><Clock3 size={16} /> {selectedGroupSession.startTime.slice(0, 5)} – {selectedGroupSession.endTime ? selectedGroupSession.endTime.slice(0, 5) : 'Fim programado'}</span>
