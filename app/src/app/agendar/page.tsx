@@ -1512,10 +1512,10 @@ function BookingHeader() {
           }}
           className="booking-back-pill"
           title={backLabel}
-          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
         >
-          <ArrowLeft size={16} />
-          <span>{backLabel}</span>
+          <ArrowLeft size={15} />
+          <span className="booking-back-label-desktop">{backLabel}</span>
+          <span className="booking-back-label-mobile">Voltar</span>
         </button>
         <Link href={backUrl} className="booking-logo-center" title="Camila Machado">
           <Image
@@ -1524,7 +1524,7 @@ function BookingHeader() {
             width={180}
             height={50}
             priority
-            style={{ width: 'auto', height: '34px', maxHeight: '38px', objectFit: 'contain' }}
+            style={{ width: 'auto', height: '32px', maxHeight: '36px', objectFit: 'contain' }}
           />
         </Link>
         <div className="booking-header-spacer" />
