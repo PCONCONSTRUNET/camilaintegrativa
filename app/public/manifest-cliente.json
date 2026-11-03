@@ -3,14 +3,18 @@
   "id": "/cliente",
   "name": "Camila Integrativa",
   "short_name": "Camila Integrativa",
-  "description": "Seus agendamentos, sessões, prontuário e acompanhamento terapêutico.",
+  "description": "Seus agendamentos, sessÃµes, prontuÃ¡rio e acompanhamento terapÃªutico.",
   "start_url": "/cliente",
-  "scope": "/",
+  "scope": "/cliente",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#245D80",
-  "categories": ["medical", "health", "lifestyle"],
+  "categories": [
+    "medical",
+    "health",
+    "lifestyle"
+  ],
   "lang": "pt-BR",
   "icons": [
     {
@@ -34,33 +38,52 @@
   ],
   "shortcuts": [
     {
-      "name": "Minhas Sessões",
-      "short_name": "Sessões",
-      "description": "Ver meus agendamentos e histórico",
+      "name": "Minhas SessÃµes",
+      "short_name": "SessÃµes",
+      "description": "Ver meus agendamentos e histÃ³rico",
       "url": "/cliente?tab=sessoes",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "Agendar Nova Sessão",
+      "name": "Agendar Nova SessÃ£o",
       "short_name": "Agendar",
-      "description": "Escolher horário ou sessão coletiva",
+      "description": "Escolher horÃ¡rio ou sessÃ£o coletiva",
       "url": "/agendar",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Faturas & Pagamentos",
       "short_name": "Faturas",
       "description": "Ver pagamentos e comprovantes",
       "url": "/cliente?tab=faturas",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Meu Perfil",
       "short_name": "Perfil",
-      "description": "Dados cadastrais e notificações",
+      "description": "Dados cadastrais e notificaÃ§Ãµes",
       "url": "/cliente?tab=perfil",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
-

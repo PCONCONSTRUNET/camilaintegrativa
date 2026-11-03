@@ -3,14 +3,18 @@
   "id": "/admin",
   "name": "Admin Camila",
   "short_name": "Admin Camila",
-  "description": "Gestão de agenda, prontuários, financeiro e pacientes.",
+  "description": "GestÃ£o de agenda, prontuÃ¡rios, financeiro e pacientes.",
   "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#182B38",
-  "categories": ["medical", "health", "business"],
+  "categories": [
+    "medical",
+    "health",
+    "business"
+  ],
   "lang": "pt-BR",
   "icons": [
     {
@@ -36,31 +40,50 @@
     {
       "name": "Agenda do Dia",
       "short_name": "Agenda",
-      "description": "Ver compromissos e horários de hoje",
+      "description": "Ver compromissos e horÃ¡rios de hoje",
       "url": "/admin/agenda",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Pacientes",
       "short_name": "Pacientes",
-      "description": "Cadastro de clientes e prontuários",
+      "description": "Cadastro de clientes e prontuÃ¡rios",
       "url": "/admin/clientes",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Financeiro",
       "short_name": "Financeiro",
-      "description": "Fluxo de caixa e cobranças",
+      "description": "Fluxo de caixa e cobranÃ§as",
       "url": "/admin/financeiro",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Auditoria & LGPD",
       "short_name": "Auditoria",
-      "description": "Logs de segurança e consentimentos",
+      "description": "Logs de seguranÃ§a e consentimentos",
       "url": "/admin/auditoria",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
-
