@@ -452,7 +452,7 @@ function HomeContent() {
                             )}
                             {gs.modality === 'presencial' ? (
                               <span className="badge-pill badge-pill-presencial">
-                                <MapPin size={12} /> Presencial
+                                <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
                               </span>
                             ) : (
                               <span className="badge-pill badge-pill-online">
@@ -828,7 +828,7 @@ function HomeContent() {
 
                         {gs.modality === 'presencial' ? (
                           <span className="badge-pill badge-pill-presencial">
-                            <MapPin size={12} /> Presencial
+                            <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
                           </span>
                         ) : (
                           <span className="badge-pill badge-pill-online">

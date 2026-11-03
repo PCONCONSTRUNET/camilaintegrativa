@@ -359,6 +359,58 @@ export default function AdminSessoesGrupoPage() {
     }
   }
 
+  async function handleQuickToggleStatus(session: GroupSession) {
+    const nextStatus: GroupSessionStatus = session.status === 'ativo' ? 'encerrado' : 'ativo';
+    try {
+      const res = await fetch(`/api/admin/group-sessions/${session.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...session,
+          status: nextStatus,
+        }),
+      });
+      if (!res.ok) throw new Error('Erro ao alterar status da turma.');
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? { ...s, status: nextStatus } : s))
+      );
+      setSuccessMsg(
+        nextStatus === 'ativo'
+          ? '✓ Turma reativada com sucesso! Agora está recebendo inscrições.'
+          : '✓ Turma marcada como inativa/encerrada.'
+      );
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao alterar status.');
+    }
+  }
+
+  async function handleQuickTogglePublish(session: GroupSession) {
+    const nextPublished = !session.published;
+    try {
+      const res = await fetch(`/api/admin/group-sessions/${session.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...session,
+          published: nextPublished,
+        }),
+      });
+      if (!res.ok) throw new Error('Erro ao alterar visibilidade da turma.');
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? { ...s, published: nextPublished } : s))
+      );
+      setSuccessMsg(
+        nextPublished
+          ? '✓ Turma publicada para agendamento online dos clientes!'
+          : '✓ Turma ocultada do agendamento online.'
+      );
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao alterar visibilidade.');
+    }
+  }
+
   async function handleAddManualParticipant(e: FormEvent) {
     e.preventDefault();
     if (!participantsSession) return;
@@ -822,7 +874,7 @@ export default function AdminSessoesGrupoPage() {
             {([
               { id: 'todos', label: 'Todas' },
               { id: 'ativo', label: 'Ativas' },
-              { id: 'encerrado', label: 'Encerradas' },
+              { id: 'encerrado', label: 'Inativas / Encerradas' },
               { id: 'cancelado', label: 'Canceladas' },
             ] as const).map((tab) => (
               <button
@@ -926,6 +978,8 @@ export default function AdminSessoesGrupoPage() {
                       {session.title}
                     </h2>
                     <span
+                      onClick={() => void handleQuickToggleStatus(session)}
+                      title="Clique para alternar entre Ativa e Inativa"
                       style={{
                         flexShrink: 0,
                         padding: '3px 10px',
@@ -933,6 +987,7 @@ export default function AdminSessoesGrupoPage() {
                         fontSize: '0.71rem',
                         fontWeight: 800,
                         textTransform: 'uppercase',
+                        cursor: 'pointer',
                         background:
                           session.status === 'ativo'
                             ? '#ecfdf5'
@@ -952,9 +1007,10 @@ export default function AdminSessoesGrupoPage() {
                             ? '#cbd5e1'
                             : '#fecaca'
                         }`,
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      {session.status === 'ativo' ? '● Turma Aberta' : session.status === 'encerrado' ? 'Encerrada' : 'Cancelada'}
+                      {session.status === 'ativo' ? '● Turma Aberta' : session.status === 'encerrado' ? 'Inativa / Encerrada' : 'Cancelada'}
                     </span>
                   </div>
 
@@ -1081,7 +1137,10 @@ export default function AdminSessoesGrupoPage() {
                       </span>
                     )}
 
-                    <span
+                    <button
+                      type="button"
+                      onClick={() => void handleQuickTogglePublish(session)}
+                      title={session.published ? 'Clique para ocultar do agendamento online' : 'Clique para publicar no agendamento online'}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1089,14 +1148,16 @@ export default function AdminSessoesGrupoPage() {
                         padding: '4px 8px',
                         borderRadius: '8px',
                         background: session.published ? '#f8fafc' : '#fffbeb',
-                        border: session.published ? '1px solid #cbd5e1' : '1px solid #fde68a',
+                        border: session.published ? '1.5px solid #cbd5e1' : '1.5px solid #fde68a',
                         color: session.published ? '#475569' : '#92400e',
                         fontSize: '0.72rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       {session.published ? <><Eye size={12} style={{ color: '#16a34a' }} /> Publicada</> : <><EyeOff size={12} /> Oculta</>}
-                    </span>
+                    </button>
                   </div>
 
                   {/* Quadro Estruturado de Ocupação e Vagas (Mesmo Padrão da Caixa de Pacotes em Serviços) */}
@@ -1232,6 +1293,28 @@ export default function AdminSessoesGrupoPage() {
 
                     <button
                       type="button"
+                      onClick={() => void handleQuickToggleStatus(session)}
+                      className="btn btn-ghost btn-sm"
+                      title={session.status === 'ativo' ? 'Pausar turma e deixar inativa' : 'Reativar turma'}
+                      style={{
+                        border: session.status === 'ativo' ? '1.5px solid #cbd5e1' : '1.5px solid #86efac',
+                        fontWeight: 700,
+                        padding: '5px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.76rem',
+                        color: session.status === 'ativo' ? '#475569' : '#047857',
+                        background: session.status === 'ativo' ? '#ffffff' : '#ecfdf5',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {session.status === 'ativo' ? <EyeOff size={13} /> : <Eye size={13} />}
+                      {session.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleOpenEdit(session)}
                       className="btn btn-secondary btn-sm"
                       title="Editar Sessão"
@@ -1313,6 +1396,28 @@ export default function AdminSessoesGrupoPage() {
                     >
                       <Users size={13} /> Inscritos ({session.currentParticipants})
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleQuickToggleStatus(session)}
+                      className="btn btn-ghost btn-sm"
+                      title={session.status === 'ativo' ? 'Pausar turma e deixar inativa' : 'Reativar turma'}
+                      style={{
+                        border: session.status === 'ativo' ? '1.5px solid #cbd5e1' : '1.5px solid #86efac',
+                        fontWeight: 700,
+                        padding: '5px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.76rem',
+                        color: session.status === 'ativo' ? '#475569' : '#047857',
+                        background: session.status === 'ativo' ? '#ffffff' : '#ecfdf5',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {session.status === 'ativo' ? <EyeOff size={13} /> : <Eye size={13} />}
+                      {session.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(session)}
@@ -1719,40 +1824,103 @@ export default function AdminSessoesGrupoPage() {
                 </label>
               </div>
 
-              {/* Status & Visibility on Public Home */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', padding: '12px 14px', background: '#f8fafc', borderRadius: '14px', border: '1.5px solid #cbd5e1' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              {/* Status da Turma & Publicação */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '14px 16px', background: '#f8fafc', borderRadius: '14px', border: '1.5px solid #cbd5e1' }}>
+                <div>
+                  <span className="form-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 800, fontSize: '0.82rem', color: '#0f172a' }}>
+                    Status da Sessão / Turma
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, status: 'ativo' })}
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: form.status === 'ativo' ? '2px solid #047857' : '1.5px solid #cbd5e1',
+                        background: form.status === 'ativo' ? '#ecfdf5' : '#ffffff',
+                        color: form.status === 'ativo' ? '#047857' : '#475569',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#047857' }} />
+                      Turma Ativa (Aberta)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, status: 'encerrado' })}
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: form.status === 'encerrado' ? '2px solid #64748b' : '1.5px solid #cbd5e1',
+                        background: form.status === 'encerrado' ? '#f1f5f9' : '#ffffff',
+                        color: form.status === 'encerrado' ? '#1e293b' : '#475569',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b' }} />
+                      Inativa / Oculta
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, status: 'cancelado' })}
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: form.status === 'cancelado' ? '2px solid #dc2626' : '1.5px solid #cbd5e1',
+                        background: form.status === 'cancelado' ? '#fef2f2' : '#ffffff',
+                        color: form.status === 'cancelado' ? '#991b1b' : '#475569',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#dc2626' }} />
+                      Cancelada
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={form.published}
                       onChange={(e) => setForm({ ...form, published: e.target.checked })}
                     />
-                    Publicar para agendamento online dos clientes
+                    Publicar para agendamento online dos clientes (desmarque para ocultar)
                   </label>
 
-                  {editingSession && (
-                    <select
-                      className="form-input"
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value as GroupSessionStatus })}
-                      style={{ width: 'auto', height: '34px', padding: '0 10px', fontSize: '0.8rem', fontWeight: 700 }}
-                    >
-                      <option value="ativo">Status: Turma Ativa</option>
-                      <option value="encerrado">Status: Encerrada</option>
-                      <option value="cancelado">Status: Cancelada</option>
-                    </select>
-                  )}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', fontWeight: 700, color: '#1a3a4a', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.showOnHome}
+                      onChange={(e) => setForm({ ...form, showOnHome: e.target.checked })}
+                    />
+                    Destacar esta Sessão em Grupo diretamente na Home Pública
+                  </label>
                 </div>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', fontWeight: 700, color: '#1a3a4a', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={form.showOnHome}
-                    onChange={(e) => setForm({ ...form, showOnHome: e.target.checked })}
-                  />
-                  Destacar esta Sessão em Grupo diretamente na Home Pública
-                </label>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px', paddingTop: '10px', borderTop: '1.5px solid #cbd5e1' }}>

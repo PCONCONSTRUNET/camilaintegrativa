@@ -814,7 +814,7 @@ function AgendarContent() {
                                 {gs.modality === 'presencial' ? (
                                   <span className="badge-pill badge-pill-presencial">
                                     <MapPin size={12} />
-                                    <span>Presencial</span>
+                                    <span>Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}</span>
                                   </span>
                                 ) : (
                                   <span className="badge-pill badge-pill-online">
