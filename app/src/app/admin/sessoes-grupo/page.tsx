@@ -2200,7 +2200,7 @@ export default function AdminSessoesGrupoPage() {
                             {enr.clientName}
                           </strong>
                           <span style={{ fontSize: '0.76rem', color: '#64748b', display: 'block' }}>
-                            {enr.clientPhone}{enr.clientEmail ? ` · ${enr.clientEmail}` : ''}
+                            {maskPhone(enr.clientPhone)}{enr.clientEmail ? ` · ${enr.clientEmail}` : ''}
                           </span>
                           {(enr.clientCpf || enr.clientBirthDate) && (
                             <span style={{ fontSize: '0.72rem', color: '#475569', display: 'block', marginTop: '1px' }}>

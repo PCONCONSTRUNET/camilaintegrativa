@@ -19,13 +19,13 @@ export type ClinicPixConfig = {
 
 export const DEFAULT_CLINIC_PIX_CONFIG: ClinicPixConfig = {
   keyType: 'telefone',
-  key: '+5548996915303',
-  keyDisplay: '(48) 99691-5303',
+  key: '+5548999287685',
+  keyDisplay: '(48) 99928-7685',
   recipientName: 'Camila Machado',
   city: 'Urussanga',
   instructions: 'Após o pagamento via PIX, o agendamento é registrado com status pendente até a conciliação automática ou confirmação pela clínica.',
-  whatsappNumber: '5548996915303',
-  whatsappDisplay: '(48) 99691-5303',
+  whatsappNumber: '5548999287685',
+  whatsappDisplay: '(48) 99928-7685',
 };
 
 // Mantido para compatibilidade com importações legadas

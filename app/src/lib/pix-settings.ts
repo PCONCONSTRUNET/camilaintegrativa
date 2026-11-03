@@ -25,8 +25,8 @@ export async function ensurePixSettingsTable() {
         recipient_name TEXT NOT NULL DEFAULT 'Camila Machado',
         city TEXT NOT NULL DEFAULT 'Urussanga',
         instructions TEXT NOT NULL DEFAULT 'Após o pagamento via PIX, o agendamento é registrado com status pendente até a conciliação automática ou confirmação pela clínica.',
-        whatsapp_number TEXT NOT NULL DEFAULT '5548996915303',
-        whatsapp_display TEXT NOT NULL DEFAULT '(48) 99691-5303',
+        whatsapp_number TEXT NOT NULL DEFAULT '5548999287685',
+        whatsapp_display TEXT NOT NULL DEFAULT '(48) 99928-7685',
         updated_at TEXT NOT NULL
       )
     `);

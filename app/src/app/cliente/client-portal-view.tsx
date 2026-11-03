@@ -568,7 +568,11 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
     initialData.anamnese?.fullName || initialData.client.name || ''
   );
   const [anamneseCpf, setAnamneseCpf] = useState(
-    initialData.anamnese?.cpf || initialData.client.cpf || ''
+    initialData.anamnese?.cpf
+      ? maskCpf(initialData.anamnese.cpf)
+      : initialData.client.cpf
+      ? maskCpf(initialData.client.cpf)
+      : ''
   );
   const [anamneseRg, setAnamneseRg] = useState(
     initialData.anamnese?.rg || initialData.client.rg || ''
@@ -614,7 +618,9 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
   // Edit Profile Form State
   const [profileName, setProfileName] = useState(initialData.client.name || '');
   const [profileEmail, setProfileEmail] = useState(initialData.client.email || '');
-  const [profileCpf, setProfileCpf] = useState(initialData.client.cpf || '');
+  const [profileCpf, setProfileCpf] = useState(
+    initialData.client.cpf ? maskCpf(initialData.client.cpf) : ''
+  );
   const [profileBirthDate, setProfileBirthDate] = useState(initialData.client.birthDate || '');
   const [profileGender, setProfileGender] = useState(initialData.client.gender || '');
   const [profileOccupation, setProfileOccupation] = useState(initialData.client.occupation || '');
@@ -1189,7 +1195,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                   {data.client.name}
                 </strong>
                 <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                  {data.client.phone}
+                  {formatPhone(data.client.phone)}
                 </span>
               </div>
 
@@ -1332,7 +1338,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
             </div>
             <div className="client-user-info desktop-only">
               <strong>{data.client.name.split(' ')[0]}</strong>
-              <span>{data.client.phone}</span>
+              <span>{formatPhone(data.client.phone)}</span>
             </div>
             <button
               onClick={handleLogout}

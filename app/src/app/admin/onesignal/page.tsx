@@ -35,6 +35,7 @@ import {
 import type { PushRuleConfig } from '@/lib/push-configs';
 import type { PushNotificationLog } from '@/lib/onesignal';
 import type { ClientSummary } from '@/lib/domain';
+import { formatPhone } from '@/lib/utils';
 
 type ActiveTab = 'admin-config' | 'client-config' | 'manual' | 'logs';
 
@@ -1244,7 +1245,7 @@ export default function OneSignalAdminPage() {
                 />
                 {selectedClientObj && (
                   <div style={{ marginBottom: '8px', padding: '6px 10px', background: '#ecfdf5', borderRadius: '6px', color: '#0f766e', fontSize: '0.8rem', fontWeight: 700 }}>
-                    ✓ Paciente selecionado: {selectedClientObj.name} ({selectedClientObj.phone})
+                    ✓ Paciente selecionado: {selectedClientObj.name} ({formatPhone(selectedClientObj.phone)})
                   </div>
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '6px' }}>
@@ -1264,7 +1265,7 @@ export default function OneSignalAdminPage() {
                       }}
                     >
                       <strong>{c.name}</strong>
-                      <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{c.phone}</div>
+                      <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{formatPhone(c.phone)}</div>
                     </button>
                   ))}
                 </div>

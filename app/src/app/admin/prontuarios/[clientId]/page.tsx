@@ -52,7 +52,7 @@ import type {
   ClientDocument,
   AppointmentSummary,
 } from '@/lib/domain';
-import { formatPhone, maskPhone } from '@/lib/utils';
+import { formatPhone, maskCpf, maskPhone } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { QuickDocumentsModal } from '@/components/quick-documents-modal';
 import { uploadImageToStorage, getSafeFileUrl } from '@/lib/image-storage';
@@ -854,7 +854,7 @@ export default function ProntuarioDetalhePage({
                     </div>
                     <div>
                       <span className="info-label">2. CPF</span>
-                      <strong className="info-val">{record.cpf || 'Não informado'}</strong>
+                      <strong className="info-val">{record.cpf ? maskCpf(record.cpf) : 'Não informado'}</strong>
                     </div>
                     <div>
                       <span className="info-label">3. RG</span>
@@ -941,7 +941,7 @@ export default function ProntuarioDetalhePage({
                                 <ShieldCheck size={15} /> Assinado eletronicamente
                               </strong>
                               <div>Assinado por: <strong>{client?.name || 'Cliente'}</strong></div>
-                              <div>CPF: <strong>{record.cpf || 'não informado'}</strong></div>
+                              <div>CPF: <strong>{record.cpf ? maskCpf(record.cpf) : 'não informado'}</strong></div>
                               <div>
                                 Data e horário:{' '}
                                 <strong>
@@ -2916,7 +2916,7 @@ export default function ProntuarioDetalhePage({
             </div>
             <div>
               <span className="print-label">CPF</span>
-              <span className="print-val">{record?.cpf || 'Não informado'}</span>
+              <span className="print-val">{record?.cpf ? maskCpf(record.cpf) : 'Não informado'}</span>
             </div>
             <div>
               <span className="print-label">Data de Nascimento</span>

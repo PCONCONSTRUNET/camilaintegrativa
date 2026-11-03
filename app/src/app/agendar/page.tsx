@@ -16,6 +16,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   MapPin,
+  MessageCircle,
   Monitor,
   Phone,
   QrCode,
@@ -425,6 +426,35 @@ function AgendarContent() {
                   {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
 
+                <a
+                  href={`https://wa.me/5548999287685?text=${encodeURIComponent(
+                    `Olá, Camila! Acabei de realizar o pagamento via PIX para garantir minha vaga na Sessão em Grupo "${selectedGroup?.title || 'Sessão Coletiva'}" (${selectedGroup?.date ? selectedGroup.date.split('-').reverse().join('/') : ''} às ${selectedGroup?.startTime || ''}).\n\n👤 Participante: ${form.name}\n💰 Valor: ${formatCurrency(selectedGroup?.priceCents || 0)}\n\nEstou enviando meu comprovante em anexo por aqui. 📄✨`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '11px 16px',
+                    borderRadius: '10px',
+                    background: '#25D366',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.86rem',
+                    textDecoration: 'none',
+                    boxShadow: '0 3px 10px rgba(37, 211, 102, 0.35)',
+                    marginTop: '8px',
+                    marginBottom: '4px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <MessageCircle size={18} />
+                  <span>Enviar Comprovante no WhatsApp</span>
+                </a>
+
                 <div style={{ fontSize: '0.74rem', color: '#166534', fontWeight: 600, textAlign: 'center' }}>
                   Beneficiária: <strong>{pixConfig.recipientName}</strong>
                 </div>
@@ -559,6 +589,35 @@ function AgendarContent() {
                   {copiedPix ? <Check size={14} /> : <Copy size={14} />}
                   {copiedPix ? '✓ Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                 </button>
+
+                <a
+                  href={`https://wa.me/5548999287685?text=${encodeURIComponent(
+                    `Olá, Camila! Acabei de realizar o pagamento via PIX referente ao meu agendamento de "${service?.name || 'Sessão Individual'}" (${date.split('-').reverse().join('/')} às ${time}).\n\n👤 Paciente: ${form.name}\n💰 Valor: ${formatCurrency(indPriceCents)}\n\nEstou enviando meu comprovante em anexo por aqui. 📄✨`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '11px 16px',
+                    borderRadius: '10px',
+                    background: '#25D366',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.86rem',
+                    textDecoration: 'none',
+                    boxShadow: '0 3px 10px rgba(37, 211, 102, 0.35)',
+                    marginTop: '8px',
+                    marginBottom: '4px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <MessageCircle size={18} />
+                  <span>Enviar Comprovante no WhatsApp</span>
+                </a>
 
                 <div style={{ fontSize: '0.74rem', color: '#166534', fontWeight: 600, textAlign: 'center' }}>
                   Beneficiária: <strong>{pixConfig.recipientName}</strong>
@@ -1023,9 +1082,9 @@ function AgendarContent() {
                       <dd>
                         {form.name}
                         <small>
-                          CPF: {form.cpf} · Nasc.: {form.birthDate ? form.birthDate.split('-').reverse().join('/') : '—'}
+                          CPF: {form.cpf ? maskCpf(form.cpf) : '—'} · Nasc.: {form.birthDate ? form.birthDate.split('-').reverse().join('/') : '—'}
                         </small>
-                        <small>{form.phone}{form.email ? ` · ${form.email}` : ''}</small>
+                        <small>{form.phone ? maskPhone(form.phone) : ''}{form.email ? ` · ${form.email}` : ''}</small>
                       </dd>
                     </div>
                   </dl>
@@ -1071,6 +1130,28 @@ function AgendarContent() {
                         );
                       })}
                     </div>
+                    {paymentMethod === 'pix' && (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '0.78rem',
+                          color: '#166534',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <MessageCircle size={16} style={{ flexShrink: 0, color: '#16a34a' }} />
+                        <span>
+                          Chave PIX e botão de enviar comprovante no WhatsApp da Camila <strong>(48) 99928-7685</strong> serão exibidos na próxima tela.
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <label className="privacy-check" style={{ marginBottom: '8px' }}>
@@ -1402,9 +1483,9 @@ function AgendarContent() {
                       <dd>
                         {form.name}
                         <small>
-                          CPF: {form.cpf} · Nasc.: {form.birthDate ? form.birthDate.split('-').reverse().join('/') : '—'}
+                          CPF: {form.cpf ? maskCpf(form.cpf) : '—'} · Nasc.: {form.birthDate ? form.birthDate.split('-').reverse().join('/') : '—'}
                         </small>
-                        <small>{form.phone}{form.email ? ` · ${form.email}` : ''}</small>
+                        <small>{form.phone ? maskPhone(form.phone) : ''}{form.email ? ` · ${form.email}` : ''}</small>
                       </dd>
                     </div>
                   </dl>
@@ -1450,6 +1531,28 @@ function AgendarContent() {
                           );
                         })}
                       </div>
+                      {paymentMethod === 'pix' && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            background: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '0.78rem',
+                            color: '#166534',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <MessageCircle size={16} style={{ flexShrink: 0, color: '#16a34a' }} />
+                          <span>
+                            Chave PIX e botão de enviar comprovante no WhatsApp da Camila <strong>(48) 99928-7685</strong> serão exibidos na próxima tela.
+                          </span>
+                        </div>
+                      )}
                       <span className="form-hint">O pagamento é realizado no dia do atendimento.</span>
                     </div>
                   )}

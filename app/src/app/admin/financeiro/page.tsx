@@ -5081,7 +5081,7 @@ export default function AdminFinanceiroPage() {
                           >
                             <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>{c.name}</strong>
                             <span style={{ fontSize: '0.74rem', color: '#475569' }}>
-                              {[c.phone && `📱 ${c.phone}`, c.cpf && `CPF ${c.cpf}`, c.rg && `RG ${c.rg}`, c.email].filter(Boolean).join(' · ')}
+                              {[c.phone && `📱 ${formatPhone(c.phone)}`, c.cpf && `CPF ${maskCpf(c.cpf)}`, c.rg && `RG ${c.rg}`, c.email].filter(Boolean).join(' · ')}
                             </span>
                           </button>
                         ))
