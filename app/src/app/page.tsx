@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock3,
   HeartHandshake,
   LockKeyhole,
@@ -263,7 +264,65 @@ function HomeContent() {
                           : 'Sob consulta'}
                       </span>
                     </div>
-                    <p>{s.description}</p>
+                    {s.description && (
+                      <div style={{ margin: '4px 0 6px' }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: '0.85rem',
+                            color: '#475569',
+                            lineHeight: 1.5,
+                            whiteSpace: expandedDescIds[`svc_${s.id}`] ? 'pre-line' : 'normal',
+                            ...(expandedDescIds[`svc_${s.id}`]
+                              ? { maxHeight: '240px', overflowY: 'auto', paddingRight: '6px' }
+                              : {
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }),
+                          }}
+                        >
+                          {s.description}
+                        </p>
+                        {s.description.length > 80 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedDescIds((prev) => ({
+                                ...prev,
+                                [`svc_${s.id}`]: !prev[`svc_${s.id}`],
+                              }))
+                            }
+                            style={{
+                              marginTop: '4px',
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              fontSize: '0.76rem',
+                              fontWeight: 800,
+                              color: '#21577a',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                          >
+                            {expandedDescIds[`svc_${s.id}`] ? (
+                              <>
+                                <span>Recolher</span>
+                                <ChevronUp size={13} />
+                              </>
+                            ) : (
+                              <>
+                                <span>Ver mais</span>
+                                <ChevronDown size={13} />
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {s.pricingTiers && s.pricingTiers.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '8px 0 4px' }}>
                         {s.pricingTiers.map((t) => (
@@ -393,7 +452,7 @@ function HomeContent() {
                                     ? { maxHeight: '240px', overflowY: 'auto', paddingRight: '6px' }
                                     : {
                                         display: '-webkit-box',
-                                        WebkitLineClamp: 3,
+                                        WebkitLineClamp: 2,
                                         WebkitBoxOrient: 'vertical',
                                         overflow: 'hidden',
                                       }),
@@ -401,7 +460,7 @@ function HomeContent() {
                               >
                                 {gs.description}
                               </p>
-                              {gs.description.length > 130 && (
+                              {gs.description.length > 80 && (
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -415,13 +474,26 @@ function HomeContent() {
                                     background: 'none',
                                     border: 'none',
                                     padding: 0,
-                                    fontSize: '0.78rem',
+                                    fontSize: '0.76rem',
                                     fontWeight: 800,
                                     color: '#21577a',
                                     cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
                                   }}
                                 >
-                                  {expandedDescIds[`drawer_${gs.id}`] ? 'Ler menos ▴' : 'Ler mais ▾'}
+                                  {expandedDescIds[`drawer_${gs.id}`] ? (
+                                    <>
+                                      <span>Recolher</span>
+                                      <ChevronUp size={13} />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>Ver mais</span>
+                                      <ChevronDown size={13} />
+                                    </>
+                                  )}
                                 </button>
                               )}
                             </div>
@@ -765,7 +837,7 @@ function HomeContent() {
                                 ? { maxHeight: '220px', overflowY: 'auto', paddingRight: '6px' }
                                 : {
                                     display: '-webkit-box',
-                                    WebkitLineClamp: 3,
+                                    WebkitLineClamp: 2,
                                     WebkitBoxOrient: 'vertical',
                                     overflow: 'hidden',
                                   }),
@@ -773,7 +845,7 @@ function HomeContent() {
                           >
                             {gs.description}
                           </p>
-                          {gs.description.length > 130 && (
+                          {gs.description.length > 80 && (
                             <button
                               type="button"
                               onClick={() =>
@@ -791,9 +863,22 @@ function HomeContent() {
                                 fontWeight: 800,
                                 color: '#21577a',
                                 cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
                               }}
                             >
-                              {expandedDescIds[`home_${gs.id}`] ? 'Ler menos ▴' : 'Ler mais ▾'}
+                              {expandedDescIds[`home_${gs.id}`] ? (
+                                <>
+                                  <span>Recolher</span>
+                                  <ChevronUp size={13} />
+                                </>
+                              ) : (
+                                <>
+                                  <span>Ver mais</span>
+                                  <ChevronDown size={13} />
+                                </>
+                              )}
                             </button>
                           )}
                         </div>

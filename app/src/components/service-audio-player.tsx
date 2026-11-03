@@ -94,6 +94,9 @@ export function ServiceAudioPlayer({
           : '0 2px 6px rgba(15, 23, 42, 0.04)',
         transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
         width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        minWidth: 0,
       }}
     >
       <audio
@@ -167,7 +170,7 @@ export function ServiceAudioPlayer({
             }}
           >
             <span>🎧</span>
-            <span>{isPlaying ? 'Ouvindo como funciona...' : 'Ouvir como funciona o serviço'}</span>
+            <span>{isPlaying ? 'Ouvindo áudio...' : compact ? 'Ouvir áudio explicativo' : 'Ouvir como funciona o serviço'}</span>
           </span>
 
           <span

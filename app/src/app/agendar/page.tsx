@@ -8,7 +8,9 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock3,
   Copy,
   LoaderCircle,
@@ -758,12 +760,15 @@ function AgendarContent() {
                                   <p
                                     style={{
                                       margin: '4px 0 0',
+                                      fontSize: '0.82rem',
+                                      color: '#475569',
+                                      lineHeight: 1.48,
                                       whiteSpace: expandedDescIds[gs.id] ? 'pre-line' : 'normal',
                                       ...(expandedDescIds[gs.id]
-                                        ? { maxHeight: '220px', overflowY: 'auto', paddingRight: '6px' }
+                                        ? { maxHeight: '240px', overflowY: 'auto', paddingRight: '6px' }
                                         : {
                                             display: '-webkit-box',
-                                            WebkitLineClamp: 3,
+                                            WebkitLineClamp: 2,
                                             WebkitBoxOrient: 'vertical',
                                             overflow: 'hidden',
                                           }),
@@ -771,28 +776,43 @@ function AgendarContent() {
                                   >
                                     {gs.description}
                                   </p>
-                                  {gs.description.length > 130 && (
-                                    <span
-                                      role="button"
-                                      tabIndex={0}
+                                  {gs.description.length > 80 && (
+                                    <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        e.preventDefault();
                                         setExpandedDescIds((prev) => ({
                                           ...prev,
                                           [gs.id]: !prev[gs.id],
                                         }));
                                       }}
                                       style={{
-                                        display: 'inline-block',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
                                         marginTop: '4px',
-                                        fontSize: '0.78rem',
-                                        fontWeight: 800,
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '2px 0',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
                                         color: '#21577a',
                                         cursor: 'pointer',
                                       }}
                                     >
-                                      {expandedDescIds[gs.id] ? 'Ler menos ▴' : 'Ler mais ▾'}
-                                    </span>
+                                      {expandedDescIds[gs.id] ? (
+                                        <>
+                                          <span>Recolher</span>
+                                          <ChevronUp size={13} />
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>Ver mais</span>
+                                          <ChevronDown size={13} />
+                                        </>
+                                      )}
+                                    </button>
                                   )}
                                 </div>
                               )}
@@ -1115,7 +1135,64 @@ function AgendarContent() {
                           </span>
                           <div className="service-content">
                             <strong>{item.name}</strong>
-                            <p>{item.description}</p>
+                            {item.description && (
+                              <div style={{ margin: '3px 0 6px' }}>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: '0.82rem',
+                                    color: '#4b6375',
+                                    lineHeight: 1.48,
+                                    whiteSpace: expandedDescIds[item.id] ? 'pre-line' : 'normal',
+                                    ...(expandedDescIds[item.id]
+                                      ? { maxHeight: '240px', overflowY: 'auto', paddingRight: '6px' }
+                                      : {
+                                          display: '-webkit-box',
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: 'vertical',
+                                          overflow: 'hidden',
+                                        }),
+                                  }}
+                                >
+                                  {item.description}
+                                </p>
+                                {item.description.length > 80 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      setExpandedDescIds((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
+                                    }}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      marginTop: '3px',
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: '2px 0',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      color: '#21577a',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {expandedDescIds[item.id] ? (
+                                      <>
+                                        <span>Recolher</span>
+                                        <ChevronUp size={13} />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>Ver mais</span>
+                                        <ChevronDown size={13} />
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                             <div className="service-badges-list">
                               <span className="badge-pill badge-pill-duration" title="Duração estimada">
                                 <Clock3 size={12} />
@@ -1444,9 +1521,10 @@ function BookingHeader() {
           <Image
             src="/logo-camila-machado.png"
             alt="Camila Machado - Hipnose Clínica Multidimensional Integrativa"
-            width={210}
-            height={60}
+            width={180}
+            height={50}
             priority
+            style={{ width: 'auto', height: '34px', maxHeight: '38px', objectFit: 'contain' }}
           />
         </Link>
         <div className="booking-header-spacer" />

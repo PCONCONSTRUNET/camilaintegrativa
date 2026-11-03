@@ -81,12 +81,21 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
 body {
   font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.6;
   font-size: 15px;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
 }
 
 /* ===== TYPOGRAPHY ===== */
@@ -1911,13 +1920,20 @@ a:hover { color: var(--color-primary-hover); }
 .footer-bottom { display: flex; justify-content: space-between; gap: 20px; padding-block: 18px; border-top: 1px solid var(--color-border); color: var(--color-text-muted); font-size: 10px; }
 
 /* Booking */
-.booking-page { min-height: 100vh; background: #f3f7f9; }
+.booking-page {
+  min-height: 100vh;
+  background: #f3f7f9;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
 .simple-header { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 max(24px, calc((100% - 1180px) / 2)); border-bottom: 1px solid var(--color-border); background: white; }
 .simple-header img { width: 170px; height: auto; display: block; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
-.booking-shell { width: min(560px, calc(100% - 28px)); display: grid; grid-template-columns: 1fr; align-items: start; gap: 20px; margin: 0 auto; padding: 20px 0 48px; }
+.booking-shell { width: min(560px, calc(100% - 28px)); max-width: 100%; box-sizing: border-box; display: grid; grid-template-columns: 1fr; align-items: start; gap: 20px; margin: 0 auto; padding: 20px 0 48px; }
 .booking-aside { display: none; }
-.booking-card { min-height: 0; padding: 20px 18px; border-radius: 18px; }
+.booking-card { min-height: 0; padding: 20px 18px; border-radius: 18px; width: 100%; max-width: 100%; box-sizing: border-box; }
 .stepper { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); margin: 0 0 18px; padding: 0; list-style: none; }
 .stepper li { position: relative; display: flex; align-items: center; gap: 6px; color: var(--color-text-muted); }
 .stepper li::after { content: ''; position: absolute; z-index: 0; height: 1px; left: 28px; right: 6px; top: 12px; background: var(--color-border); }
@@ -1934,10 +1950,15 @@ a:hover { color: var(--color-primary-hover); }
 .service-options {
   display: grid;
   gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .service-option {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: flex-start;
   gap: 15px;
@@ -1950,6 +1971,7 @@ a:hover { color: var(--color-primary-hover); }
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   position: relative;
+  overflow: hidden;
 }
 
 .service-option:hover {
@@ -1993,6 +2015,9 @@ a:hover { color: var(--color-primary-hover); }
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-word;
 }
 
 .service-option strong {
@@ -2520,9 +2545,9 @@ a:hover { color: var(--color-primary-hover); }
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 35px; }
   .footer-grid > div:first-child { grid-column: 1 / -1; }
   .footer-bottom { align-items: flex-start; flex-direction: column; }
-  .booking-shell { width: min(100% - 24px, 540px); grid-template-columns: 1fr; gap: 16px; padding: 14px 0 36px; }
+  .booking-shell { width: 100%; max-width: 540px; grid-template-columns: 1fr; gap: 16px; padding: 14px 14px 36px; box-sizing: border-box; }
   .booking-aside { display: none; }
-  .booking-card { min-height: 0; padding: 18px 15px; }
+  .booking-card { min-height: 0; padding: 18px 14px; width: 100%; max-width: 100%; box-sizing: border-box; }
   .stepper small { display: none; }
   .stepper li::after { right: -2px; }
   .slot-grid { grid-template-columns: repeat(3, 1fr); }
@@ -7447,17 +7472,26 @@ a:hover { color: var(--color-primary-hover); }
 @media (max-width: 640px) {
   .booking-top-header {
     padding: 10px 14px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
   .booking-back-pill {
     padding: 6px 11px;
     font-size: 0.78rem;
+    max-width: 44vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .booking-logo-center img {
-    width: 142px;
-    max-width: 42vw;
+    width: 130px !important;
+    max-width: 36vw !important;
+    height: auto !important;
   }
   .booking-header-spacer {
-    width: 68px;
+    width: 28px;
   }
 }
 
@@ -7473,13 +7507,13 @@ a:hover { color: var(--color-primary-hover); }
 
 .booking-compact-form .form-input {
   padding: 8px 11px;
-  font-size: 13px;
-  min-height: 36px;
+  font-size: 16px; /* 16px previne zoom automático no iOS Safari */
+  min-height: 38px;
 }
 
 .booking-compact-form .form-textarea {
   padding: 8px 11px;
-  font-size: 13px;
+  font-size: 16px; /* 16px previne zoom automático no iOS Safari */
   min-height: 54px;
 }
 
@@ -7496,7 +7530,7 @@ a:hover { color: var(--color-primary-hover); }
   }
   .booking-compact-form .form-input {
     padding: 7px 9px;
-    font-size: 12.5px;
+    font-size: 16px;
   }
 }
 
@@ -8690,13 +8724,28 @@ a:hover { color: var(--color-primary-hover); }
   .service-option {
     padding: 11px 12px !important;
     gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .tier-selection-group {
     padding: 10px 11px !important;
     margin-top: -2px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .tier-options-grid {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   .tier-option-card {
     padding: 8px 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 }
 
