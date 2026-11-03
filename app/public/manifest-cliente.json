@@ -3,7 +3,7 @@
   "id": "/cliente",
   "name": "Camila Integrativa",
   "short_name": "Camila Integrativa",
-  "description": "Seus agendamentos, sessÃµes, prontuÃ¡rio e acompanhamento terapÃªutico.",
+  "description": "Seus agendamentos, sessões, prontuário e acompanhamento terapêutico.",
   "start_url": "/cliente",
   "scope": "/cliente",
   "display": "standalone",
@@ -38,9 +38,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Minhas SessÃµes",
-      "short_name": "SessÃµes",
-      "description": "Ver meus agendamentos e histÃ³rico",
+      "name": "Minhas Sessões",
+      "short_name": "Sessões",
+      "description": "Ver meus agendamentos e histórico",
       "url": "/cliente?tab=sessoes",
       "icons": [
         {
@@ -50,9 +50,9 @@
       ]
     },
     {
-      "name": "Agendar Nova SessÃ£o",
+      "name": "Agendar Nova Sessão",
       "short_name": "Agendar",
-      "description": "Escolher horÃ¡rio ou sessÃ£o coletiva",
+      "description": "Escolher horário ou sessão coletiva",
       "url": "/agendar",
       "icons": [
         {
@@ -76,7 +76,7 @@
     {
       "name": "Meu Perfil",
       "short_name": "Perfil",
-      "description": "Dados cadastrais e notificaÃ§Ãµes",
+      "description": "Dados cadastrais e notificações",
       "url": "/cliente?tab=perfil",
       "icons": [
         {

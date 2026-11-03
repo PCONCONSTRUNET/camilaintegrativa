@@ -3,7 +3,7 @@
   "id": "/admin",
   "name": "Admin Camila",
   "short_name": "Admin Camila",
-  "description": "GestÃ£o de agenda, prontuÃ¡rios, financeiro e pacientes.",
+  "description": "Gestão de agenda, prontuários, financeiro e pacientes.",
   "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
@@ -40,7 +40,7 @@
     {
       "name": "Agenda do Dia",
       "short_name": "Agenda",
-      "description": "Ver compromissos e horÃ¡rios de hoje",
+      "description": "Ver compromissos e horários de hoje",
       "url": "/admin/agenda",
       "icons": [
         {
@@ -52,7 +52,7 @@
     {
       "name": "Pacientes",
       "short_name": "Pacientes",
-      "description": "Cadastro de clientes e prontuÃ¡rios",
+      "description": "Cadastro de clientes e prontuários",
       "url": "/admin/clientes",
       "icons": [
         {
@@ -64,7 +64,7 @@
     {
       "name": "Financeiro",
       "short_name": "Financeiro",
-      "description": "Fluxo de caixa e cobranÃ§as",
+      "description": "Fluxo de caixa e cobranças",
       "url": "/admin/financeiro",
       "icons": [
         {
@@ -76,7 +76,7 @@
     {
       "name": "Auditoria & LGPD",
       "short_name": "Auditoria",
-      "description": "Logs de seguranÃ§a e consentimentos",
+      "description": "Logs de segurança e consentimentos",
       "url": "/admin/auditoria",
       "icons": [
         {
