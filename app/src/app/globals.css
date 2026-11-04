@@ -2463,7 +2463,8 @@ a:hover { color: var(--color-primary-hover); }
 .login-heading p { font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .login-heading h1 { font-size: 24px; }
 .login-panel > p { font-size: 12px; }
-.login-form { margin-top: 23px; }
+.login-form { margin-top: 24px; display: flex; flex-direction: column; gap: 16px; }
+.login-form > .btn { margin-top: 8px; }
 .password-field { position: relative; display: block; }
 .password-field .form-input { padding-right: 46px; }
 .password-field button { position: absolute; right: 7px; top: 50%; display: grid; place-items: center; padding: 6px; transform: translateY(-50%); border: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; }
