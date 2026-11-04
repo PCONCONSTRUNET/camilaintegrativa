@@ -18,9 +18,9 @@ export type ClinicPixConfig = {
 };
 
 export const DEFAULT_CLINIC_PIX_CONFIG: ClinicPixConfig = {
-  keyType: 'telefone',
-  key: '+5548999287685',
-  keyDisplay: '(48) 99928-7685',
+  keyType: 'cnpj',
+  key: '41491953000187',
+  keyDisplay: '41.491.953/0001-87',
   recipientName: 'Camila Machado',
   city: 'Urussanga',
   instructions: 'Após o pagamento via PIX, o agendamento é registrado com status pendente até a conciliação automática ou confirmação pela clínica.',

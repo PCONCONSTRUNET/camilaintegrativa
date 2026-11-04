@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
+import { getClinicPixConfig } from '@/lib/pix-settings';
 import {
   dispatchWhatsappReminder,
   formatDateOnlyPtBr,
-  getWhatsappAutomationSettings,
   normalizePhoneForWhatsapp,
 } from '@/lib/whatsapp-reminders';
 
@@ -105,13 +105,10 @@ export async function POST(
     const dueDateStr = formatDateOnlyPtBr(oldestPayment.due_at);
     const serviceName = oldestPayment.description || 'Atendimento Terapêutico';
 
-    const settings = await getWhatsappAutomationSettings();
-    const clinicPhoneClean = settings.adminNotifyPhone
-      ? normalizePhoneForWhatsapp(settings.adminNotifyPhone)
-      : '';
-    const pixKey = clinicPhoneClean
-      ? `(48) 99691-5303 (Chave Telefone)`
-      : '(48) 99691-5303 (Camila Machado)';
+    const pixCfg = await getClinicPixConfig().catch(() => null);
+    const pixKey = pixCfg
+      ? `${pixCfg.keyDisplay || pixCfg.key} (${pixCfg.recipientName})`
+      : '41.491.953/0001-87 (CNPJ - Camila Machado)';
 
     const body = (await request.json().catch(() => ({}))) as {
       customMessage?: string;

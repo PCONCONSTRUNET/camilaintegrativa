@@ -924,7 +924,7 @@ export default function AdminFinanceiroPage() {
     const due = payment.dueAt ? formatDateOnly(payment.dueAt) : formatDateOnly(new Date().toISOString());
     const firstName = (payment.clientName || 'Cliente').trim().split(/\s+/)[0] || 'Cliente';
 
-    const defaultMsg = `Olá, *${firstName}*! 📄\n\nPassando para lembrar do seu saldo em aberto com vencimento em *${due}*:\n\n🧾 *Fatura / Atendimento:*\n${payment.description || 'Atendimento Clínico'}\n\n💰 *Valor Pendente:* ${formatCurrency(rem)}\n📊 *Valor Total:* ${formatCurrency(total)}\n\n🔑 *Chave PIX para Pagamento:*\n(48) 99691-5303 (Chave Telefone)\n*Favorecida:* Camila Machado\n\nPor gentileza, após efetuar o pagamento nos envie o *comprovante por aqui* para registrarmos a baixa no sistema. 🌿\n\nCaso já tenha efetuado o pagamento, por favor desconsidere este aviso. Muito obrigada! ✨`;
+    const defaultMsg = `Olá, *${firstName}*! 📄\n\nPassando para lembrar do seu saldo em aberto com vencimento em *${due}*:\n\n🧾 *Fatura / Atendimento:*\n${payment.description || 'Atendimento Clínico'}\n\n💰 *Valor Pendente:* ${formatCurrency(rem)}\n📊 *Valor Total:* ${formatCurrency(total)}\n\n🔑 *Chave PIX para Pagamento:*\n41.491.953/0001-87 (Chave CNPJ)\n*Favorecida:* Camila Machado\n\nPor gentileza, após efetuar o pagamento nos envie o *comprovante por aqui* para registrarmos a baixa no sistema. 🌿\n\nCaso já tenha efetuado o pagamento, por favor desconsidere este aviso. Muito obrigada! ✨`;
 
     setWhatsappCustomMessage(defaultMsg);
   }
@@ -6450,7 +6450,7 @@ export default function AdminFinanceiroPage() {
                         Hipnose Clínica Multidimensional Integrativa
                       </div>
                       <div style={{ fontSize: '0.74rem', color: '#475569', fontWeight: 600, marginTop: '2px' }}>
-                        CRT-SBHP/SC 805 • Urussanga - SC • WhatsApp: (48) 99691-5303
+                        CRT-SBHP/SC 805 • Urussanga - SC • WhatsApp: (48) 99928-7685
                       </div>
                     </div>
                   </div>

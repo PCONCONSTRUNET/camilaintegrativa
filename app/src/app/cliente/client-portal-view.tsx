@@ -173,7 +173,7 @@ function getGoogleCalendarUrl(apt: AppointmentSummary) {
       `Modalidade: ${apt.modality === 'online' ? 'Online (Videochamada)' : 'Presencial (Espaço Camila Machado, Urussanga - SC)'}`,
       `Situação: ${apt.status === 'confirmado' ? 'Confirmado' : 'Solicitado'}`,
       apt.sessionNumber ? `Sessão nº ${apt.sessionNumber}` : '',
-      `WhatsApp da Clínica: (48) 99691-5303`,
+      `WhatsApp da Clínica: (48) 99928-7685`,
     ].filter(Boolean);
 
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
@@ -190,12 +190,12 @@ function getAppointmentWhatsAppUrl(apt: AppointmentSummary) {
   const fullDate = formatFullDate(apt.startAt);
   const time = formatTimeOnly(apt.startAt);
   const text = `Olá Camila! Gostaria de falar sobre o meu agendamento de *${apt.serviceName}* no dia *${fullDate}* às *${time}*.`;
-  return `https://wa.me/5548996915303?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/5548999287685?text=${encodeURIComponent(text)}`;
 }
 
 function getPackageWhatsAppUrl(pkgName: string) {
   const text = `Olá Camila! Gostaria de tirar uma dúvida sobre o meu pacote *${pkgName}*.`;
-  return `https://wa.me/5548996915303?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/5548999287685?text=${encodeURIComponent(text)}`;
 }
 
 export type AnamneseData = {
@@ -1481,7 +1481,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                   </Link>
 
                   <a
-                    href="https://wa.me/5548996915303?text=Ol%C3%A1%2C%20Camila!%20Sou%20cliente%20e%20gostaria%20de%20tirar%20uma%20d%C3%BAvida."
+                    href="https://wa.me/5548999287685?text=Ol%C3%A1%2C%20Camila!%20Sou%20cliente%20e%20gostaria%20de%20tirar%20uma%20d%C3%BAvida."
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{

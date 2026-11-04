@@ -1849,11 +1849,6 @@ export async function editAppointment(
     } | undefined;
 
     if (!current) throw new BookingValidationError('Agendamento não encontrado.');
-    const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
-    const storedUpdatedAt = new Date(current.updated_at);
-    if (Number.isNaN(expectedUpdatedAt.getTime()) || expectedUpdatedAt.getTime() !== storedUpdatedAt.getTime()) {
-      throw new AppointmentStaleError();
-    }
 
     const service = (await getService(input.serviceId, false));
     if (!service) throw new BookingValidationError('Serviço indisponível.');
@@ -1887,8 +1882,12 @@ export async function editAppointment(
     if (bookingKind === 'encaixe' && (!fitInReason || fitInReason.length < 3)) {
       throw new BookingValidationError('Informe o motivo do encaixe.');
     }
+    const timeChanged =
+      new Date(current.start_at).getTime() !== start.getTime() ||
+      new Date(current.end_at).getTime() !== end.getTime();
     if (
-      bookingKind === 'regular'
+      timeChanged
+      && bookingKind === 'regular'
       && !(await fitsWorkingSchedule(database, current.professional_id, input.date, input.time, start, end))
     ) {
       throw new BookingValidationError('O horário está fora da jornada. Use um encaixe e informe o motivo.');

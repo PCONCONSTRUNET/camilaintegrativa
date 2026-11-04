@@ -138,6 +138,7 @@ export const appointmentEditSchema = z.object({
   operation: z.literal('edit'),
   clientId: z.string().uuid('Selecione um cliente válido.'),
   serviceId: z.string().uuid('Selecione um serviço válido.'),
+  clientPackageId: z.string().uuid().optional().nullable(),
   modality: z.enum(['presencial', 'online']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.').refine(isRealDateKey, 'Data inválida.'),
   time: appointmentTimeSchema,
@@ -146,8 +147,8 @@ export const appointmentEditSchema = z.object({
   bookingKind: bookingKindSchema.optional(),
   fitInReason: fitInReasonSchema,
   notes: z.string().trim().max(500, 'Use no máximo 500 caracteres.').optional(),
-  expectedUpdatedAt: z.string().datetime({ offset: true }),
-}).strict().superRefine((input, context) => {
+  expectedUpdatedAt: z.string().optional(),
+}).superRefine((input, context) => {
   if (input.bookingKind === 'encaixe' && (!input.fitInReason || input.fitInReason.length < 3)) {
     context.addIssue({
       code: 'custom',

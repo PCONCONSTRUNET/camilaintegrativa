@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
+import { getClinicPixConfig } from '@/lib/pix-settings';
 import {
   dispatchWhatsappReminder,
   formatDateOnlyPtBr,
-  getWhatsappAutomationSettings,
   normalizePhoneForWhatsapp,
 } from '@/lib/whatsapp-reminders';
 
@@ -96,13 +96,10 @@ export async function POST(
       customMessage?: string;
     };
 
-    const settings = await getWhatsappAutomationSettings();
-    const clinicPhoneClean = settings.adminNotifyPhone
-      ? normalizePhoneForWhatsapp(settings.adminNotifyPhone)
-      : '';
-    const pixKey = clinicPhoneClean
-      ? `(48) 99691-5303 (Chave Telefone)`
-      : '(48) 99691-5303 (Camila Machado)';
+    const pixCfg = await getClinicPixConfig().catch(() => null);
+    const pixKey = pixCfg
+      ? `${pixCfg.keyDisplay || pixCfg.key} (${pixCfg.recipientName})`
+      : '41.491.953/0001-87 (CNPJ - Camila Machado)';
 
     const totalCents = Number(payment.amount_cents ?? remCents);
     const dueDateStr = payment.due_at

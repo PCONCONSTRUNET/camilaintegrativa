@@ -147,7 +147,7 @@ const SAMPLE_PREVIEW_VARIABLES: Record<string, string> = {
   '{{valor_total_fatura}}': 'R$ 450,00',
   '{{saldo_restante}}': 'R$ 0,00 (Quitado ✅)',
   '{{data_vencimento}}': '28/10/2026',
-  '{{chave_pix}}': '(48) 99691-5303 (Camila Machado)',
+  '{{chave_pix}}': '41.491.953/0001-87 (CNPJ - Camila Machado)',
   '{{forma_pagamento}}': 'PIX',
   '{{status_fatura}}': 'Fatura Quitada (100% Pago)',
   '{{data_pagamento}}': '28/10/2026 às 15:30',

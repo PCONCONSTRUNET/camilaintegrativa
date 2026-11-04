@@ -35,13 +35,17 @@ type GlobalWithClients = typeof globalThis & {
 const txStorage = new AsyncLocalStorage<{ client: PoolClient }>();
 
 export function toPgSql(sql: string): string {
+  const normalizedSql = sql.replace(
+    /strftime\('%Y-%m-%dT%H:%M:%fZ',\s*'now'\)/gi,
+    "to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')"
+  );
   let paramIdx = 0;
   let inSingleQuote = false;
   let inDoubleQuote = false;
   let result = '';
 
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i];
+  for (let i = 0; i < normalizedSql.length; i++) {
+    const char = normalizedSql[i];
     if (char === "'" && !inDoubleQuote) {
       inSingleQuote = !inSingleQuote;
       result += char;
@@ -50,7 +54,7 @@ export function toPgSql(sql: string): string {
       result += char;
     } else if (char === '?' && !inSingleQuote && !inDoubleQuote) {
       paramIdx++;
-      const rest = sql.slice(i + 1);
+      const rest = normalizedSql.slice(i + 1);
       if (/^\s+IS\s+(?:NOT\s+)?NULL/i.test(rest)) {
         result += `$${paramIdx}::text`;
       } else {

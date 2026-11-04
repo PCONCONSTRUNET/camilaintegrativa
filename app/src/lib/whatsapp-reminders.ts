@@ -892,7 +892,7 @@ export async function processOverdueInvoiceReminders(options?: {
     const pixCfg = await getClinicPixConfig().catch(() => null);
     const pixKey = pixCfg
       ? `${pixCfg.keyDisplay || pixCfg.key} (${pixCfg.recipientName})`
-      : '(48) 99691-5303 (Camila Machado)';
+      : '41.491.953/0001-87 (CNPJ - Camila Machado)';
 
     for (const group of clientGroups.values()) {
       const clientKey = (group.clientId || normalizePhoneForWhatsapp(group.clientPhone)).trim();

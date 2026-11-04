@@ -19,9 +19,9 @@ export async function ensurePixSettingsTable() {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS clinic_pix_settings (
         clinic_id TEXT PRIMARY KEY,
-        key_type TEXT NOT NULL DEFAULT 'telefone',
-        pix_key TEXT NOT NULL DEFAULT '+5548996915303',
-        key_display TEXT NOT NULL DEFAULT '(48) 99691-5303',
+        key_type TEXT NOT NULL DEFAULT 'cnpj',
+        pix_key TEXT NOT NULL DEFAULT '41491953000187',
+        key_display TEXT NOT NULL DEFAULT '41.491.953/0001-87',
         recipient_name TEXT NOT NULL DEFAULT 'Camila Machado',
         city TEXT NOT NULL DEFAULT 'Urussanga',
         instructions TEXT NOT NULL DEFAULT 'Após o pagamento via PIX, o agendamento é registrado com status pendente até a conciliação automática ou confirmação pela clínica.',
@@ -64,7 +64,7 @@ export async function getClinicPixConfig(): Promise<ClinicPixConfig> {
       return DEFAULT_CLINIC_PIX_CONFIG;
     }
 
-    const keyType = (row.key_type || 'telefone') as PixKeyType;
+    const keyType = (row.key_type || 'cnpj') as PixKeyType;
 
     return {
       keyType,

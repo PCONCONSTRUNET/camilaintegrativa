@@ -131,7 +131,7 @@ export const DEFAULT_WHATSAPP_TEMPLATES: WhatsappTemplatesMap = {
       { key: '{{valor_pendente}}', label: 'Valor Pendente em Aberto', example: 'R$ 125,00' },
       { key: '{{valor_total}}', label: 'Valor Total da Fatura', example: 'R$ 450,00' },
       { key: '{{data_vencimento}}', label: 'Data de Vencimento', example: '28/10/2026' },
-      { key: '{{chave_pix}}', label: 'Chave PIX da Clínica', example: '(48) 99691-5303 (Camila Machado)' },
+      { key: '{{chave_pix}}', label: 'Chave PIX da Clínica', example: '41.491.953/0001-87 (CNPJ - Camila Machado)' },
       { key: '{{profissional}}', label: 'Nome da Clínica / Profissional', example: 'Camila Machado' },
     ],
   },

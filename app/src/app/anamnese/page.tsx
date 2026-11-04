@@ -221,7 +221,7 @@ export default function PublicAnamnesePage() {
   if (successData) {
     const firstName = successData.clientName.split(' ')[0];
     const waText = `Olá, Camila! Acabei de preencher minha Ficha de Cadastro & Anamnese Digital no seu sistema. Meu nome é *${successData.clientName}*. ✨`;
-    const waUrl = `https://wa.me/5548996915303?text=${encodeURIComponent(waText)}`;
+    const waUrl = `https://wa.me/5548999287685?text=${encodeURIComponent(waText)}`;
 
     return (
       <main

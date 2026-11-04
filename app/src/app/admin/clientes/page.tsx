@@ -238,7 +238,7 @@ export default function ClientesPage() {
       `Olá, *${clientFirstName}*! 📄\n\n` +
       `Passando para lembrar do seu saldo em aberto com vencimento em *${oldestDate}*${daysText}:\n\n` +
       `💰 *Valor Pendente:* ${overdueVal}\n` +
-      `🔑 *Chave PIX para Pagamento:*\n(48) 99691-5303 (Chave Telefone)\n*Favorecida:* Camila Machado\n\n` +
+      `🔑 *Chave PIX para Pagamento:*\n41.491.953/0001-87 (Chave CNPJ)\n*Favorecida:* Camila Machado\n\n` +
       `Por gentileza, após efetuar o pagamento nos envie o *comprovante por aqui* para registrarmos a baixa no sistema. 🌿\n\n` +
       `Caso já tenha efetuado o pagamento, por favor desconsidere este aviso. Muito obrigada! ✨`;
     return `https://wa.me/${phoneFull}?text=${encodeURIComponent(waText)}`;
