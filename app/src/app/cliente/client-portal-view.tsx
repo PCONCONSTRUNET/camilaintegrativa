@@ -1718,15 +1718,6 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                     </button>
 
                     <a
-                      href={getGoogleCalendarUrl(nextAppointment)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-spotlight-secondary"
-                    >
-                      <CalendarPlus size={14} /> Google Agenda
-                    </a>
-
-                    <a
                       href={getAppointmentWhatsAppUrl(nextAppointment)}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -5090,32 +5081,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                   </button>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <a
-                    href={gCalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '7px',
-                      background: '#eff6ff',
-                      color: '#1d4ed8',
-                      border: '1.5px solid #bfdbfe',
-                      padding: '11px 14px',
-                      borderRadius: '12px',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      textDecoration: 'none',
-                      textAlign: 'center',
-                      minHeight: '44px',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <CalendarPlus size={16} /> Google Agenda
-                  </a>
-
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
                   <a
                     href={waUrl}
                     target="_blank"
@@ -5138,7 +5104,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <WhatsappIcon size={17} /> WhatsApp
+                    <WhatsappIcon size={17} /> Falar no WhatsApp
                   </a>
                 </div>
 
