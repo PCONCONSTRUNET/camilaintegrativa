@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
+import { processDue24hReminders, processOverdueInvoiceReminders } from '@/lib/whatsapp-reminders';
 
 export type NotificationCategory =
   | 'agendamento'
@@ -130,6 +131,9 @@ export async function GET() {
   if (cachedNotificationsPayload && nowMs - cachedNotificationsPayload.timestamp < 10_000) {
     return NextResponse.json(cachedNotificationsPayload.data);
   }
+
+  void processDue24hReminders({ opportunistic: true }).catch(() => null);
+  void processOverdueInvoiceReminders({ opportunistic: true }).catch(() => null);
 
   try {
     await ensureNotificationReadsTable();

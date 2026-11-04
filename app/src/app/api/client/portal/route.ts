@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentClient } from '@/lib/auth';
 import { getClientPortalData } from '@/lib/repository';
+import { processDue24hReminders, processOverdueInvoiceReminders } from '@/lib/whatsapp-reminders';
 
 export async function GET() {
   try {
@@ -8,6 +9,9 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'Sessão não autorizada ou expirada.' }, { status: 401 });
     }
+
+    void processDue24hReminders({ opportunistic: true }).catch(() => null);
+    void processOverdueInvoiceReminders({ opportunistic: true }).catch(() => null);
 
     const data = await getClientPortalData(session.clientId);
     return NextResponse.json(data);
