@@ -64,20 +64,24 @@ export async function getCurrentUser() {
 }
 
 export function credentialsAreValid(email: string, password: string) {
-  const configuredEmail = process.env.CLINICA_ADMIN_EMAIL || 'admin@clinica.local';
-  const configuredPassword = process.env.CLINICA_ADMIN_PASSWORD || 'clinica-demo';
+  const rawEnvEmail = (process.env.CLINICA_ADMIN_EMAIL || '').trim().toLowerCase();
+  const configuredEmail =
+    rawEnvEmail && rawEnvEmail !== 'admin@clinica.local'
+      ? rawEnvEmail
+      : 'admincamila@gmail.com';
+
+  const rawEnvPassword = process.env.CLINICA_ADMIN_PASSWORD || '';
+  const configuredPassword =
+    rawEnvPassword && rawEnvPassword !== 'clinica-demo'
+      ? rawEnvPassword
+      : 'Lucasduda28123';
 
   const normalizedInputEmail = email.trim().toLowerCase();
 
-  const isConfiguredMatch =
-    normalizedInputEmail === configuredEmail.toLowerCase() &&
-    password === configuredPassword;
-
-  const isDemoMatch =
-    normalizedInputEmail === 'admin@clinica.local' &&
-    password === 'clinica-demo';
-
-  return isConfiguredMatch || isDemoMatch;
+  return (
+    normalizedInputEmail === configuredEmail &&
+    password === configuredPassword
+  );
 }
 
 // Client Session & Authentication
