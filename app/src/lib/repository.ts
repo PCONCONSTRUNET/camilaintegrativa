@@ -4944,6 +4944,9 @@ async function ensureGroupSessionTables(): Promise<void> {
     'ALTER TABLE group_session_enrollments ADD COLUMN payment_id TEXT',
     'ALTER TABLE group_session_enrollments ADD COLUMN client_cpf TEXT',
     'ALTER TABLE group_session_enrollments ADD COLUMN client_birth_date TEXT',
+    'ALTER TABLE group_session_enrollments ADD COLUMN payment_status TEXT DEFAULT \'pendente\'',
+    'ALTER TABLE group_session_enrollments ADD COLUMN price_cents INTEGER',
+    'ALTER TABLE group_session_enrollments ADD COLUMN paid_at TEXT',
   ]) {
     try {
       await database.prepare(col).run();
@@ -5021,9 +5024,18 @@ export async function getGroupSession(id: string): Promise<import('./domain').Gr
   if (!row) return null;
   const session = rowToGroupSession(row);
   const enrollmentRows = (await database.prepare(`
-    SELECT * FROM group_session_enrollments
-    WHERE group_session_id = ?
-    ORDER BY enrolled_at ASC
+    SELECT
+      e.*,
+      cp.status AS cp_status,
+      cp.amount_cents AS cp_amount_cents,
+      cp.paid_amount_cents AS cp_paid_amount_cents,
+      cp.remaining_amount_cents AS cp_remaining_amount_cents,
+      cp.paid_at AS cp_paid_at,
+      cp.payment_method AS cp_payment_method
+    FROM group_session_enrollments e
+    LEFT JOIN client_payments cp ON cp.id = e.payment_id
+    WHERE e.group_session_id = ?
+    ORDER BY e.enrolled_at ASC
   `).all(id)) as Record<string, unknown>[];
   const enrollments = enrollmentRows.map(rowToEnrollment);
   return { ...session, enrollments };
@@ -5162,12 +5174,15 @@ export async function deleteGroupSession(id: string): Promise<{ ok: boolean; err
 export async function enrollInGroupSession(
   groupSessionId: string,
   clientData: {
+    clientId?: string | null;
     name: string;
     phone: string;
     cpf?: string | null;
     birthDate?: string | null;
     email?: string | null;
     paymentMethod?: string | null;
+    paymentStatus?: 'pago' | 'pendente' | 'gratuito' | null;
+    priceCents?: number | null;
     notes?: string | null;
   }
 ): Promise<{
@@ -5176,6 +5191,7 @@ export async function enrollInGroupSession(
   clientId?: string | null;
   paymentId?: string | null;
   priceCents?: number;
+  paymentStatus?: 'pago' | 'pendente' | 'gratuito';
   sessionTitle?: string;
   date?: string;
   startTime?: string;
@@ -5212,24 +5228,47 @@ export async function enrollInGroupSession(
     return { ok: false, error: 'Você já possui uma vaga reservada nesta sessão em grupo com este WhatsApp.' };
   }
 
-  let clientId: string | null = null;
-  try {
-    const allClients = (await database.prepare(
-      `SELECT id, phone FROM clients WHERE clinic_id = ?`
-    ).all(IDS.clinic)) as Array<{ id: string; phone: string }>;
-    const matched = allClients.find((c) => c.phone.replace(/\D/g, '') === cleanPhone);
-    if (matched) {
-      clientId = matched.id;
-    } else {
-      clientId = randomUUID();
-      const now = new Date().toISOString();
-      await database.prepare(`
-        INSERT INTO clients (id, clinic_id, name, phone, email, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'ativo', ?, ?)
-      `).run(clientId, IDS.clinic, clientData.name.trim(), clientData.phone.trim(), clientData.email?.trim() || null, now, now);
-    }
+  let clientId: string | null = clientData.clientId || null;
+  if (!clientId) {
+    try {
+      const allClients = (await database.prepare(
+        `SELECT id, phone FROM clients WHERE clinic_id = ?`
+      ).all(IDS.clinic)) as Array<{ id: string; phone: string }>;
+      const matched = allClients.find((c) => c.phone.replace(/\D/g, '') === cleanPhone);
+      if (matched) {
+        clientId = matched.id;
+      } else {
+        clientId = randomUUID();
+        const now = new Date().toISOString();
+        await database.prepare(`
+          INSERT INTO clients (id, clinic_id, name, phone, email, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'ativo', ?, ?)
+        `).run(clientId, IDS.clinic, clientData.name.trim(), clientData.phone.trim(), clientData.email?.trim() || null, now, now);
+      }
 
-    if (clientId && (cleanCpf || cleanBirthDate)) {
+      if (clientId && (cleanCpf || cleanBirthDate)) {
+        const nowRec = new Date().toISOString();
+        const existingRec = await database.prepare('SELECT client_id FROM client_records WHERE client_id = ?').get(clientId);
+        if (existingRec) {
+          await database.prepare(`
+            UPDATE client_records
+            SET cpf = COALESCE(?, cpf),
+                birth_date = COALESCE(?, birth_date),
+                updated_at = ?
+            WHERE client_id = ?
+          `).run(cleanCpf || null, cleanBirthDate || null, nowRec, clientId);
+        } else {
+          await database.prepare(`
+            INSERT INTO client_records (client_id, cpf, birth_date, updated_at)
+            VALUES (?, ?, ?, ?)
+          `).run(clientId, cleanCpf || null, cleanBirthDate || null, nowRec);
+        }
+      }
+    } catch {
+      clientId = null;
+    }
+  } else if (cleanCpf || cleanBirthDate) {
+    try {
       const nowRec = new Date().toISOString();
       const existingRec = await database.prepare('SELECT client_id FROM client_records WHERE client_id = ?').get(clientId);
       if (existingRec) {
@@ -5246,48 +5285,94 @@ export async function enrollInGroupSession(
           VALUES (?, ?, ?, ?)
         `).run(clientId, cleanCpf || null, cleanBirthDate || null, nowRec);
       }
-    }
-  } catch {
-    clientId = null;
+    } catch {}
   }
 
   const enrollmentId = randomUUID();
   const now = new Date().toISOString();
   let paymentId: string | null = null;
 
-  // Create financial pending payment if session has price
-  const priceCents = session.price_cents != null ? Number(session.price_cents) : 0;
-  if (priceCents > 0 && clientId) {
+  // Determine effective price and payment status
+  const sessionPrice = session.price_cents != null ? Number(session.price_cents) : 0;
+  const effectivePriceCents =
+    clientData.priceCents !== undefined && clientData.priceCents !== null
+      ? Math.max(0, Number(clientData.priceCents))
+      : sessionPrice;
+
+  const isFree = clientData.paymentStatus === 'gratuito' || effectivePriceCents === 0;
+  const requestedStatus: 'pago' | 'pendente' | 'gratuito' = isFree
+    ? 'gratuito'
+    : clientData.paymentStatus === 'pago'
+    ? 'pago'
+    : 'pendente';
+
+  const isPaidNow = requestedStatus === 'pago';
+  const effectivePaidAt = isPaidNow ? now : null;
+
+  // Create financial record in client_payments if not free
+  if (!isFree && effectivePriceCents > 0 && clientId) {
     try {
       paymentId = randomUUID();
+      const rawMethod = clientData.paymentMethod || 'pix';
       const method =
-        clientData.paymentMethod === 'cartao'
+        rawMethod === 'cartao' || rawMethod === 'cartao_credito'
           ? 'cartao_credito'
-          : clientData.paymentMethod === 'dinheiro'
+          : rawMethod === 'cartao_debito'
+          ? 'cartao_debito'
+          : rawMethod === 'dinheiro'
           ? 'dinheiro'
+          : rawMethod === 'transferencia'
+          ? 'transferencia'
           : 'pix';
+
       const dueIso = zonedDateTimeToUtc(String(session.date), String(session.start_time || '09:00')).toISOString();
+      const paidAmountCents = isPaidNow ? effectivePriceCents : 0;
+      const remainingAmountCents = isPaidNow ? 0 : effectivePriceCents;
+
       await database.prepare(`
         INSERT INTO client_payments (
           id, clinic_id, client_id, appointment_id, service_id, client_package_id,
           entry_type, category, charge_type, description,
           amount_cents, paid_amount_cents, remaining_amount_cents, discount_cents,
-          payment_method, status, due_at, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, NULL, ?, NULL, 'entrada', 'sessao_grupo', 'sessao', ?, ?, 0, ?, 0, ?, 'pendente', ?, ?, ?, ?)
+          payment_method, status, paid_at, due_at, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, NULL, ?, NULL, 'entrada', 'sessao_grupo', 'sessao', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         paymentId,
         IDS.clinic,
         clientId,
         session.service_id ? String(session.service_id) : null,
         `Sessão em Grupo: ${String(session.title)} (${String(session.date).split('-').reverse().join('/')} às ${String(session.start_time)})`,
-        priceCents,
-        priceCents,
+        effectivePriceCents,
+        paidAmountCents,
+        remainingAmountCents,
         method,
+        isPaidNow ? 'pago' : 'pendente',
+        effectivePaidAt,
         dueIso,
-        'Inscrição realizada em Sessão em Grupo',
+        clientData.notes?.trim() || 'Inscrição realizada em Sessão em Grupo',
         now,
         now,
       );
+
+      if (isPaidNow) {
+        const txId = randomUUID();
+        await database.prepare(`
+          INSERT INTO payment_transactions (
+            id, clinic_id, payment_id, client_id, amount_cents, payment_method, paid_at, notes, created_by, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          txId,
+          IDS.clinic,
+          paymentId,
+          clientId,
+          effectivePriceCents,
+          method,
+          now,
+          'Pagamento integral de Sessão em Grupo confirmado na inscrição',
+          'admin',
+          now
+        ).catch(() => null);
+      }
     } catch {
       paymentId = null;
     }
@@ -5296,12 +5381,12 @@ export async function enrollInGroupSession(
   await database.prepare(`
     INSERT INTO group_session_enrollments
       (id, group_session_id, client_id, client_name, client_phone, client_cpf, client_birth_date, client_email,
-       status, payment_method, payment_id, notes, enrolled_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?, ?, ?, ?)
+       status, payment_method, payment_status, price_cents, paid_at, payment_id, notes, enrolled_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmado', ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     enrollmentId, groupSessionId, clientId,
     clientData.name.trim(), clientData.phone.trim(), cleanCpf || null, cleanBirthDate || null, clientData.email?.trim() || null,
-    clientData.paymentMethod ?? null, paymentId, clientData.notes?.trim() || null,
+    clientData.paymentMethod ?? null, requestedStatus, effectivePriceCents, effectivePaidAt, paymentId, clientData.notes?.trim() || null,
     now, now
   );
 
@@ -5316,7 +5401,8 @@ export async function enrollInGroupSession(
     enrollmentId,
     clientId,
     paymentId,
-    priceCents,
+    priceCents: effectivePriceCents,
+    paymentStatus: requestedStatus,
     sessionTitle: String(session.title),
     date: String(session.date),
     startTime: String(session.start_time),
@@ -5343,13 +5429,252 @@ export async function cancelGroupEnrollment(enrollmentId: string): Promise<void>
   }
 }
 
+export async function updateGroupEnrollmentPayment(
+  enrollmentId: string,
+  input: {
+    action: 'mark_paid' | 'mark_pending' | 'update_payment';
+    paymentMethod?: string | null;
+    priceCents?: number | null;
+    notes?: string | null;
+    paidAt?: string | null;
+    userId?: string;
+    userName?: string;
+  }
+): Promise<{ ok: boolean; error?: string; enrollment?: import('./domain').GroupSessionEnrollment }> {
+  await ensureGroupSessionTables();
+  const database = getDatabase();
+  const now = new Date().toISOString();
+
+  const enrollment = (await database.prepare(`
+    SELECT e.*, gs.title AS session_title, gs.date AS session_date, gs.start_time AS session_start_time, gs.price_cents AS session_price_cents, gs.service_id AS session_service_id
+    FROM group_session_enrollments e
+    JOIN group_sessions gs ON gs.id = e.group_session_id
+    WHERE e.id = ?
+  `).get(enrollmentId)) as Record<string, unknown> | undefined;
+
+  if (!enrollment) {
+    return { ok: false, error: 'Inscrição não encontrada.' };
+  }
+
+  let paymentId = enrollment.payment_id ? String(enrollment.payment_id) : null;
+  const clientId = enrollment.client_id ? String(enrollment.client_id) : null;
+  const currentPriceCents =
+    input.priceCents != null
+      ? Math.max(0, Number(input.priceCents))
+      : enrollment.price_cents != null
+      ? Number(enrollment.price_cents)
+      : enrollment.session_price_cents != null
+      ? Number(enrollment.session_price_cents)
+      : 0;
+
+  const currentMethod =
+    input.paymentMethod ||
+    (enrollment.payment_method ? String(enrollment.payment_method) : 'pix');
+
+  const normalizedMethod =
+    currentMethod === 'cartao' || currentMethod === 'cartao_credito'
+      ? 'cartao_credito'
+      : currentMethod === 'cartao_debito'
+      ? 'cartao_debito'
+      : currentMethod === 'dinheiro'
+      ? 'dinheiro'
+      : currentMethod === 'transferencia'
+      ? 'transferencia'
+      : 'pix';
+
+  const effectivePaidAt = input.paidAt || now;
+
+  if (input.action === 'mark_paid') {
+    if (paymentId) {
+      const existingPayment = (await database.prepare(
+        'SELECT id, amount_cents FROM client_payments WHERE id = ?'
+      ).get(paymentId)) as { id: string; amount_cents: number } | undefined;
+
+      const amountToUse =
+        input.priceCents != null
+          ? Math.max(0, Number(input.priceCents))
+          : (existingPayment?.amount_cents ?? currentPriceCents);
+
+      await database.prepare(`
+        UPDATE client_payments
+        SET status = 'pago',
+            amount_cents = ?,
+            paid_amount_cents = ?,
+            remaining_amount_cents = 0,
+            payment_method = ?,
+            paid_at = ?,
+            updated_at = ?
+        WHERE id = ?
+      `).run(amountToUse, amountToUse, normalizedMethod, effectivePaidAt, now, paymentId);
+
+      const txId = randomUUID();
+      await database.prepare(`
+        INSERT INTO payment_transactions (
+          id, clinic_id, payment_id, client_id, amount_cents, payment_method, paid_at, notes, created_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        txId,
+        IDS.clinic,
+        paymentId,
+        clientId,
+        amountToUse,
+        normalizedMethod,
+        effectivePaidAt,
+        input.notes || 'Baixa de pagamento da Sessão em Grupo confirmada pelo administrador',
+        input.userId || 'admin',
+        now
+      ).catch(() => null);
+    } else if (currentPriceCents > 0 && clientId) {
+      paymentId = randomUUID();
+      const dueIso = zonedDateTimeToUtc(String(enrollment.session_date), String(enrollment.session_start_time || '09:00')).toISOString();
+      await database.prepare(`
+        INSERT INTO client_payments (
+          id, clinic_id, client_id, appointment_id, service_id, client_package_id,
+          entry_type, category, charge_type, description,
+          amount_cents, paid_amount_cents, remaining_amount_cents, discount_cents,
+          payment_method, status, paid_at, due_at, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, NULL, ?, NULL, 'entrada', 'sessao_grupo', 'sessao', ?, ?, ?, 0, 0, ?, 'pago', ?, ?, ?, ?, ?)
+      `).run(
+        paymentId,
+        IDS.clinic,
+        clientId,
+        enrollment.session_service_id ? String(enrollment.session_service_id) : null,
+        `Sessão em Grupo: ${String(enrollment.session_title)} (${String(enrollment.session_date).split('-').reverse().join('/')} às ${String(enrollment.session_start_time)})`,
+        currentPriceCents,
+        currentPriceCents,
+        normalizedMethod,
+        effectivePaidAt,
+        dueIso,
+        input.notes || 'Pagamento confirmado de inscrição em Sessão em Grupo',
+        now,
+        now
+      );
+
+      const txId = randomUUID();
+      await database.prepare(`
+        INSERT INTO payment_transactions (
+          id, clinic_id, payment_id, client_id, amount_cents, payment_method, paid_at, notes, created_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        txId,
+        IDS.clinic,
+        paymentId,
+        clientId,
+        currentPriceCents,
+        normalizedMethod,
+        effectivePaidAt,
+        input.notes || 'Pagamento confirmado de inscrição em Sessão em Grupo',
+        input.userId || 'admin',
+        now
+      ).catch(() => null);
+    }
+
+    await database.prepare(`
+      UPDATE group_session_enrollments
+      SET payment_status = 'pago',
+          payment_method = ?,
+          price_cents = ?,
+          paid_at = ?,
+          payment_id = COALESCE(?, payment_id)
+      WHERE id = ?
+    `).run(normalizedMethod, currentPriceCents, effectivePaidAt, paymentId, enrollmentId);
+
+  } else if (input.action === 'mark_pending') {
+    if (paymentId) {
+      const existingPayment = (await database.prepare(
+        'SELECT id, amount_cents FROM client_payments WHERE id = ?'
+      ).get(paymentId)) as { id: string; amount_cents: number } | undefined;
+
+      const amountToUse =
+        input.priceCents != null
+          ? Math.max(0, Number(input.priceCents))
+          : (existingPayment?.amount_cents ?? currentPriceCents);
+
+      await database.prepare(`
+        UPDATE client_payments
+        SET status = 'pendente',
+            amount_cents = ?,
+            paid_amount_cents = 0,
+            remaining_amount_cents = ?,
+            paid_at = NULL,
+            updated_at = ?
+        WHERE id = ?
+      `).run(amountToUse, amountToUse, now, paymentId);
+    }
+
+    await database.prepare(`
+      UPDATE group_session_enrollments
+      SET payment_status = 'pendente',
+          paid_at = NULL
+      WHERE id = ?
+    `).run(enrollmentId);
+
+  } else if (input.action === 'update_payment') {
+    if (paymentId) {
+      const amountToUse = input.priceCents != null ? Math.max(0, Number(input.priceCents)) : currentPriceCents;
+      const isPaid = enrollment.payment_status === 'pago';
+      await database.prepare(`
+        UPDATE client_payments
+        SET payment_method = ?,
+            amount_cents = ?,
+            paid_amount_cents = ?,
+            remaining_amount_cents = ?,
+            updated_at = ?
+        WHERE id = ?
+      `).run(
+        normalizedMethod,
+        amountToUse,
+        isPaid ? amountToUse : 0,
+        isPaid ? 0 : amountToUse,
+        now,
+        paymentId
+      );
+    }
+    await database.prepare(`
+      UPDATE group_session_enrollments
+      SET payment_method = ?,
+          price_cents = COALESCE(?, price_cents),
+          notes = COALESCE(?, notes)
+      WHERE id = ?
+    `).run(normalizedMethod, input.priceCents != null ? Number(input.priceCents) : null, input.notes ?? null, enrollmentId);
+  }
+
+  const updatedRows = (await database.prepare(`
+    SELECT
+      e.*,
+      cp.status AS cp_status,
+      cp.amount_cents AS cp_amount_cents,
+      cp.paid_amount_cents AS cp_paid_amount_cents,
+      cp.remaining_amount_cents AS cp_remaining_amount_cents,
+      cp.paid_at AS cp_paid_at,
+      cp.payment_method AS cp_payment_method
+    FROM group_session_enrollments e
+    LEFT JOIN client_payments cp ON cp.id = e.payment_id
+    WHERE e.id = ?
+  `).all(enrollmentId)) as Record<string, unknown>[];
+
+  const updatedEnrollment = updatedRows[0] ? rowToEnrollment(updatedRows[0]) : undefined;
+  return { ok: true, enrollment: updatedEnrollment };
+}
+
 export async function listGroupSessionEnrollments(
   groupSessionId: string
 ): Promise<import('./domain').GroupSessionEnrollment[]> {
   await ensureGroupSessionTables();
   const database = getDatabase();
   const rows = (await database.prepare(`
-    SELECT * FROM group_session_enrollments WHERE group_session_id = ? ORDER BY enrolled_at ASC
+    SELECT
+      e.*,
+      cp.status AS cp_status,
+      cp.amount_cents AS cp_amount_cents,
+      cp.paid_amount_cents AS cp_paid_amount_cents,
+      cp.remaining_amount_cents AS cp_remaining_amount_cents,
+      cp.paid_at AS cp_paid_at,
+      cp.payment_method AS cp_payment_method
+    FROM group_session_enrollments e
+    LEFT JOIN client_payments cp ON cp.id = e.payment_id
+    WHERE e.group_session_id = ?
+    ORDER BY e.enrolled_at ASC
   `).all(groupSessionId)) as Record<string, unknown>[];
   return rows.map(rowToEnrollment);
 }
@@ -5384,6 +5709,40 @@ function rowToGroupSession(row: Record<string, unknown>): import('./domain').Gro
 }
 
 function rowToEnrollment(row: Record<string, unknown>): import('./domain').GroupSessionEnrollment {
+  const cpStatus = row.cp_status ? String(row.cp_status) : null;
+  const rawStatus = row.payment_status ? String(row.payment_status) : null;
+  const priceCents =
+    row.cp_amount_cents != null
+      ? Number(row.cp_amount_cents)
+      : row.price_cents != null
+      ? Number(row.price_cents)
+      : null;
+  const paidAmountCents =
+    row.cp_paid_amount_cents != null
+      ? Number(row.cp_paid_amount_cents)
+      : rawStatus === 'pago' && priceCents != null
+      ? priceCents
+      : 0;
+  const remainingAmountCents =
+    row.cp_remaining_amount_cents != null
+      ? Number(row.cp_remaining_amount_cents)
+      : rawStatus === 'pago'
+      ? 0
+      : (priceCents ?? 0);
+
+  let paymentStatus: import('./domain').GroupSessionEnrollment['paymentStatus'] = 'pendente';
+  if (cpStatus === 'pago' || rawStatus === 'pago') {
+    paymentStatus = 'pago';
+  } else if (cpStatus === 'parcial' || rawStatus === 'parcial') {
+    paymentStatus = 'parcial';
+  } else if (rawStatus === 'gratuito' || (priceCents === 0 && !cpStatus)) {
+    paymentStatus = 'gratuito';
+  } else if (cpStatus === 'cancelado') {
+    paymentStatus = 'cancelado';
+  } else {
+    paymentStatus = 'pendente';
+  }
+
   return {
     id: String(row.id),
     groupSessionId: String(row.group_session_id),
@@ -5394,8 +5753,17 @@ function rowToEnrollment(row: Record<string, unknown>): import('./domain').Group
     clientBirthDate: row.client_birth_date ? String(row.client_birth_date) : null,
     clientEmail: row.client_email ? String(row.client_email) : null,
     status: (String(row.status ?? 'confirmado')) as import('./domain').GroupSessionEnrollmentStatus,
-    paymentMethod: row.payment_method ? String(row.payment_method) : null,
+    paymentMethod: row.cp_payment_method
+      ? String(row.cp_payment_method)
+      : row.payment_method
+      ? String(row.payment_method)
+      : null,
     paymentId: row.payment_id ? String(row.payment_id) : null,
+    paymentStatus,
+    priceCents,
+    paidAmountCents,
+    remainingAmountCents,
+    paidAt: row.cp_paid_at ? String(row.cp_paid_at) : row.paid_at ? String(row.paid_at) : null,
     notes: row.notes ? String(row.notes) : null,
     enrolledAt: String(row.enrolled_at ?? ''),
     createdAt: String(row.created_at ?? ''),

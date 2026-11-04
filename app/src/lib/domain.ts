@@ -543,6 +543,11 @@ export type GroupSessionEnrollment = {
   status: GroupSessionEnrollmentStatus;
   paymentMethod: string | null;
   paymentId?: string | null;
+  paymentStatus?: 'pago' | 'pendente' | 'parcial' | 'gratuito' | 'cancelado' | null;
+  priceCents?: number | null;
+  paidAmountCents?: number | null;
+  remainingAmountCents?: number | null;
+  paidAt?: string | null;
   notes: string | null;
   enrolledAt: string;
   createdAt: string;

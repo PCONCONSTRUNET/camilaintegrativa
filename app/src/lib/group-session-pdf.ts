@@ -370,8 +370,22 @@ export async function buildGroupSessionAttendancePdf(input: BuildGroupSessionPdf
       rx += COL_W.birth;
 
       // Pagamento
-      const payLabel = clean((enr.paymentMethod || 'PIX').toUpperCase());
-      page.drawText(payLabel, { x: rx, y: textY, size: 7.5, font: fontBold, color: NAVY });
+      const methodStr = (enr.paymentMethod || 'PIX').toUpperCase();
+      let payLabel = methodStr;
+      if (enr.paymentStatus === 'pago') {
+        payLabel = `PAGO (${methodStr})`;
+      } else if (enr.paymentStatus === 'pendente') {
+        payLabel = `PEND (${methodStr})`;
+      } else if (enr.paymentStatus === 'gratuito') {
+        payLabel = 'ISENTO';
+      }
+      page.drawText(clean(payLabel), {
+        x: rx,
+        y: textY,
+        size: 7,
+        font: fontBold,
+        color: enr.paymentStatus === 'pago' ? GREEN : enr.paymentStatus === 'pendente' ? GOLD : NAVY,
+      });
       rx += COL_W.payment;
 
       // Linha de Assinatura (pontilhada / fina)

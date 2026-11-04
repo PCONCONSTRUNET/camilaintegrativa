@@ -168,14 +168,24 @@ export default function AdminSessoesGrupoPage() {
   const [enrollments, setEnrollments] = useState<GroupSessionEnrollment[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [clients, setClients] = useState<Array<{ id: string; name: string; phone: string; email?: string | null; cpf?: string | null }>>([]);
   const [manualParticipant, setManualParticipant] = useState({
+    mode: 'existing' as 'existing' | 'new',
+    clientId: '',
+    clientSearch: '',
     name: '',
     phone: '',
+    cpf: '',
     email: '',
-    paymentMethod: 'pix' as 'pix' | 'dinheiro' | 'cartao',
+    priceRaw: '',
+    paymentStatus: 'pago' as 'pago' | 'pendente' | 'gratuito',
+    paymentMethod: 'pix' as 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'transferencia',
     notes: '',
   });
   const [addingParticipant, setAddingParticipant] = useState(false);
+  const [quickPayEnrollment, setQuickPayEnrollment] = useState<GroupSessionEnrollment | null>(null);
+  const [quickPayMethod, setQuickPayMethod] = useState<'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'transferencia'>('pix');
+  const [quickPaySaving, setQuickPaySaving] = useState(false);
   const [copiedList, setCopiedList] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const { confirmDialog, alertDialog, dialogNode } = useConfirmDialog();
@@ -197,6 +207,12 @@ export default function AdminSessoesGrupoPage() {
 
   useEffect(() => {
     loadSessions();
+    fetch('/api/admin/clients')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.clients) setClients(data.clients);
+      })
+      .catch(() => null);
   }, [loadSessions]);
 
   const loadEnrollments = useCallback(async (sessionId: string) => {
@@ -252,7 +268,19 @@ export default function AdminSessoesGrupoPage() {
   function handleOpenParticipants(session: GroupSession) {
     setParticipantsSession(session);
     setShowAddParticipant(false);
-    setManualParticipant({ name: '', phone: '', email: '', paymentMethod: 'pix', notes: '' });
+    setManualParticipant({
+      mode: 'existing',
+      clientId: '',
+      clientSearch: '',
+      name: '',
+      phone: '',
+      cpf: '',
+      email: '',
+      priceRaw: centsToRaw(session.priceCents),
+      paymentStatus: session.priceCents && session.priceCents > 0 ? 'pago' : 'gratuito',
+      paymentMethod: 'pix',
+      notes: '',
+    });
     loadEnrollments(session.id);
   }
 
@@ -411,24 +439,91 @@ export default function AdminSessoesGrupoPage() {
     }
   }
 
+  const filteredClients = useMemo(() => {
+    const q = manualParticipant.clientSearch.trim().toLowerCase();
+    if (!q) return clients.slice(0, 10);
+    const cleanQ = q.replace(/\D/g, '');
+    return clients
+      .filter((c) => {
+        const nameMatch = c.name.toLowerCase().includes(q);
+        const phoneMatch = cleanQ.length > 0 && c.phone.replace(/\D/g, '').includes(cleanQ);
+        const cpfMatch = cleanQ.length > 0 && Boolean(c.cpf && c.cpf.replace(/\D/g, '').includes(cleanQ));
+        return nameMatch || phoneMatch || cpfMatch;
+      })
+      .slice(0, 10);
+  }, [clients, manualParticipant.clientSearch]);
+
+  function handleSelectClient(c: { id: string; name: string; phone: string; email?: string | null; cpf?: string | null }) {
+    setManualParticipant((prev) => ({
+      ...prev,
+      clientId: c.id,
+      name: c.name,
+      phone: c.phone,
+      cpf: c.cpf || '',
+      email: c.email || '',
+      clientSearch: '',
+    }));
+  }
+
   async function handleAddManualParticipant(e: FormEvent) {
     e.preventDefault();
     if (!participantsSession) return;
     if (manualParticipant.name.trim().length < 2 || manualParticipant.phone.replace(/\D/g, '').length < 10) {
-      setError('Preencha o nome e o WhatsApp do participante.');
+      await alertDialog({
+        title: 'Dados incompletos',
+        description: 'Preencha o nome e o WhatsApp do participante.',
+        variant: 'warning',
+      });
       return;
     }
+
+    const priceCents = parsePriceToCents(manualParticipant.priceRaw);
+
     setAddingParticipant(true);
     try {
       const res = await fetch(`/api/admin/group-sessions/${participantsSession.id}/enrollments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(manualParticipant),
+        body: JSON.stringify({
+          clientId: manualParticipant.clientId || null,
+          name: manualParticipant.name,
+          phone: manualParticipant.phone,
+          cpf: manualParticipant.cpf || null,
+          email: manualParticipant.email || null,
+          priceCents,
+          paymentStatus: manualParticipant.paymentStatus,
+          paymentMethod: manualParticipant.paymentMethod,
+          notes: manualParticipant.notes,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Não foi possível inscrever o participante.');
-      setManualParticipant({ name: '', phone: '', email: '', paymentMethod: 'pix', notes: '' });
+
+      setSuccessMsg(
+        `Participante "${manualParticipant.name}" inscrito(a) com sucesso! Pagamento: ${
+          manualParticipant.paymentStatus === 'pago'
+            ? 'Pago e lançado no financeiro'
+            : manualParticipant.paymentStatus === 'gratuito'
+            ? 'Isento / Gratuito'
+            : 'Pendente'
+        }.`
+      );
+      setTimeout(() => setSuccessMsg(''), 4500);
+
       setShowAddParticipant(false);
+      setManualParticipant({
+        mode: 'existing',
+        clientId: '',
+        clientSearch: '',
+        name: '',
+        phone: '',
+        cpf: '',
+        email: '',
+        priceRaw: centsToRaw(participantsSession.priceCents),
+        paymentStatus: participantsSession.priceCents && participantsSession.priceCents > 0 ? 'pago' : 'gratuito',
+        paymentMethod: 'pix',
+        notes: '',
+      });
       await loadEnrollments(participantsSession.id);
       await loadSessions();
       setParticipantsSession((prev) =>
@@ -444,6 +539,119 @@ export default function AdminSessoesGrupoPage() {
       setAddingParticipant(false);
     }
   }
+
+  async function handleConfirmQuickPay() {
+    if (!participantsSession || !quickPayEnrollment) return;
+    setQuickPaySaving(true);
+    try {
+      const res = await fetch(`/api/admin/group-sessions/${participantsSession.id}/enrollments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enrollmentId: quickPayEnrollment.id,
+          action: 'mark_paid',
+          paymentMethod: quickPayMethod,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Não foi possível confirmar o pagamento.');
+
+      setSuccessMsg(`Pagamento de "${quickPayEnrollment.clientName}" marcado como PAGO com sucesso!`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+
+      setQuickPayEnrollment(null);
+      await loadEnrollments(participantsSession.id);
+      await loadSessions();
+    } catch (err) {
+      await alertDialog({
+        title: 'Erro ao dar baixa',
+        description: err instanceof Error ? err.message : 'Erro ao dar baixa no pagamento.',
+        variant: 'error',
+      });
+    } finally {
+      setQuickPaySaving(false);
+    }
+  }
+
+  async function handleRevertToPending(enr: GroupSessionEnrollment) {
+    if (!participantsSession) return;
+    const { confirmed } = await confirmDialog({
+      title: 'Reverter status de pagamento',
+      description: `Deseja marcar o pagamento de "${enr.clientName}" novamente como PENDENTE? O saldo em aberto voltará a constar no financeiro do sistema.`,
+      confirmLabel: 'Sim, marcar como Pendente',
+      cancelLabel: 'Cancelar',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/admin/group-sessions/${participantsSession.id}/enrollments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enrollmentId: enr.id,
+          action: 'mark_pending',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Não foi possível reverter o pagamento.');
+
+      setSuccessMsg(`Status de "${enr.clientName}" alterado para Pendente.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+
+      await loadEnrollments(participantsSession.id);
+      await loadSessions();
+    } catch (err) {
+      await alertDialog({
+        title: 'Erro ao alterar status',
+        description: err instanceof Error ? err.message : 'Erro ao reverter status.',
+        variant: 'error',
+      });
+    }
+  }
+
+  const participantsFinancialSummary = useMemo(() => {
+    const active = enrollments.filter((e) => e.status !== 'cancelado');
+    const totalEnrolled = active.length;
+
+    let totalRevenueCents = 0;
+    let totalPaidCents = 0;
+    let totalPendingCents = 0;
+    let paidCount = 0;
+    let pendingCount = 0;
+    let freeCount = 0;
+
+    for (const e of active) {
+      const price =
+        e.priceCents != null
+          ? e.priceCents
+          : participantsSession?.priceCents != null
+          ? participantsSession.priceCents
+          : 0;
+
+      totalRevenueCents += price;
+
+      if (e.paymentStatus === 'pago') {
+        totalPaidCents += e.paidAmountCents != null ? e.paidAmountCents : price;
+        paidCount++;
+      } else if (e.paymentStatus === 'gratuito' || price === 0) {
+        freeCount++;
+      } else {
+        totalPendingCents += e.remainingAmountCents != null ? e.remainingAmountCents : price;
+        pendingCount++;
+      }
+    }
+
+    return {
+      totalEnrolled,
+      totalRevenueCents,
+      totalPaidCents,
+      totalPendingCents,
+      paidCount,
+      pendingCount,
+      freeCount,
+    };
+  }, [enrollments, participantsSession]);
 
   async function handleCancelEnrollment(enrollmentId: string, clientName: string) {
     if (!participantsSession) return;
@@ -486,7 +694,7 @@ export default function AdminSessoesGrupoPage() {
       `📅 Data: ${formatDatePtBr(participantsSession.date)} às ${participantsSession.startTime}${participantsSession.endTime ? ` até ${participantsSession.endTime}` : ''}`,
       `👥 Inscritos: ${capLabel}`,
       `----------------------------------------`,
-      ...activeList.map((e, idx) => `${idx + 1}. ${e.clientName} — ${e.clientPhone}${e.paymentMethod ? ` (${e.paymentMethod.toUpperCase()})` : ''}`),
+      ...activeList.map((e, idx) => `${idx + 1}. ${e.clientName} — ${e.clientPhone} [${e.paymentStatus === 'pago' ? 'PAGO' : e.paymentStatus === 'gratuito' ? 'ISENTO' : 'PENDENTE'}]`),
     ];
     navigator.clipboard.writeText(lines.join('\n'));
     setCopiedList(true);
@@ -532,7 +740,7 @@ export default function AdminSessoesGrupoPage() {
         </span>
       );
     }
-    if (m.includes('cartao') || m.includes('cartão')) {
+    if (m.includes('cartao') || m.includes('cartão') || m.includes('credito') || m.includes('debito')) {
       return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.78rem', color: '#1d4ed8', background: '#eff6ff', padding: '3px 9px', borderRadius: '999px', border: '1px solid #bfdbfe' }}>
           <img width={14} height={14} src="https://img.icons8.com/color/48/bank-card-back-side.png" alt="cartao" />
@@ -540,10 +748,115 @@ export default function AdminSessoesGrupoPage() {
         </span>
       );
     }
+    if (m.includes('transferencia') || m.includes('ted')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.78rem', color: '#4338ca', background: '#eef2ff', padding: '3px 9px', borderRadius: '999px', border: '1px solid #c7d2fe' }}>
+          Transferência
+        </span>
+      );
+    }
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.78rem', color: '#15803d', background: '#f0fdf4', padding: '3px 9px', borderRadius: '999px', border: '1px solid #bbfdb0' }}>
         <img width={14} height={14} src="https://img.icons8.com/offices/30/money.png" alt="dinheiro" />
         Dinheiro
+      </span>
+    );
+  }
+
+  function renderEnrollmentPaymentBadge(enr: GroupSessionEnrollment) {
+    const isCancelled = enr.status === 'cancelado';
+    if (isCancelled) {
+      return (
+        <span
+          style={{
+            padding: '3px 8px',
+            borderRadius: '999px',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            background: '#fef2f2',
+            color: '#b91c1c',
+            border: '1px solid #fecaca',
+          }}
+        >
+          Cancelado
+        </span>
+      );
+    }
+
+    const price =
+      enr.priceCents != null
+        ? enr.priceCents
+        : participantsSession?.priceCents != null
+        ? participantsSession.priceCents
+        : 0;
+
+    const isPaid = enr.paymentStatus === 'pago';
+    const isFree = enr.paymentStatus === 'gratuito' || price === 0;
+
+    if (isPaid) {
+      const methodLabel = (enr.paymentMethod || 'pix').replace('_', ' ').toUpperCase();
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '4px 10px',
+            borderRadius: '999px',
+            fontSize: '0.74rem',
+            fontWeight: 800,
+            background: '#dcfce7',
+            color: '#15803d',
+            border: '1.5px solid #86efac',
+          }}
+        >
+          <CheckCircle2 size={13} color="#16a34a" />
+          <span>Pago · {formatCurrency((enr.paidAmountCents || price) / 100)}</span>
+          <span style={{ fontSize: '0.68rem', opacity: 0.85 }}>({methodLabel})</span>
+        </span>
+      );
+    }
+
+    if (isFree) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 10px',
+            borderRadius: '999px',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            background: '#f1f5f9',
+            color: '#475569',
+            border: '1px solid #cbd5e1',
+          }}
+        >
+          ⚪ Isento / Gratuito
+        </span>
+      );
+    }
+
+    const methodLabel = (enr.paymentMethod || 'pix').replace('_', ' ').toUpperCase();
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px 10px',
+          borderRadius: '999px',
+          fontSize: '0.74rem',
+          fontWeight: 800,
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '1.5px solid #fcd34d',
+        }}
+      >
+        <Clock size={13} color="#d97706" />
+        <span>Pendente · {formatCurrency((enr.remainingAmountCents || price) / 100)}</span>
+        <span style={{ fontSize: '0.68rem', opacity: 0.85 }}>({methodLabel})</span>
       </span>
     );
   }
@@ -1995,16 +2308,67 @@ export default function AdminSessoesGrupoPage() {
               </button>
             </div>
 
+            {/* Resumo Financeiro da Turma */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))',
+                gap: '10px',
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Inscritos</span>
+                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#0f172a' }}>
+                  {participantsFinancialSummary.totalEnrolled} {participantsFinancialSummary.totalEnrolled === 1 ? 'vaga' : 'vagas'}
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  {participantsSession.maxParticipants > 0 ? `de ${participantsSession.maxParticipants} max` : 'ilimitadas'}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Total Previsto</span>
+                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#0369a1' }}>
+                  {formatCurrency(participantsFinancialSummary.totalRevenueCents / 100)}
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  {participantsSession.priceCents ? `base ${formatCurrency(participantsSession.priceCents / 100)}/vaga` : 'sessão gratuita'}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: '#166534', fontWeight: 800, textTransform: 'uppercase' }}>Total Recebido</span>
+                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#15803d' }}>
+                  {formatCurrency(participantsFinancialSummary.totalPaidCents / 100)}
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: '#166534', fontWeight: 700 }}>
+                  ✓ {participantsFinancialSummary.paidCount} pago{participantsFinancialSummary.paidCount === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: 800, textTransform: 'uppercase' }}>A Receber (Pendente)</span>
+                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#d97706' }}>
+                  {formatCurrency(participantsFinancialSummary.totalPendingCents / 100)}
+                </strong>
+                <span style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700 }}>
+                  ⏳ {participantsFinancialSummary.pendingCount} pendente{participantsFinancialSummary.pendingCount === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+
             {/* Action bar inside modal */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '14px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
               <button
                 type="button"
                 onClick={() => setShowAddParticipant((v) => !v)}
                 className="btn btn-primary btn-sm"
-                style={{ borderRadius: '999px', padding: '8px 14px', fontSize: '0.78rem', fontWeight: 700 }}
+                style={{ borderRadius: '999px', padding: '8px 16px', fontSize: '0.78rem', fontWeight: 800, background: '#0f766e' }}
               >
                 <UserPlus size={14} />
-                {showAddParticipant ? 'Fechar Formulário' : 'Inscrever Participante'}
+                {showAddParticipant ? 'Fechar Formulário' : '+ Adicionar Participante Manualmente'}
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -2075,56 +2439,342 @@ export default function AdminSessoesGrupoPage() {
                 onSubmit={handleAddManualParticipant}
                 style={{
                   background: '#f8fafc',
-                  borderRadius: '14px',
-                  padding: '12px 14px',
-                  border: '1.5px solid #94a3b8',
-                  marginBottom: '14px',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  border: '1.5px solid #0f766e',
+                  marginBottom: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px',
+                  gap: '12px',
+                  boxShadow: '0 4px 14px rgba(15,118,110,0.08)',
                 }}
               >
-                <strong style={{ fontSize: '0.84rem', color: '#0f172a' }}>Adicionar participante na turma</strong>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Nome completo *"
-                    value={manualParticipant.name}
-                    onChange={(e) => setManualParticipant({ ...manualParticipant, name: e.target.value })}
-                    required
-                  />
-                  <input
-                    type="tel"
-                    className="form-input"
-                    placeholder="WhatsApp (11) 99999-9999 *"
-                    value={manualParticipant.phone}
-                    onChange={(e) => setManualParticipant({ ...manualParticipant, phone: maskPhone(e.target.value) })}
-                    required
-                  />
-                  <select
-                    className="form-input"
-                    value={manualParticipant.paymentMethod}
-                    onChange={(e) =>
-                      setManualParticipant({
-                        ...manualParticipant,
-                        paymentMethod: e.target.value as 'pix' | 'dinheiro' | 'cartao',
-                      })
-                    }
-                  >
-                    <option value="pix">Forma Pagto: PIX</option>
-                    <option value="cartao">Forma Pagto: Cartão</option>
-                    <option value="dinheiro">Forma Pagto: Dinheiro</option>
-                  </select>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <UserPlus size={16} color="#0f766e" />
+                    <strong style={{ fontSize: '0.92rem', color: '#0f172a' }}>
+                      Adicionar Participante na Turma
+                    </strong>
+                  </div>
+
+                  {/* Alternador: Paciente Cadastrado x Novo Paciente */}
+                  <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '3px', borderRadius: '8px', gap: '3px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualParticipant((prev) => ({
+                          ...prev,
+                          mode: 'existing',
+                        }));
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: manualParticipant.mode === 'existing' ? '#ffffff' : 'transparent',
+                        color: manualParticipant.mode === 'existing' ? '#0f766e' : '#64748b',
+                        fontWeight: manualParticipant.mode === 'existing' ? 800 : 600,
+                        fontSize: '0.74rem',
+                        cursor: 'pointer',
+                        boxShadow: manualParticipant.mode === 'existing' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      👤 Paciente Cadastrado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualParticipant((prev) => ({
+                          ...prev,
+                          mode: 'new',
+                          clientId: '',
+                        }));
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: manualParticipant.mode === 'new' ? '#ffffff' : 'transparent',
+                        color: manualParticipant.mode === 'new' ? '#0f766e' : '#64748b',
+                        fontWeight: manualParticipant.mode === 'new' ? 800 : 600,
+                        fontSize: '0.74rem',
+                        cursor: 'pointer',
+                        boxShadow: manualParticipant.mode === 'new' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      ➕ Novo Paciente
+                    </button>
+                  </div>
                 </div>
+
+                {/* Bloco 1: Seleção ou Cadastro do Paciente */}
+                {manualParticipant.mode === 'existing' ? (
+                  <div>
+                    {!manualParticipant.clientId ? (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                          Buscar Paciente Cadastrado na Clínica:
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Digite o nome, WhatsApp ou CPF do paciente..."
+                          value={manualParticipant.clientSearch}
+                          onChange={(e) =>
+                            setManualParticipant((prev) => ({ ...prev, clientSearch: e.target.value }))
+                          }
+                          style={{ marginBottom: '6px' }}
+                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                          {filteredClients.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => handleSelectClient(c)}
+                              style={{
+                                textAlign: 'left',
+                                padding: '6px 10px',
+                                background: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '0.76rem',
+                              }}
+                            >
+                              <strong style={{ display: 'block', color: '#0f172a' }}>{c.name}</strong>
+                              <span style={{ color: '#64748b', fontSize: '0.7rem' }}>{maskPhone(c.phone)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          background: '#ecfdf5',
+                          border: '1.5px solid #a7f3d0',
+                          borderRadius: '10px',
+                          padding: '10px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0f766e', textTransform: 'uppercase' }}>
+                            ✓ Paciente Selecionado
+                          </span>
+                          <strong style={{ display: 'block', fontSize: '0.9rem', color: '#065f46' }}>
+                            {manualParticipant.name}
+                          </strong>
+                          <span style={{ fontSize: '0.75rem', color: '#047857' }}>
+                            WhatsApp: {maskPhone(manualParticipant.phone)}
+                            {manualParticipant.cpf ? ` · CPF: ${maskCpf(manualParticipant.cpf)}` : ''}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setManualParticipant((prev) => ({
+                              ...prev,
+                              clientId: '',
+                              name: '',
+                              phone: '',
+                              cpf: '',
+                              email: '',
+                            }))
+                          }
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #a7f3d0',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            color: '#0f766e',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Trocar Paciente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        Nome Completo *
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Nome do participante"
+                        value={manualParticipant.name}
+                        onChange={(e) => setManualParticipant({ ...manualParticipant, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        WhatsApp *
+                      </label>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="(48) 99999-9999"
+                        value={manualParticipant.phone}
+                        onChange={(e) => setManualParticipant({ ...manualParticipant, phone: maskPhone(e.target.value) })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        CPF (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="000.000.000-00"
+                        value={manualParticipant.cpf}
+                        onChange={(e) => setManualParticipant({ ...manualParticipant, cpf: maskCpf(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        E-mail (Opcional)
+                      </label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="email@exemplo.com"
+                        value={manualParticipant.email}
+                        onChange={(e) => setManualParticipant({ ...manualParticipant, email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Bloco 2: Informações de Pagamento e Contabilização */}
+                <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1', padding: '12px 14px' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    💰 Contabilização Financeira da Inscrição
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        Valor da Vaga (R$)
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="0,00"
+                        value={manualParticipant.priceRaw}
+                        onChange={(e) =>
+                          setManualParticipant({
+                            ...manualParticipant,
+                            priceRaw: maskCurrency(e.target.value),
+                          })
+                        }
+                        onBlur={() =>
+                          setManualParticipant({
+                            ...manualParticipant,
+                            priceRaw: finalizeCurrency(manualParticipant.priceRaw),
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        Status do Pagamento
+                      </label>
+                      <select
+                        className="form-input"
+                        value={manualParticipant.paymentStatus}
+                        onChange={(e) =>
+                          setManualParticipant({
+                            ...manualParticipant,
+                            paymentStatus: e.target.value as 'pago' | 'pendente' | 'gratuito',
+                          })
+                        }
+                        style={{
+                          fontWeight: 700,
+                          color:
+                            manualParticipant.paymentStatus === 'pago'
+                              ? '#15803d'
+                              : manualParticipant.paymentStatus === 'pendente'
+                              ? '#d97706'
+                              : '#475569',
+                        }}
+                      >
+                        <option value="pago">🟢 Pago (Dar baixa e registrar recebimento)</option>
+                        <option value="pendente">🟡 Pendente (Cobrar depois / em aberto)</option>
+                        <option value="gratuito">⚪ Gratuito / Isento (Sem cobrança)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        Forma de Pagamento
+                      </label>
+                      <select
+                        className="form-input"
+                        value={manualParticipant.paymentMethod}
+                        onChange={(e) =>
+                          setManualParticipant({
+                            ...manualParticipant,
+                            paymentMethod: e.target.value as any,
+                          })
+                        }
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="cartao_credito">Cartão de Crédito</option>
+                        <option value="cartao_debito">Cartão de Débito</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="transferencia">Transferência Bancária</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                        Observações Internas (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Ex: pago no consultório..."
+                        value={manualParticipant.notes}
+                        onChange={(e) =>
+                          setManualParticipant({ ...manualParticipant, notes: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddParticipant(false)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ borderRadius: '999px', padding: '7px 14px' }}
+                  >
+                    Cancelar
+                  </button>
                   <button
                     type="submit"
                     disabled={addingParticipant}
                     className="btn btn-primary btn-sm"
-                    style={{ borderRadius: '999px', padding: '7px 16px', fontSize: '0.78rem' }}
+                    style={{
+                      borderRadius: '999px',
+                      padding: '7px 18px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      background: '#0f766e',
+                    }}
                   >
-                    {addingParticipant ? 'Adicionando...' : 'Confirmar Vaga'}
+                    {addingParticipant ? 'Adicionando...' : '✓ Confirmar Vaga e Contabilizar'}
                   </button>
                 </div>
               </form>
@@ -2171,7 +2821,7 @@ export default function AdminSessoesGrupoPage() {
                         justifyContent: 'space-between',
                         flexWrap: 'wrap',
                         gap: '10px',
-                        padding: '10px 12px',
+                        padding: '12px 14px',
                         borderRadius: '12px',
                         background: isCancelled ? '#f8fafc' : '#ffffff',
                         border: '1.5px solid #cbd5e1',
@@ -2209,25 +2859,62 @@ export default function AdminSessoesGrupoPage() {
                               {enr.clientBirthDate ? `Nasc.: ${formatDatePtBr(enr.clientBirthDate)}` : ''}
                             </span>
                           )}
+                          {enr.notes && (
+                            <span style={{ fontSize: '0.72rem', color: '#0f766e', display: 'block', marginTop: '1px', fontStyle: 'italic' }}>
+                              Obs: {enr.notes}
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {renderPaymentBadge(enr.paymentMethod)}
+                        {renderEnrollmentPaymentBadge(enr)}
 
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '999px',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            background: isCancelled ? '#fef2f2' : '#ecfdf5',
-                            color: isCancelled ? '#b91c1c' : '#047857',
-                            border: `1px solid ${isCancelled ? '#fecaca' : '#a7f3d0'}`,
-                          }}
-                        >
-                          {isCancelled ? 'Cancelado' : 'Confirmado'}
-                        </span>
+                        {!isCancelled && enr.paymentStatus !== 'pago' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPayEnrollment(enr);
+                              setQuickPayMethod(((enr.paymentMethod as any) || 'pix'));
+                            }}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '999px',
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              border: '1.5px solid #6ee7b7',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="Dar baixa no pagamento deste participante e lançar como pago no Financeiro"
+                          >
+                            <CheckCircle2 size={13} color="#059669" /> Dar Baixa (Pago)
+                          </button>
+                        )}
+
+                        {!isCancelled && enr.paymentStatus === 'pago' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleRevertToPending(enr)}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '999px',
+                              background: '#f8fafc',
+                              color: '#64748b',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                            title="Reverter para status de pagamento pendente"
+                          >
+                            Reverter p/ Pendente
+                          </button>
+                        )}
 
                         {!isCancelled && (
                           <>
@@ -2281,6 +2968,112 @@ export default function AdminSessoesGrupoPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rápido de Dar Baixa em Pagamento */}
+      {quickPayEnrollment && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 3000,
+            display: 'grid',
+            placeItems: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setQuickPayEnrollment(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={22} color="#15803d" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Confirmar Pagamento
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPayEnrollment(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '0.84rem', color: '#475569', lineHeight: 1.45 }}>
+              Dar baixa no pagamento da inscrição de <strong>{quickPayEnrollment.clientName}</strong> na sessão <em>{participantsSession?.title}</em>.
+            </p>
+
+            <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.84rem' }}>
+                <span style={{ color: '#64748b' }}>Valor da vaga:</span>
+                <strong style={{ color: '#0f172a' }}>
+                  {formatCurrency((quickPayEnrollment.priceCents || participantsSession?.priceCents || 0) / 100)}
+                </strong>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Forma de Recebimento:
+                </label>
+                <select
+                  className="form-input"
+                  value={quickPayMethod}
+                  onChange={(e) => setQuickPayMethod(e.target.value as any)}
+                  style={{ width: '100%', fontWeight: 700 }}
+                >
+                  <option value="pix">PIX</option>
+                  <option value="cartao_credito">Cartão de Crédito</option>
+                  <option value="cartao_debito">Cartão de Débito</option>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="transferencia">Transferência Bancária</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setQuickPayEnrollment(null)}
+                className="btn btn-secondary btn-sm"
+                style={{ borderRadius: '999px', padding: '8px 14px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmQuickPay()}
+                disabled={quickPaySaving}
+                className="btn btn-primary btn-sm"
+                style={{
+                  borderRadius: '999px',
+                  padding: '8px 18px',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  background: '#15803d',
+                  border: 'none',
+                  color: '#ffffff',
+                }}
+              >
+                {quickPaySaving ? 'Salvando...' : '✓ Confirmar e Baixar no Financeiro'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2552,8 +3345,17 @@ export default function AdminSessoesGrupoPage() {
                           <td style={{ padding: '8px 10px', color: '#475569', whiteSpace: 'nowrap' }}>
                             {enr.clientBirthDate ? formatDatePtBr(enr.clientBirthDate) : '-'}
                           </td>
-                          <td style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>
-                            {(enr.paymentMethod || 'PIX').toUpperCase()}
+                          <td style={{
+                            padding: '8px 10px',
+                            fontWeight: 700,
+                            color: enr.paymentStatus === 'pago' ? '#15803d' : enr.paymentStatus === 'gratuito' ? '#475569' : '#d97706',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {enr.paymentStatus === 'pago'
+                              ? `PAGO (${(enr.paymentMethod || 'PIX').toUpperCase()})`
+                              : enr.paymentStatus === 'gratuito'
+                              ? 'ISENTO'
+                              : `PENDENTE (${(enr.paymentMethod || 'PIX').toUpperCase()})`}
                           </td>
                           <td style={{ padding: '8px 10px' }}>
                             <div style={{ borderBottom: '1px dotted #94a3b8', height: '18px', width: '100%' }} />
