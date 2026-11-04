@@ -35,7 +35,7 @@ export async function GET() {
     connectedPhone?: string | null;
     profileName?: string | null;
     message?: string;
-  } = { status: 'idle' };
+  } = { status: 'disconnected', message: 'Nenhum aparelho conectado' };
 
   if (settings.apiBaseUrl || settings.qrEndpoint) {
     try {
@@ -53,14 +53,17 @@ export async function GET() {
           profileName: check.profileName,
           message: check.message || 'WhatsApp Conectado e ativo na API!',
         };
-      } else if (check.status === 'disconnected') {
+      } else {
         connectionStatus = {
           status: 'disconnected',
           message: check.message || 'Desconectado',
         };
       }
     } catch {
-      // non-blocking
+      connectionStatus = {
+        status: 'disconnected',
+        message: 'Desconectado',
+      };
     }
   }
 

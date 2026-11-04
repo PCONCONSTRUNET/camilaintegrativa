@@ -34,6 +34,7 @@ import {
   Webhook,
   Wifi,
   WifiOff,
+  X,
   Zap,
 } from 'lucide-react';
 import {
@@ -271,7 +272,10 @@ export default function ConfiguracoesPage() {
         simulated: false,
       };
     }
-    return { status: 'idle' };
+    return {
+      status: 'disconnected',
+      message: cachedData?.connectionStatus?.message || 'Nenhum aparelho conectado no momento.',
+    };
   });
 
   // Toast feedback
@@ -317,6 +321,14 @@ export default function ConfiguracoesPage() {
           profileName: data.connectionStatus.profileName ?? null,
           message: data.connectionStatus.message || 'WhatsApp Conectado e ativo na API!',
           simulated: false,
+        });
+      } else {
+        setQrState((prev) => {
+          if (prev.status === 'qrcode') return prev;
+          return {
+            status: 'disconnected',
+            message: data.connectionStatus?.message || 'Nenhum aparelho conectado no momento.',
+          };
         });
       }
     } catch (err) {
@@ -546,24 +558,39 @@ export default function ConfiguracoesPage() {
       });
       clearTimeout(timeoutId);
       const data = await res.json().catch(() => ({}));
-      const nextStatus = data.status || (res.ok ? (action === 'status' ? 'connected' : 'qrcode') : 'error');
+      let nextStatus: 'connected' | 'disconnected' | 'qrcode' | 'error' = 'disconnected';
+      if (data.status === 'connected') {
+        nextStatus = 'connected';
+      } else if (action === 'qrcode' || (data.status === 'qrcode' && data.qrImageUrl)) {
+        nextStatus = 'qrcode';
+      } else if (action === 'disconnect') {
+        nextStatus = 'disconnected';
+      } else if (action === 'status') {
+        nextStatus = data.status === 'connected' ? 'connected' : 'disconnected';
+      } else {
+        nextStatus = data.status || 'disconnected';
+      }
+
       setQrState({
         status: nextStatus,
         qrImageUrl: data.qrImageUrl ?? null,
         pairingCode: data.pairingCode ?? null,
         connectedPhone: data.connectedPhone ?? null,
         profileName: data.profileName ?? null,
-        message: data.message || data.error || 'Operação concluída.',
+        message: data.message || data.error || (nextStatus === 'connected' ? 'WhatsApp Conectado!' : 'Desconectado.'),
         simulated: Boolean(data.simulated),
       });
+
       if (nextStatus === 'connected') {
-        showToast('success', data.message || 'WhatsApp conectado e pronto para disparos!');
+        showToast('success', data.message || 'WhatsApp Conectado e pronto para disparos!');
       } else if (nextStatus === 'qrcode') {
         showToast('info', data.message || 'QR Code gerado! Escaneie com o WhatsApp do seu celular.');
-      } else if (nextStatus === 'disconnected') {
-        showToast('info', data.message || 'Sessão desconectada.');
+      } else if (action === 'disconnect') {
+        showToast('success', 'WhatsApp desconectado com sucesso.');
+      } else if (action === 'status') {
+        showToast('info', data.message || 'WhatsApp Desconectado. Nenhum aparelho conectado no momento.');
       } else {
-        showToast('error', data.message || data.error || 'Falha ao consultar API de QR Code.');
+        showToast('error', data.message || data.error || 'Falha ao consultar API WhatsApp.');
       }
     } catch (err) {
       clearTimeout(timeoutId);
@@ -1733,19 +1760,22 @@ export default function ConfiguracoesPage() {
                     <strong style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
                       Conectar WhatsApp via QR Code (Pareamento da Instância)
                     </strong>
-                    {qrState.status === 'connected' && (
+                    {qrState.status === 'connected' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', background: '#dcfce7', color: '#166534', fontSize: '0.72rem', fontWeight: 800, border: '1px solid #86efac' }}>
-                        <Wifi size={12} /> Aparelho Conectado
+                        <Wifi size={12} /> Aparelho Conectado {qrState.connectedPhone ? `(${qrState.connectedPhone})` : ''}
                       </span>
-                    )}
-                    {qrState.status === 'disconnected' && (
+                    ) : qrState.status === 'qrcode' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontSize: '0.72rem', fontWeight: 800, border: '1px solid #fcd34d' }}>
+                        <Clock size={12} /> Aguardando Leitura do QR Code
+                      </span>
+                    ) : (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontSize: '0.72rem', fontWeight: 800, border: '1px solid #fecaca' }}>
                         <WifiOff size={12} /> Desconectado
                       </span>
                     )}
                   </div>
                   <span style={{ fontSize: '0.78rem', color: '#475569', display: 'block', marginTop: '2px' }}>
-                    Gere o QR Code da sessão <code>{instanceName || 'clinica-camila'}</code> na sua API Contabo e escaneie com o WhatsApp da clínica para ativar os envios automáticos.
+                    Gere o QR Code da sessão <code>{instanceName || 'clinica-camila'}</code> na sua API WhatsApp e escaneie com o WhatsApp da clínica para ativar os envios automáticos.
                   </span>
                 </div>
               </div>
@@ -1800,7 +1830,8 @@ export default function ConfiguracoesPage() {
                   {qrLoading === 'status' ? 'Verificando...' : 'Verificar Conexão'}
                 </button>
 
-                {(qrState.status === 'connected' || qrState.status === 'qrcode') && (
+                {/* Botão Desconectar SÓ APARECE quando o WhatsApp estiver REALMENTE conectado */}
+                {qrState.status === 'connected' && (
                   <button
                     type="button"
                     disabled={qrLoading !== null}
@@ -1821,6 +1852,30 @@ export default function ConfiguracoesPage() {
                   >
                     <PowerOff size={14} />
                     Desconectar
+                  </button>
+                )}
+
+                {/* Permite fechar a exibição do QR Code se o usuário desejar */}
+                {qrState.status === 'qrcode' && (
+                  <button
+                    type="button"
+                    onClick={() => setQrState({ status: 'disconnected', message: 'Nenhum aparelho conectado.' })}
+                    style={{
+                      background: '#f1f5f9',
+                      color: '#475569',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '999px',
+                      padding: '10px 14px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <X size={14} />
+                    Fechar QR
                   </button>
                 )}
               </div>
@@ -1910,7 +1965,7 @@ export default function ConfiguracoesPage() {
                     </div>
                     <div>
                       <strong style={{ fontSize: '1rem', fontWeight: 800, color: '#166534', display: 'block' }}>
-                        WhatsApp Conectado e Ativo na API Contabo!
+                        WhatsApp Conectado e Ativo na API!
                       </strong>
                       <span style={{ fontSize: '0.83rem', color: '#475569' }}>
                         {qrState.message}
@@ -1920,8 +1975,18 @@ export default function ConfiguracoesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: qrState.status === 'error' ? '#b91c1c' : '#334155', fontSize: '0.85rem', fontWeight: 600 }}>
-                    <span>{qrState.message}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%' }}>
+                    <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                      <WifiOff size={22} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: '0.96rem', fontWeight: 800, color: '#991b1b', display: 'block' }}>
+                        WhatsApp Desconectado (Nenhum aparelho conectado)
+                      </strong>
+                      <span style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.4, display: 'block', marginTop: '2px' }}>
+                        {qrState.message || 'O celular da clínica não está conectado. Clique no botão verde "Gerar QR Code WhatsApp" acima e aponte a câmera do seu WhatsApp para conectar.'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

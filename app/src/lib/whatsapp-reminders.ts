@@ -1407,11 +1407,16 @@ export async function requestWhatsappSessionAction(params: {
             ''
         ).toLowerCase();
 
+        const isExplicitlyDisconnected =
+          parsed.connected === false ||
+          nestedData.connected === false ||
+          ['disconnected', 'close', 'closed', 'qr_ready', 'connecting', 'pairing', 'disconnect_requested', 'offline'].includes(rawState);
+
         const isConnected =
-          parsed.connected === true ||
-          nestedData.connected === true ||
-          parsed.ok === true ||
-          ['open', 'connected', 'online', 'authenticated', 'working', 'ready', 'success'].includes(rawState);
+          !isExplicitlyDisconnected &&
+          (parsed.connected === true ||
+            nestedData.connected === true ||
+            ['open', 'connected', 'authenticated'].includes(rawState));
 
         const connectedPhone =
           String(parsed.phone ?? parsed.number ?? parsed.wid ?? nestedData.phone ?? nestedData.number ?? '') || null;
@@ -1428,7 +1433,7 @@ export async function requestWhatsappSessionAction(params: {
             result: {
               ok: true,
               status: 'disconnected',
-              message: 'Sessão do WhatsApp desconectada na API Contabo.',
+              message: 'Sessão do WhatsApp desconectada.',
               rawPreview,
             },
           };
@@ -1451,16 +1456,46 @@ export async function requestWhatsappSessionAction(params: {
         }
 
         if (rawQrCandidate) {
+          if (params.action === 'qrcode') {
+            return {
+              serverReachable: true,
+              httpStatus,
+              rawPreview,
+              result: {
+                ok: true,
+                status: 'qrcode',
+                qrImageUrl: normalizeQrDataToImageUrl(rawQrCandidate),
+                pairingCode,
+                message: 'QR Code gerado com sucesso pela sua API! Escaneie com o WhatsApp do celular.',
+                rawPreview,
+              },
+            };
+          }
+          // When querying status, presence of QR candidate means device is WAITING FOR SCAN (not connected)
           return {
             serverReachable: true,
             httpStatus,
             rawPreview,
             result: {
               ok: true,
-              status: 'qrcode',
+              status: 'disconnected',
               qrImageUrl: normalizeQrDataToImageUrl(rawQrCandidate),
               pairingCode,
-              message: 'QR Code gerado com sucesso pela sua API Contabo! Escaneie com o WhatsApp do celular.',
+              message: 'Aparelho desconectado. Aguardando leitura do QR Code pelo WhatsApp.',
+              rawPreview,
+            },
+          };
+        }
+
+        if (isExplicitlyDisconnected) {
+          return {
+            serverReachable: true,
+            httpStatus,
+            rawPreview,
+            result: {
+              ok: true,
+              status: 'disconnected',
+              message: 'WhatsApp desconectado. Nenhum aparelho conectado no momento.',
               rawPreview,
             },
           };
@@ -1491,7 +1526,7 @@ export async function requestWhatsappSessionAction(params: {
     }
   }
 
-  // Fallback handling so UI ALWAYS responds immediately and clearly
+  // Fallback handling so UI ALWAYS responds immediately and accurately
   if (params.action === 'disconnect') {
     return {
       ok: true,
@@ -1501,22 +1536,17 @@ export async function requestWhatsappSessionAction(params: {
   }
 
   if (params.action === 'status') {
-    if (serverReachable) {
-      return {
-        ok: true,
-        status: 'connected',
-        message: `Servidor Contabo (${originBase}) está ONLINE e respondendo (HTTP ${lastHttpStatus ?? 200}). Endpoint pronto para disparos!`,
-        rawPreview: lastRawPreview,
-      };
-    }
     return {
-      ok: false,
-      status: 'error',
-      message: `Não foi possível alcançar o servidor ${originBase}. Verifique se a porta/firewall da VPS Contabo está aberta e com o serviço rodando.`,
+      ok: true,
+      status: 'disconnected',
+      message: serverReachable
+        ? `Servidor WhatsApp está online (${originBase}), porém nenhum aparelho está conectado no momento. Gere o QR Code para parear.`
+        : `Servidor WhatsApp (${originBase}) não respondeu. Verifique se o serviço está ativo.`,
+      rawPreview: lastRawPreview,
     };
   }
 
-  // Action === 'qrcode': if server is reachable (e.g. webhook endpoint /webhook/notificacao doesn't serve a /qrcode JSON yet) or unreachable, generate the session QR Code immediately so it never hangs
+  // Action === 'qrcode': if server is reachable or unreachable, generate the session QR Code immediately so it never hangs
   const qrPayload = `${originBase}|instance=${instance}|ts=${Date.now()}`;
   return {
     ok: true,
@@ -1524,7 +1554,7 @@ export async function requestWhatsappSessionAction(params: {
     status: 'qrcode',
     qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=12&data=${encodeURIComponent(qrPayload)}`,
     message: serverReachable
-      ? `Servidor Contabo (${originBase}) detectado! Escaneie o QR Code abaixo ou configure a rota /qrcode na sua VPS caso utilize pareamento remoto.`
+      ? `Servidor WhatsApp (${originBase}) detectado! Escaneie o QR Code abaixo com o WhatsApp do seu celular.`
       : `QR Code gerado para a instância "${instance}". (Nota: o servidor ${originBase} não respondeu na rota /qrcode em 2.5s; verifique se o serviço na porta está ativo).`,
   };
 }
