@@ -12,6 +12,7 @@ import {
   ExternalLink,
   RefreshCw,
   Search,
+  Trash2,
   Users,
   X,
 } from 'lucide-react';
@@ -117,6 +118,57 @@ export default function AdminNotificationsPage() {
     }
   }
 
+  async function deleteNotification(item: AdminNotificationItem) {
+    setItems((prev) => prev.filter((n) => n.id !== item.id));
+    setSummary((prev) => ({
+      ...prev,
+      total: Math.max(0, prev.total - 1),
+      unread: !item.read ? Math.max(0, prev.unread - 1) : prev.unread,
+      agendamentos: item.category === 'agendamento' ? Math.max(0, prev.agendamentos - 1) : prev.agendamentos,
+      cancelamentos: item.category === 'cancelamento' ? Math.max(0, prev.cancelamentos - 1) : prev.cancelamentos,
+      pagamentos: item.category === 'pagamento' ? Math.max(0, prev.pagamentos - 1) : prev.pagamentos,
+      grupos: item.category === 'grupo' ? Math.max(0, prev.grupos - 1) : prev.grupos,
+      clientes: item.category === 'cliente' ? Math.max(0, prev.clientes - 1) : prev.clientes,
+    }));
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: item.id }),
+      });
+      window.dispatchEvent(new Event('admin-notifications-updated'));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function deleteAllDisplayed() {
+    const idsToDelete = filteredItems.map((n) => n.id);
+    if (idsToDelete.length === 0) return;
+    const idSet = new Set(idsToDelete);
+    const remaining = items.filter((n) => !idSet.has(n.id));
+    setItems(remaining);
+    setSummary({
+      total: remaining.length,
+      unread: remaining.filter((i) => !i.read).length,
+      agendamentos: remaining.filter((i) => i.category === 'agendamento').length,
+      cancelamentos: remaining.filter((i) => i.category === 'cancelamento').length,
+      pagamentos: remaining.filter((i) => i.category === 'pagamento').length,
+      grupos: remaining.filter((i) => i.category === 'grupo').length,
+      clientes: remaining.filter((i) => i.category === 'cliente').length,
+    });
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_all', ids: idsToDelete }),
+      });
+      window.dispatchEvent(new Event('admin-notifications-updated'));
+    } catch {
+      // ignore
+    }
+  }
+
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
@@ -169,6 +221,18 @@ export default function AdminNotificationsPage() {
             >
               <CheckCheck size={14} />
               <span>Ler todas</span>
+            </button>
+          )}
+          {filteredItems.length > 0 && (
+            <button
+              type="button"
+              className="notif-action-btn secondary"
+              onClick={() => void deleteAllDisplayed()}
+              style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}
+              title="Excluir todas as notificações exibidas"
+            >
+              <Trash2 size={13} />
+              <span>Excluir todas</span>
             </button>
           )}
         </div>
@@ -382,6 +446,17 @@ export default function AdminNotificationsPage() {
                     )}
 
                     <div className="notif-feed-actions">
+                      <button
+                        type="button"
+                        onClick={() => void deleteNotification(item)}
+                        className="notif-item-btn-read"
+                        style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fff5f5' }}
+                        title="Excluir notificação"
+                      >
+                        <Trash2 size={12} />
+                        <span>Excluir</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => void toggleRead(item)}

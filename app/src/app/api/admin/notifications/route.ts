@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase, IDS } from '@/lib/db';
+import { formatPhone } from '@/lib/utils';
 import { processDue24hReminders, processOverdueInvoiceReminders } from '@/lib/whatsapp-reminders';
 
 export type NotificationCategory =
@@ -50,6 +51,15 @@ async function ensureNotificationReadsTable() {
           notification_id TEXT PRIMARY KEY,
           clinic_id TEXT NOT NULL,
           read_at TEXT NOT NULL
+        )`
+      )
+      .run();
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS admin_notification_dismissals (
+          notification_id TEXT PRIMARY KEY,
+          clinic_id TEXT NOT NULL,
+          dismissed_at TEXT NOT NULL
         )`
       )
       .run();
@@ -139,11 +149,17 @@ export async function GET() {
     await ensureNotificationReadsTable();
     const db = getDatabase();
 
-    // Load read IDs
-    const readRows = (await db
-      .prepare(`SELECT notification_id FROM admin_notification_reads WHERE clinic_id = ?`)
-      .all(IDS.clinic)) as Array<{ notification_id: string }>;
+    // Load read IDs and dismissed IDs
+    const [readRows, dismissedRows] = await Promise.all([
+      db
+        .prepare(`SELECT notification_id FROM admin_notification_reads WHERE clinic_id = ?`)
+        .all(IDS.clinic) as Promise<Array<{ notification_id: string }>>,
+      db
+        .prepare(`SELECT notification_id FROM admin_notification_dismissals WHERE clinic_id = ?`)
+        .all(IDS.clinic) as Promise<Array<{ notification_id: string }>>,
+    ]);
     const readSet = new Set(readRows.map((r) => String(r.notification_id)));
+    const dismissedSet = new Set(dismissedRows.map((r) => String(r.notification_id)));
 
     const items: AdminNotificationItem[] = [];
 
@@ -382,7 +398,7 @@ export async function GET() {
           category: 'cliente',
           type: 'client_created',
           title: `Novo paciente cadastrado · ${clientName}`,
-          description: `Cadastro adicionado na base da clínica${phone ? ` · WhatsApp: ${phone}` : ''}.`,
+          description: `Cadastro adicionado na base da clínica${phone ? ` · WhatsApp: ${formatPhone(phone)}` : ''}.`,
           clientName,
           timestamp: createdAt,
           href: `/admin/prontuarios/${clientId}`,
@@ -394,10 +410,12 @@ export async function GET() {
       // ignore
     }
 
-    // Sort all notifications newest first
-    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const activeItems = items.filter((item) => !dismissedSet.has(item.id));
 
-    const limited = items.slice(0, 100);
+    // Sort all notifications newest first
+    activeItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const limited = activeItems.slice(0, 100);
     const summary = {
       total: limited.length,
       unread: limited.filter((i) => !i.read).length,
@@ -435,12 +453,43 @@ export async function POST(request: Request) {
     await ensureNotificationReadsTable();
     const db = getDatabase();
     const body = (await request.json()) as {
-      action?: 'mark_read' | 'mark_unread' | 'mark_all_read';
+      action?: 'mark_read' | 'mark_unread' | 'mark_all_read' | 'delete' | 'delete_all';
       id?: string;
       ids?: string[];
     };
 
     const now = new Date().toISOString();
+
+    if (body.action === 'delete' && body.id) {
+      const existing = await db
+        .prepare(`SELECT notification_id FROM admin_notification_dismissals WHERE notification_id = ?`)
+        .get(body.id);
+      if (!existing) {
+        await db
+          .prepare(
+            `INSERT INTO admin_notification_dismissals (notification_id, clinic_id, dismissed_at) VALUES (?, ?, ?)`
+          )
+          .run(body.id, IDS.clinic, now);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === 'delete_all' && Array.isArray(body.ids)) {
+      for (const notifId of body.ids) {
+        if (!notifId) continue;
+        const existing = await db
+          .prepare(`SELECT notification_id FROM admin_notification_dismissals WHERE notification_id = ?`)
+          .get(notifId);
+        if (!existing) {
+          await db
+            .prepare(
+              `INSERT INTO admin_notification_dismissals (notification_id, clinic_id, dismissed_at) VALUES (?, ?, ?)`
+            )
+            .run(notifId, IDS.clinic, now);
+        }
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     if (body.action === 'mark_read' && body.id) {
       const existing = await db

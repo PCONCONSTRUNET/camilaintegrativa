@@ -17,6 +17,7 @@ import {
   X,
   Check,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import type { AdminNotificationItem, NotificationCategory } from '@/app/api/admin/notifications/route';
 
@@ -238,6 +239,28 @@ export function AdminNotificationBell({
     }
   }
 
+  async function deleteItem(id: string, isRead: boolean, e: React.MouseEvent) {
+    e.stopPropagation();
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    if (!isRead) {
+      setUnreadCount((prev) => {
+        const next = Math.max(0, prev - 1);
+        onUnreadCountChange?.(next);
+        return next;
+      });
+    }
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      window.dispatchEvent(new Event('admin-notifications-updated'));
+    } catch {
+      // ignore
+    }
+  }
+
   async function markAllAsRead() {
     const unreadIds = items.filter((i) => !i.read).map((i) => i.id);
     if (unreadIds.length === 0) return;
@@ -408,17 +431,29 @@ export function AdminNotificationBell({
                             <span className="notif-popover-item-detail">{item.detail}</span>
                           )}
                         </div>
-                        {!item.read && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                          {!item.read && (
+                            <button
+                              type="button"
+                              className="notif-popover-read-btn"
+                              onClick={(e) => void markAsRead(item.id, e)}
+                              title="Marcar como lida"
+                              aria-label="Marcar como lida"
+                            >
+                              <Check size={11} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="notif-popover-read-btn"
-                            onClick={(e) => void markAsRead(item.id, e)}
-                            title="Marcar como lida"
-                            aria-label="Marcar como lida"
+                            onClick={(e) => void deleteItem(item.id, item.read, e)}
+                            title="Excluir notificação"
+                            aria-label="Excluir notificação"
+                            style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fff5f5' }}
                           >
-                            <Check size={11} />
+                            <Trash2 size={11} />
                           </button>
-                        )}
+                        </div>
                       </div>
                     );
                   })
