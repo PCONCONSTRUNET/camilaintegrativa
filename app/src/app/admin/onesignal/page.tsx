@@ -346,10 +346,11 @@ export default function OneSignalAdminPage() {
   );
 
   return (
-    <div style={{ padding: '24px 20px 60px', maxWidth: '1240px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <div className="onesignal-page-wrap" style={{ padding: '24px 20px 60px', maxWidth: '1240px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
       {/* Toast Feedback */}
       {feedback && (
         <div
+          className="onesignal-toast"
           style={{
             position: 'fixed',
             bottom: '24px',
@@ -373,25 +374,27 @@ export default function OneSignalAdminPage() {
       )}
 
       {/* Cabeçalho */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+      <div className="onesignal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: '#ecfdf5', color: '#0f766e', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '8px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: '#ecfdf5', color: '#0f766e', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
             <Radio size={13} /> Central OneSignal & Automação de Push
           </div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+          <h1 className="onesignal-title" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
             Configuração de Notificações Push
           </h1>
-          <p style={{ fontSize: '0.86rem', color: '#64748b', margin: '4px 0 0' }}>
+          <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '4px 0 0' }}>
             Ative, desative e personalize cada uma das notificações automáticas da administração e dos pacientes.
           </p>
         </div>
 
         <button
           type="button"
+          className="onesignal-refresh-btn"
           onClick={() => { void loadData(); void checkLocalStatus(); }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
             padding: '8px 14px',
             background: '#ffffff',
@@ -408,22 +411,22 @@ export default function OneSignalAdminPage() {
       </div>
 
       {/* Card de Status do Aparelho da Admin */}
-      <div style={{ background: '#ffffff', borderRadius: '18px', border: '1.5px solid #e2e8f0', padding: '18px 22px', boxShadow: '0 4px 12px rgba(15,23,42,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: localPushStatus.permission ? '#ecfdf5' : '#fee2e2', color: localPushStatus.permission ? '#0f766e' : '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Laptop size={22} />
+      <div className="onesignal-device-card" style={{ background: '#ffffff', borderRadius: '18px', border: '1.5px solid #e2e8f0', padding: '18px 22px', boxShadow: '0 4px 12px rgba(15,23,42,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: '1 1 240px' }}>
+          <div style={{ width: '42px', height: '42px', flexShrink: 0, borderRadius: '12px', background: localPushStatus.permission ? '#ecfdf5' : '#fee2e2', color: localPushStatus.permission ? '#0f766e' : '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Laptop size={20} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <strong style={{ fontSize: '0.92rem', color: '#0f172a' }}>Recebimento Neste Aparelho</strong>
               <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', background: localPushStatus.permission ? '#dcfce7' : '#fee2e2', color: localPushStatus.permission ? '#15803d' : '#b91c1c' }}>
                 {localPushStatus.permission ? '🟢 Ativo (Pronto)' : '🔴 Não Autorizado'}
               </span>
             </div>
-            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '3px 0 0', lineHeight: 1.4 }}>
               {localPushStatus.permission
-                ? 'Este navegador está conectado como Administração da clínica para receber avisos em tempo real.'
-                : 'Clique no botão ao lado para autorizar o recebimento de notificações neste celular ou computador.'}
+                ? 'Este aparelho está conectado como Administração da clínica para receber avisos em tempo real.'
+                : 'Toque no botão para autorizar o recebimento de notificações neste celular ou computador.'}
             </p>
           </div>
         </div>
@@ -431,13 +434,15 @@ export default function OneSignalAdminPage() {
         {!localPushStatus.permission && (
           <button
             type="button"
+            className="onesignal-activate-btn"
             onClick={() => void handleActivateLocalPush()}
             disabled={testingLocal}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '6px',
-              padding: '9px 16px',
+              padding: '10px 16px',
               background: '#0f766e',
               color: '#ffffff',
               fontSize: '0.82rem',
@@ -455,9 +460,11 @@ export default function OneSignalAdminPage() {
 
       {/* ABAS PRINCIPAIS */}
       <div
+        className="onesignal-tabs-grid"
         style={{
-          display: 'flex',
-          gap: '8px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: '6px',
           background: '#f1f5f9',
           padding: '6px',
           borderRadius: '14px',
@@ -467,15 +474,15 @@ export default function OneSignalAdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab('admin-config')}
+          className="onesignal-tab-btn"
           style={{
-            flex: 1,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            padding: '11px 16px',
+            gap: '6px',
+            padding: '10px 12px',
             borderRadius: '10px',
-            fontSize: '0.88rem',
+            fontSize: '0.84rem',
             fontWeight: 800,
             border: 'none',
             background: activeTab === 'admin-config' ? '#ffffff' : 'transparent',
@@ -485,33 +492,35 @@ export default function OneSignalAdminPage() {
             transition: 'all 0.15s ease',
           }}
         >
-          <ShieldCheck size={17} /> Notificações da Administração
+          <ShieldCheck size={16} style={{ flexShrink: 0 }} />
+          <span className="tab-text-full">Notificações da Administração</span>
+          <span className="tab-text-short">Admin</span>
           <span
             style={{
-              padding: '2px 8px',
+              padding: '2px 7px',
               borderRadius: '999px',
-              fontSize: '0.72rem',
+              fontSize: '0.68rem',
               fontWeight: 800,
               background: activeTab === 'admin-config' ? '#ecfdf5' : '#e2e8f0',
               color: activeTab === 'admin-config' ? '#0f766e' : '#475569',
             }}
           >
-            {activeAdminCount}/{adminRules.length} ativas
+            {activeAdminCount}/{adminRules.length}
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('client-config')}
+          className="onesignal-tab-btn"
           style={{
-            flex: 1,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            padding: '11px 16px',
+            gap: '6px',
+            padding: '10px 12px',
             borderRadius: '10px',
-            fontSize: '0.88rem',
+            fontSize: '0.84rem',
             fontWeight: 800,
             border: 'none',
             background: activeTab === 'client-config' ? '#ffffff' : 'transparent',
@@ -521,33 +530,35 @@ export default function OneSignalAdminPage() {
             transition: 'all 0.15s ease',
           }}
         >
-          <Users size={17} /> Notificações dos Pacientes
+          <Users size={16} style={{ flexShrink: 0 }} />
+          <span className="tab-text-full">Notificações dos Pacientes</span>
+          <span className="tab-text-short">Pacientes</span>
           <span
             style={{
-              padding: '2px 8px',
+              padding: '2px 7px',
               borderRadius: '999px',
-              fontSize: '0.72rem',
+              fontSize: '0.68rem',
               fontWeight: 800,
               background: activeTab === 'client-config' ? '#eff6ff' : '#e2e8f0',
               color: activeTab === 'client-config' ? '#1d4ed8' : '#475569',
             }}
           >
-            {activeClientCount}/{clientRules.length} ativas
+            {activeClientCount}/{clientRules.length}
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('manual')}
+          className="onesignal-tab-btn"
           style={{
-            flex: 1,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            padding: '11px 16px',
+            gap: '6px',
+            padding: '10px 12px',
             borderRadius: '10px',
-            fontSize: '0.88rem',
+            fontSize: '0.84rem',
             fontWeight: 800,
             border: 'none',
             background: activeTab === 'manual' ? '#ffffff' : 'transparent',
@@ -557,21 +568,22 @@ export default function OneSignalAdminPage() {
             transition: 'all 0.15s ease',
           }}
         >
-          <Send size={16} /> Disparo Manual
+          <Send size={15} style={{ flexShrink: 0 }} />
+          <span>Disparo Manual</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('logs')}
+          className="onesignal-tab-btn"
           style={{
-            flex: 0.8,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            padding: '11px 16px',
+            gap: '6px',
+            padding: '10px 12px',
             borderRadius: '10px',
-            fontSize: '0.88rem',
+            fontSize: '0.84rem',
             fontWeight: 800,
             border: 'none',
             background: activeTab === 'logs' ? '#ffffff' : 'transparent',
@@ -581,7 +593,8 @@ export default function OneSignalAdminPage() {
             transition: 'all 0.15s ease',
           }}
         >
-          <History size={16} /> Histórico ({logs.length})
+          <History size={15} style={{ flexShrink: 0 }} />
+          <span>Histórico ({logs.length})</span>
         </button>
       </div>
 
@@ -612,6 +625,7 @@ export default function OneSignalAdminPage() {
               return (
                 <div
                   key={rule.key}
+                  className="onesignal-rule-card"
                   style={{
                     background: '#ffffff',
                     borderRadius: '18px',
@@ -622,15 +636,15 @@ export default function OneSignalAdminPage() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginBottom: '14px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  <div className="onesignal-rule-top" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: '1.02rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
                           {rule.label}
                         </h3>
                         <span
                           style={{
-                            fontSize: '0.72rem',
+                            fontSize: '0.7rem',
                             fontWeight: 800,
                             padding: '2px 8px',
                             borderRadius: '6px',
@@ -638,16 +652,16 @@ export default function OneSignalAdminPage() {
                             color: rule.enabled ? '#15803d' : '#64748b',
                           }}
                         >
-                          {rule.enabled ? '✓ Notificação Ativada' : 'Desativada'}
+                          {rule.enabled ? '✓ Ativada' : 'Desativada'}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0' }}>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0', lineHeight: 1.4 }}>
                         {rule.description}
                       </p>
                     </div>
 
                     {/* BOTÃO SWITCH LIGAR/DESLIGAR */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                       <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: rule.enabled ? '#0f766e' : '#94a3b8' }}>
                           {rule.enabled ? 'Ligado' : 'Desligado'}
@@ -685,19 +699,20 @@ export default function OneSignalAdminPage() {
                   {/* VISUALIZAÇÃO / EDIÇÃO DO TEXTO */}
                   {!isEditing ? (
                     <div style={{ background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div className="onesignal-preview-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
                           Mensagem que aparece na tela:
                         </span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="onesignal-preview-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             onClick={() => handleStartEdit(rule)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '4px',
-                              padding: '4px 10px',
+                              padding: '6px 10px',
                               background: '#ffffff',
                               border: '1px solid #cbd5e1',
                               borderRadius: '6px',
@@ -717,8 +732,9 @@ export default function OneSignalAdminPage() {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '4px',
-                              padding: '4px 10px',
+                              padding: '6px 10px',
                               background: '#ecfdf5',
                               border: '1px solid #a7f3d0',
                               borderRadius: '6px',
@@ -908,6 +924,7 @@ export default function OneSignalAdminPage() {
               return (
                 <div
                   key={rule.key}
+                  className="onesignal-rule-card"
                   style={{
                     background: '#ffffff',
                     borderRadius: '18px',
@@ -918,15 +935,15 @@ export default function OneSignalAdminPage() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginBottom: '14px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  <div className="onesignal-rule-top" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: '1.02rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
                           {rule.label}
                         </h3>
                         <span
                           style={{
-                            fontSize: '0.72rem',
+                            fontSize: '0.7rem',
                             fontWeight: 800,
                             padding: '2px 8px',
                             borderRadius: '6px',
@@ -934,16 +951,16 @@ export default function OneSignalAdminPage() {
                             color: rule.enabled ? '#1d4ed8' : '#64748b',
                           }}
                         >
-                          {rule.enabled ? '✓ Notificação Ativada' : 'Desativada'}
+                          {rule.enabled ? '✓ Ativada' : 'Desativada'}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0' }}>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0', lineHeight: 1.4 }}>
                         {rule.description}
                       </p>
                     </div>
 
                     {/* BOTÃO SWITCH LIGAR/DESLIGAR */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                       <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: rule.enabled ? '#1d4ed8' : '#94a3b8' }}>
                           {rule.enabled ? 'Ligado' : 'Desligado'}
@@ -981,19 +998,20 @@ export default function OneSignalAdminPage() {
                   {/* VISUALIZAÇÃO / EDIÇÃO DO TEXTO */}
                   {!isEditing ? (
                     <div style={{ background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div className="onesignal-preview-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
                           Mensagem que o paciente recebe no celular:
                         </span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="onesignal-preview-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             onClick={() => handleStartEdit(rule)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '4px',
-                              padding: '4px 10px',
+                              padding: '6px 10px',
                               background: '#ffffff',
                               border: '1px solid #cbd5e1',
                               borderRadius: '6px',
@@ -1013,8 +1031,9 @@ export default function OneSignalAdminPage() {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '4px',
-                              padding: '4px 10px',
+                              padding: '6px 10px',
                               background: '#eff6ff',
                               border: '1px solid #bfdbfe',
                               borderRadius: '6px',
@@ -1366,7 +1385,7 @@ export default function OneSignalAdminPage() {
 
       {/* ABA 4: HISTÓRICO DE DISPAROS */}
       {activeTab === 'logs' && (
-        <div style={{ background: '#ffffff', borderRadius: '20px', border: '1.5px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 12px rgba(15,23,42,0.04)' }}>
+        <div className="onesignal-logs-card" style={{ background: '#ffffff', borderRadius: '20px', border: '1.5px solid #e2e8f0', padding: '24px', boxShadow: '0 4px 12px rgba(15,23,42,0.04)' }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: '0 0 14px' }}>
             Histórico dos Últimos Envios
           </h3>
@@ -1376,48 +1395,147 @@ export default function OneSignalAdminPage() {
               Nenhum disparo de push registrado ainda.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
-                    <th style={{ padding: '8px 10px' }}>Data / Hora</th>
-                    <th style={{ padding: '8px 10px' }}>Destinatários</th>
-                    <th style={{ padding: '8px 10px' }}>Título & Mensagem</th>
-                    <th style={{ padding: '8px 10px' }}>Status</th>
-                    <th style={{ padding: '8px 10px' }}>Alcance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
-                        {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#334155', fontWeight: 700, fontSize: '0.74rem' }}>
+            <>
+              <div className="onesignal-logs-desktop" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
+                      <th style={{ padding: '8px 10px' }}>Data / Hora</th>
+                      <th style={{ padding: '8px 10px' }}>Destinatários</th>
+                      <th style={{ padding: '8px 10px' }}>Título & Mensagem</th>
+                      <th style={{ padding: '8px 10px' }}>Status</th>
+                      <th style={{ padding: '8px 10px' }}>Alcance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => (
+                      <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                          {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
+                        </td>
+                        <td style={{ padding: '10px 10px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#334155', fontWeight: 700, fontSize: '0.74rem' }}>
+                            {log.targetType === 'all' ? 'Todos' : log.targetType === 'admins' ? 'Admins' : log.targetType === 'clients' ? 'Pacientes' : 'Específico'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 10px' }}>
+                          <strong style={{ color: '#0f172a', display: 'block' }}>{log.title}</strong>
+                          <span style={{ color: '#64748b', fontSize: '0.76rem' }}>{log.message}</span>
+                        </td>
+                        <td style={{ padding: '10px 10px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', background: log.status === 'enviado' ? '#dcfce7' : '#fee2e2', color: log.status === 'enviado' ? '#15803d' : '#b91c1c', fontWeight: 800, fontSize: '0.72rem' }}>
+                            {log.status === 'enviado' ? '✓ Enviado' : 'Erro'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 10px', fontWeight: 800, color: '#0f172a' }}>
+                          {log.recipientsCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="onesignal-logs-mobile" style={{ display: 'none', flexDirection: 'column', gap: '10px' }}>
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#e2e8f0', color: '#334155', fontWeight: 700, fontSize: '0.7rem' }}>
                           {log.targetType === 'all' ? 'Todos' : log.targetType === 'admins' ? 'Admins' : log.targetType === 'clients' ? 'Pacientes' : 'Específico'}
                         </span>
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <strong style={{ color: '#0f172a', display: 'block' }}>{log.title}</strong>
-                        <span style={{ color: '#64748b', fontSize: '0.76rem' }}>{log.message}</span>
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: log.status === 'enviado' ? '#dcfce7' : '#fee2e2', color: log.status === 'enviado' ? '#15803d' : '#b91c1c', fontWeight: 800, fontSize: '0.72rem' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: log.status === 'enviado' ? '#dcfce7' : '#fee2e2', color: log.status === 'enviado' ? '#15803d' : '#b91c1c', fontWeight: 800, fontSize: '0.7rem' }}>
                           {log.status === 'enviado' ? '✓ Enviado' : 'Erro'}
                         </span>
-                      </td>
-                      <td style={{ padding: '10px 10px', fontWeight: 800, color: '#0f172a' }}>
-                        {log.recipientsCount}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                        {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
+                      </span>
+                    </div>
+                    <strong style={{ color: '#0f172a', fontSize: '0.84rem' }}>{log.title}</strong>
+                    <span style={{ color: '#475569', fontSize: '0.78rem', lineHeight: 1.4 }}>{log.message}</span>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, marginTop: '2px' }}>
+                      Alcance: <strong style={{ color: '#0f172a' }}>{log.recipientsCount}</strong> dispositivo(s)
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
+
+      <style jsx>{`
+        .tab-text-short {
+          display: none;
+        }
+        @media (max-width: 768px) {
+          .onesignal-page-wrap {
+            padding: 12px 10px 80px !important;
+            gap: 14px !important;
+          }
+          .onesignal-toast {
+            left: 12px !important;
+            right: 12px !important;
+            bottom: 16px !important;
+          }
+          .onesignal-title {
+            font-size: 1.25rem !important;
+          }
+          .onesignal-refresh-btn {
+            width: 100%;
+          }
+          .onesignal-device-card {
+            padding: 14px !important;
+          }
+          .onesignal-activate-btn {
+            width: 100%;
+          }
+          .onesignal-tabs-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .onesignal-tab-btn {
+            padding: 9px 8px !important;
+            font-size: 0.78rem !important;
+          }
+          .tab-text-full {
+            display: none;
+          }
+          .tab-text-short {
+            display: inline;
+          }
+          .onesignal-rule-card {
+            padding: 14px !important;
+            border-radius: 14px !important;
+          }
+          .onesignal-preview-actions {
+            width: 100%;
+          }
+          .onesignal-preview-actions button {
+            flex: 1 1 auto;
+          }
+          .onesignal-logs-card {
+            padding: 14px !important;
+          }
+          .onesignal-logs-desktop {
+            display: none !important;
+          }
+          .onesignal-logs-mobile {
+            display: flex !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

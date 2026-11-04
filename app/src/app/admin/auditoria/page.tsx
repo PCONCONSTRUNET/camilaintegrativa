@@ -435,10 +435,10 @@ export default function AuditoriaPage() {
   };
 
   return (
-    <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 60px' }}>
+    <div className="audit-page-wrap" style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 60px' }}>
       {/* Top Banner de Conformidade Legal */}
       <div
-        className="no-print"
+        className="no-print audit-hero-banner"
         style={{
           background: 'linear-gradient(135deg, #182B38 0%, #245D80 100%)',
           borderRadius: '16px',
@@ -455,6 +455,7 @@ export default function AuditoriaPage() {
       >
         <div>
           <div
+            className="audit-hero-pill"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -469,10 +470,10 @@ export default function AuditoriaPage() {
               marginBottom: '10px',
             }}
           >
-            <ShieldCheck size={14} color="#D4A843" />
-            Conformidade LGPD &bull; Lei Federal 13.709/2018 (Art. 37)
+            <ShieldCheck size={14} color="#D4A843" style={{ flexShrink: 0 }} />
+            <span>Conformidade LGPD &bull; Lei 13.709/2018 (Art. 37)</span>
           </div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+          <h1 className="audit-hero-title" style={{ fontSize: '1.65rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
             Trilha de Auditoria & Sigilo Terapêutico
           </h1>
           <p style={{ margin: '6px 0 0', fontSize: '0.86rem', color: '#B8D5E5', maxWidth: '680px', lineHeight: 1.45 }}>
@@ -481,13 +482,14 @@ export default function AuditoriaPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="audit-hero-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleExportCsv}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '6px',
               padding: '9px 15px',
               borderRadius: '10px',
@@ -500,7 +502,7 @@ export default function AuditoriaPage() {
               boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
             }}
           >
-            <Download size={15} /> Exportar Relatório (CSV)
+            <Download size={15} /> Exportar CSV
           </button>
           <button
             type="button"
@@ -508,6 +510,7 @@ export default function AuditoriaPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '6px',
               padding: '9px 15px',
               borderRadius: '10px',
@@ -519,14 +522,14 @@ export default function AuditoriaPage() {
               cursor: 'pointer',
             }}
           >
-            <Printer size={15} /> Imprimir / Salvar em PDF
+            <Printer size={15} /> Imprimir / PDF
           </button>
         </div>
       </div>
 
       {/* Cards de Métricas */}
       <div
-        className="no-print"
+        className="no-print audit-kpi-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -534,54 +537,54 @@ export default function AuditoriaPage() {
           marginBottom: '24px',
         }}
       >
-        <div style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
-            <span>Total de Ações Auditadas</span>
-            <Lock size={18} color="#245D80" />
+        <div className="audit-kpi-card" style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
+            <span>Ações Auditadas</span>
+            <Lock size={17} color="#245D80" style={{ flexShrink: 0 }} />
           </div>
-          <p style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: '8px 0 0' }}>
+          <p className="audit-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: '6px 0 0' }}>
             {stats.totalLogs.toLocaleString('pt-BR')}
           </p>
           <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700 }}>✓ Trilha ativa e protegida</span>
         </div>
 
-        <div style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
-            <span>Consentimentos Jurídicos LGPD</span>
-            <ShieldCheck size={18} color="#059669" />
+        <div className="audit-kpi-card" style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
+            <span>Consentimentos LGPD</span>
+            <ShieldCheck size={17} color="#059669" style={{ flexShrink: 0 }} />
           </div>
-          <p style={{ fontSize: '1.65rem', fontWeight: 800, color: '#065f46', margin: '8px 0 0' }}>
+          <p className="audit-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#065f46', margin: '6px 0 0' }}>
             {stats.totalConsents.toLocaleString('pt-BR')}
           </p>
-          <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>Veracidade & Abordagem Terapêutica</span>
+          <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>Veracidade & Abordagem</span>
         </div>
 
-        <div style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
+        <div className="audit-kpi-card" style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
             <span>Acessos a Prontuários</span>
-            <FileText size={18} color="#0284c7" />
+            <FileText size={17} color="#0284c7" style={{ flexShrink: 0 }} />
           </div>
-          <p style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0369a1', margin: '8px 0 0' }}>
+          <p className="audit-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0369a1', margin: '6px 0 0' }}>
             {stats.totalProntuarioAccess.toLocaleString('pt-BR')}
           </p>
-          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Sigilo e rastreabilidade médica</span>
+          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Sigilo e rastreabilidade</span>
         </div>
 
-        <div style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
+        <div className="audit-kpi-card" style={{ background: '#ffffff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
             <span>Alertas de Segurança</span>
-            <AlertTriangle size={18} color="#d97706" />
+            <AlertTriangle size={17} color="#d97706" style={{ flexShrink: 0 }} />
           </div>
-          <p style={{ fontSize: '1.65rem', fontWeight: 800, color: stats.totalSecurityAlerts > 0 ? '#b91c1c' : '#166534', margin: '8px 0 0' }}>
+          <p className="audit-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 800, color: stats.totalSecurityAlerts > 0 ? '#b91c1c' : '#166534', margin: '6px 0 0' }}>
             {stats.totalSecurityAlerts.toLocaleString('pt-BR')}
           </p>
-          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Tentativas de login ou anomalias</span>
+          <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Logins ou anomalias</span>
         </div>
       </div>
 
       {/* Barra de Filtros e Busca */}
       <div
-        className="no-print"
+        className="no-print audit-filter-bar"
         style={{
           background: '#ffffff',
           borderRadius: '16px',
@@ -595,9 +598,9 @@ export default function AuditoriaPage() {
           gap: '14px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+        <div className="audit-filter-controls" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
           {/* Busca */}
-          <div style={{ position: 'relative', minWidth: '260px', flex: 1 }}>
+          <div className="audit-search-wrap" style={{ position: 'relative', minWidth: '240px', flex: 1 }}>
             <Search
               size={16}
               color="#94a3b8"
@@ -624,6 +627,7 @@ export default function AuditoriaPage() {
 
           {/* Categoria */}
           <select
+            className="audit-select"
             value={category}
             onChange={(e) => {
               setCategory(e.target.value);
@@ -640,7 +644,7 @@ export default function AuditoriaPage() {
             }}
           >
             <option value="all">Todas as Categorias</option>
-            <option value="paciente">👤 Gestão de Pacientes (Exclusões/Cadastros)</option>
+            <option value="paciente">👤 Gestão de Pacientes</option>
             <option value="consentimento_lgpd">🛡️ Consentimentos LGPD</option>
             <option value="prontuario">📋 Prontuários & Saúde</option>
             <option value="anamnese">✨ Ficha de Anamnese</option>
@@ -652,6 +656,7 @@ export default function AuditoriaPage() {
 
           {/* Período */}
           <select
+            className="audit-select"
             value={period}
             onChange={(e) => {
               setPeriod(e.target.value as 'today' | '7days' | '30days' | 'all');
@@ -675,6 +680,7 @@ export default function AuditoriaPage() {
 
           {/* Severidade */}
           <select
+            className="audit-select"
             value={severity}
             onChange={(e) => {
               setSeverity(e.target.value);
@@ -699,11 +705,13 @@ export default function AuditoriaPage() {
 
         <button
           type="button"
+          className="audit-refresh-btn"
           onClick={() => void loadLogs()}
           disabled={loading}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
             padding: '9px 14px',
             borderRadius: '10px',
@@ -720,7 +728,7 @@ export default function AuditoriaPage() {
         </button>
       </div>
 
-      {/* Tabela de Registros de Auditoria */}
+      {/* Tabela / Cards de Registros de Auditoria */}
       <div
         className="no-print"
         style={{
@@ -731,7 +739,8 @@ export default function AuditoriaPage() {
           boxShadow: '0 4px 12px rgba(15,23,42,0.03)',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
+        {/* Visão Desktop (Tabela) */}
+        <div className="audit-logs-desktop" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -764,7 +773,6 @@ export default function AuditoriaPage() {
               ) : (
                 logs.map((log) => {
                   const catBadge = getCategoryBadge(log.category);
-                  const sevBadge = getSeverityBadge(log.severity);
                   return (
                     <tr
                       key={log.id}
@@ -852,8 +860,110 @@ export default function AuditoriaPage() {
           </table>
         </div>
 
+        {/* Visão Mobile (Cards) */}
+        <div className="audit-logs-mobile" style={{ display: 'none', flexDirection: 'column' }}>
+          {loading ? (
+            <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+              <RefreshCw size={22} className="spin" style={{ margin: '0 auto 10px' }} />
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem' }}>Consultando trilha de auditoria...</p>
+            </div>
+          ) : logs.length === 0 ? (
+            <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+              <ShieldCheck size={32} color="#94a3b8" style={{ margin: '0 auto 8px' }} />
+              <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: '#1e293b' }}>Nenhum registro encontrado</h3>
+              <p style={{ margin: 0, fontSize: '0.78rem' }}>
+                Não há eventos correspondentes aos filtros selecionados.
+              </p>
+            </div>
+          ) : (
+            logs.map((log) => {
+              const catBadge = getCategoryBadge(log.category);
+              return (
+                <div
+                  key={log.id}
+                  style={{
+                    padding: '14px',
+                    borderBottom: '1px solid #f1f5f9',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        borderRadius: '7px',
+                        background: catBadge.bg,
+                        color: catBadge.color,
+                        border: `1px solid ${catBadge.border}`,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {catBadge.icon}
+                      {catBadge.label}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                      {formatBrasilia(log.createdAt)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.86rem', marginBottom: '2px' }}>
+                      {log.title}
+                    </strong>
+                    <p style={{ margin: 0, color: '#475569', fontSize: '0.78rem', lineHeight: 1.4 }}>
+                      {log.description}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+                      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#1e293b' }}>
+                        {log.actorName}{' '}
+                        <span style={{ fontSize: '0.68rem', color: log.actorType === 'admin' ? '#0f766e' : log.actorType === 'paciente' ? '#2563eb' : '#64748b' }}>
+                          ({log.actorType === 'admin' ? 'Admin' : log.actorType === 'paciente' ? 'Paciente' : 'Sistema'})
+                        </span>
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace' }}>
+                        IP: {log.ipAddress || 'Não registrado'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLog(log)}
+                      style={{
+                        padding: '6px 11px',
+                        borderRadius: '8px',
+                        background: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        color: '#334155',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Eye size={13} /> Detalhes
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Paginação */}
         <div
+          className="audit-pagination"
           style={{
             padding: '14px 20px',
             background: '#f8fafc',
@@ -861,6 +971,8 @@ export default function AuditoriaPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
             fontSize: '0.82rem',
             color: '#64748b',
           }}
@@ -928,11 +1040,12 @@ export default function AuditoriaPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '14px',
           }}
           onClick={() => setSelectedLog(null)}
         >
           <div
+            className="audit-detail-modal"
             style={{
               background: '#ffffff',
               borderRadius: '20px',
@@ -968,15 +1081,15 @@ export default function AuditoriaPage() {
               <X size={16} />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <ShieldCheck size={20} color="#245D80" />
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Registro de Auditoria Oficial</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingRight: '28px' }}>
+              <ShieldCheck size={20} color="#245D80" style={{ flexShrink: 0 }} />
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Registro de Auditoria Oficial</h2>
             </div>
-            <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: '#64748b' }}>
+            <p style={{ margin: '0 0 18px', fontSize: '0.8rem', color: '#64748b' }}>
               Evidência técnica registrada para fins de conformidade jurídica e fiscalização (LGPD).
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+            <div className="audit-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Data & Hora (Brasília)</span>
                 <p style={{ margin: '4px 0 0', fontWeight: 700, fontSize: '0.86rem' }}>{formatBrasilia(selectedLog.createdAt)}</p>
@@ -998,7 +1111,7 @@ export default function AuditoriaPage() {
 
               <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Ação Registrada</span>
-                <p style={{ margin: '4px 0 0', fontWeight: 700, fontSize: '0.86rem' }}>{selectedLog.action}</p>
+                <p style={{ margin: '4px 0 0', fontWeight: 700, fontSize: '0.86rem', wordBreak: 'break-word' }}>{selectedLog.action}</p>
               </div>
             </div>
 
@@ -1198,6 +1311,73 @@ export default function AuditoriaPage() {
         @media screen {
           .print-only {
             display: none !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .audit-page-wrap {
+            padding: 12px 10px 80px !important;
+          }
+          .audit-hero-banner {
+            padding: 16px !important;
+            margin-bottom: 14px !important;
+            border-radius: 14px !important;
+          }
+          .audit-hero-title {
+            font-size: 1.25rem !important;
+          }
+          .audit-hero-actions {
+            width: 100%;
+          }
+          .audit-hero-actions button {
+            flex: 1 1 calc(50% - 6px);
+          }
+          .audit-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-bottom: 14px !important;
+          }
+          .audit-kpi-card {
+            padding: 12px 14px !important;
+          }
+          .audit-kpi-val {
+            font-size: 1.3rem !important;
+          }
+          .audit-filter-bar {
+            padding: 12px !important;
+            margin-bottom: 14px !important;
+            gap: 10px !important;
+          }
+          .audit-filter-controls {
+            width: 100%;
+            gap: 8px !important;
+          }
+          .audit-search-wrap {
+            min-width: 100% !important;
+          }
+          .audit-select {
+            flex: 1 1 calc(50% - 4px);
+            min-width: 130px;
+          }
+          .audit-refresh-btn {
+            width: 100%;
+          }
+          .audit-logs-desktop {
+            display: none !important;
+          }
+          .audit-logs-mobile {
+            display: flex !important;
+          }
+          .audit-pagination {
+            padding: 12px 14px !important;
+            justify-content: center !important;
+          }
+          .audit-detail-modal {
+            padding: 18px 16px !important;
+            border-radius: 16px !important;
+          }
+          .audit-detail-grid {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
           }
         }
         @media print {
