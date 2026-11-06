@@ -1608,12 +1608,6 @@ export async function createInternalAppointment(
   if (durationMinutes < 15 || durationMinutes > 480) {
     throw new BookingValidationError('A duração deve ser de no mínimo 15 minutos e no máximo 8 horas.');
   }
-  if (
-    input.bookingKind === 'regular'
-    && !(await fitsWorkingSchedule(database, IDS.professional, input.date, input.time, start, end))
-  ) {
-    throw new BookingValidationError('O horário está fora da jornada. Use um encaixe e informe o motivo.');
-  }
   const appointmentId = randomUUID();
 
   (await database.exec('BEGIN IMMEDIATE'));
@@ -1885,13 +1879,6 @@ export async function editAppointment(
     const timeChanged =
       new Date(current.start_at).getTime() !== start.getTime() ||
       new Date(current.end_at).getTime() !== end.getTime();
-    if (
-      timeChanged
-      && bookingKind === 'regular'
-      && !(await fitsWorkingSchedule(database, current.professional_id, input.date, input.time, start, end))
-    ) {
-      throw new BookingValidationError('O horário está fora da jornada. Use um encaixe e informe o motivo.');
-    }
 
     if (!['cancelado', 'nao_compareceu'].includes(input.status)) {
       const conflict = (await findScheduleConflict(database, {
@@ -2020,20 +2007,6 @@ export async function resizeAppointment(
     const previousEndAt = storedEndAt.toISOString();
 
     if (nextEndAt !== previousEndAt) {
-      const startDate = dateKeyInClinicTimeZone(start);
-      if (
-        current.booking_kind === 'regular'
-        && !(await fitsWorkingSchedule(
-          database,
-          current.professional_id,
-          startDate,
-          timeKeyInClinicTimeZone(start),
-          start,
-          end,
-        ))
-      ) {
-        throw new BookingValidationError('O novo término ultrapassa a jornada. Converta o atendimento em encaixe para continuar.');
-      }
       const conflict = (await findScheduleConflict(database, {
         professionalId: current.professional_id,
         start,

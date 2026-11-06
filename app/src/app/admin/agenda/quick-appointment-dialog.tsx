@@ -166,6 +166,87 @@ export default function QuickAppointmentDialog({
   const [isSearchingClient, setIsSearchingClient] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Cadastro rápido inline de novo cliente (sem sair do modal e sem quebrar PWA)
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientCpf, setNewClientCpf] = useState('');
+  const [newClientBirthDate, setNewClientBirthDate] = useState('');
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientCreateError, setClientCreateError] = useState<string | null>(null);
+
+  async function handleCreateClient(e?: FormEvent) {
+    if (e) e.preventDefault();
+    setClientCreateError(null);
+    const trimmedName = newClientName.trim();
+    const cleanPhone = newClientPhone.replace(/\D/g, '');
+    const cleanCpf = newClientCpf.replace(/\D/g, '');
+
+    if (trimmedName.length < 3) {
+      setClientCreateError('Informe o nome completo do paciente (mínimo 3 letras).');
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      setClientCreateError('Informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
+      return;
+    }
+    if (cleanCpf && cleanCpf.length !== 11) {
+      setClientCreateError('CPF inválido. Deve conter 11 dígitos.');
+      return;
+    }
+
+    setSavingClient(true);
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          phone: cleanPhone,
+          cpf: cleanCpf || null,
+          birthDate: newClientBirthDate || null,
+          status: 'ativo',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Não foi possível cadastrar o paciente.');
+      }
+
+      const createdId = data.client?.id;
+      if (!createdId) throw new Error('ID do paciente não retornado.');
+
+      const newClientSummary: ClientSummary = {
+        id: createdId,
+        name: trimmedName,
+        phone: cleanPhone,
+        cpf: cleanCpf || null,
+        birthDate: newClientBirthDate || null,
+        email: null,
+        status: 'ativo',
+        createdAt: new Date().toISOString(),
+        nextAppointmentAt: null,
+        completedAppointments: 0,
+        activePackagesCount: 0,
+        activePackagesRemainingSessions: 0,
+      };
+
+      setClients((prev) => [newClientSummary, ...prev]);
+      setForm((prev) => ({ ...prev, clientId: createdId }));
+      setIsSearchingClient(false);
+      setClientSearch('');
+      setIsCreatingClient(false);
+      setNewClientName('');
+      setNewClientPhone('');
+      setNewClientCpf('');
+      setNewClientBirthDate('');
+    } catch (err) {
+      setClientCreateError(err instanceof Error ? err.message : 'Erro ao cadastrar paciente.');
+    } finally {
+      setSavingClient(false);
+    }
+  }
+
   const selectedClient = useMemo(
     () => clients.find((c) => c.id === form.clientId) ?? null,
     [clients, form.clientId],
@@ -281,9 +362,12 @@ export default function QuickAppointmentDialog({
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
     document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
     };
   }, []);
 
@@ -611,7 +695,7 @@ export default function QuickAppointmentDialog({
                           style={{
                             width: '100%',
                             padding: '9px 32px 9px 34px',
-                            fontSize: '0.86rem',
+                            fontSize: '16px',
                             border: '1.5px solid #0f766e',
                             borderRadius: '10px',
                             background: '#ffffff',
@@ -683,22 +767,27 @@ export default function QuickAppointmentDialog({
                         {filteredClients.length === 0 ? (
                           <div style={{ padding: '16px 12px', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>
                             <p style={{ margin: '0 0 8px' }}>Nenhum cliente encontrado com "{clientSearch}".</p>
-                            <a
-                              href="/admin/clientes"
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCreatingClient(true);
+                                setNewClientName(clientSearch);
+                              }}
                               style={{
                                 color: '#0f766e',
                                 fontWeight: 800,
-                                textDecoration: 'none',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                fontSize: '0.78rem',
+                                fontSize: '0.82rem',
+                                padding: '4px 8px',
                               }}
                             >
-                              <Plus size={13} /> Cadastrar cliente agora
-                            </a>
+                              <Plus size={14} /> Cadastrar "{clientSearch}" agora
+                            </button>
                           </div>
                         ) : (
                           filteredClients.map((c) => {
@@ -768,9 +857,29 @@ export default function QuickAppointmentDialog({
                   )}
                 </div>
 
-                <a className="gcal-quick-new-client" href="/admin/clientes" target="_blank" rel="noreferrer" style={{ marginTop: '2px' }}>
-                  <Plus size={13} /> Cadastrar novo cliente
-                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingClient(true);
+                    setNewClientName(clientSearch);
+                  }}
+                  className="gcal-quick-new-client"
+                  style={{
+                    marginTop: '4px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    color: '#0f766e',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  <Plus size={14} /> Cadastrar novo cliente
+                </button>
 
                 {/* Exibição e Seleção de Pacotes Ativos do Cliente */}
                 {clientPackages.length > 0 && (
@@ -909,7 +1018,7 @@ export default function QuickAppointmentDialog({
                         style={{
                           flex: 1,
                           padding: '8px 12px',
-                          fontSize: '0.86rem',
+                          fontSize: '16px',
                           fontWeight: 600,
                           border: '1.5px solid #0f766e',
                           borderRadius: '8px',
@@ -1040,6 +1149,215 @@ export default function QuickAppointmentDialog({
           </footer>
         </form>
       </section>
+
+      {/* Modal Rápido de Cadastro de Novo Paciente (Dentro da Agenda sem Sair do App/PWA) */}
+      {isCreatingClient && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 300,
+            background: 'rgba(15, 23, 42, 0.72)',
+            backdropFilter: 'blur(4px)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !savingClient) setIsCreatingClient(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: '#ffffff',
+              borderRadius: '18px',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.3)',
+              border: '1.5px solid #cbd5e1',
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              maxHeight: '90dvh',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#0f766e', color: '#ffffff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <UserRound size={19} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Cadastrar Novo Paciente
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                    Preencha os dados para vincular ao agendamento
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreatingClient(false)}
+                disabled={savingClient}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {clientCreateError && (
+              <div style={{ padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', fontSize: '0.78rem', fontWeight: 600 }}>
+                {clientCreateError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateClient} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                  Nome Completo <span style={{ color: '#dc2626' }}>*</span>
+                </span>
+                <input
+                  type="text"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="Ex: Maria da Silva"
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '16px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    minHeight: '44px',
+                  }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                  WhatsApp / Celular <span style={{ color: '#dc2626' }}>*</span>
+                </span>
+                <input
+                  type="tel"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(formatPhone(e.target.value))}
+                  placeholder="(11) 99999-9999"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '16px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    minHeight: '44px',
+                  }}
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                    CPF <small style={{ color: '#94a3b8' }}>(opcional)</small>
+                  </span>
+                  <input
+                    type="text"
+                    value={newClientCpf}
+                    onChange={(e) => setNewClientCpf(formatCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      minHeight: '44px',
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
+                    Nascimento <small style={{ color: '#94a3b8' }}>(opcional)</small>
+                  </span>
+                  <input
+                    type="date"
+                    value={newClientBirthDate}
+                    onChange={(e) => setNewClientBirthDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      minHeight: '44px',
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingClient(false)}
+                  disabled={savingClient}
+                  style={{
+                    padding: '9px 15px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingClient}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#0f766e',
+                    color: '#ffffff',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {savingClient ? (
+                    <>
+                      <LoaderCircle size={15} className="is-spinning" /> Salvando...
+                    </>
+                  ) : (
+                    '✓ Salvar e Selecionar'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
