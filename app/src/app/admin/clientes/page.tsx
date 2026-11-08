@@ -29,10 +29,12 @@ import {
   Clock,
   ClipboardList,
   AlertTriangle,
+  Smartphone,
 } from 'lucide-react';
 import type { ClientSummary } from '@/lib/domain';
 import { formatPhone, maskPhone, maskCpf, formatCurrency } from '@/lib/utils';
 import { QuickDocumentsModal, type QuickDocumentPrefill } from '@/components/quick-documents-modal';
+import { ImportContactsModal } from '@/components/import-contacts-modal';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
 import { getInstantCache, setInstantCache } from '@/lib/client-cache';
 
@@ -152,6 +154,9 @@ export default function ClientesPage() {
   // Modal Gerador de Documentos / Recibos
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [docPrefill, setDocPrefill] = useState<QuickDocumentPrefill | undefined>(undefined);
+
+  // Modal Importar Contatos do Celular
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Modal Confirmar Exclusão
   const [deletingClient, setDeletingClient] = useState<ClientSummary | null>(null);
@@ -498,6 +503,29 @@ export default function ClientesPage() {
           >
             <ClipboardList size={16} />
             {anamneseLinkCopied ? 'Link Copiado!' : 'Copiar Link da Anamnese'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            style={{
+              borderRadius: '999px',
+              padding: '0.6rem 1.15rem',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              background: '#f8fafc',
+              color: '#0f172a',
+              border: '1.5px solid #cbd5e1',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
+            }}
+            title="Puxar contatos do seu celular ou arquivo de contatos para cadastrar clientes"
+          >
+            <Smartphone size={16} style={{ color: '#2563eb' }} /> Puxar Contatos do Celular
           </button>
 
           <button
@@ -2680,6 +2708,17 @@ export default function ClientesPage() {
         isOpen={docModalOpen}
         onClose={() => setDocModalOpen(false)}
         prefill={docPrefill}
+      />
+
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={() => {
+          load();
+          setSuccessMsg('✓ Contatos importados com sucesso para a clínica!');
+          setTimeout(() => setSuccessMsg(''), 5000);
+        }}
+        existingClients={clients}
       />
     </div>
   );
