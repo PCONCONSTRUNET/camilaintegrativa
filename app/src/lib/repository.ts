@@ -1949,15 +1949,22 @@ export async function editAppointment(
       JSON.stringify({ previous: previousValue, next: newValue, durationMinutes }),
     ));
 
+    const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
     const updated = (await database.prepare(`
-      SELECT a.id, a.client_id, c.name AS client_name, a.service_id, s.name AS service_name,
+      SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone,
+             (SELECT cr.cpf FROM client_records cr WHERE cr.client_id = a.client_id LIMIT 1) AS client_cpf,
+             a.service_id, s.name AS service_name,
              a.modality, a.start_at, a.end_at, a.status, a.source, a.booking_kind, a.fit_in_reason,
-             a.administrative_notes, a.updated_at
+             a.administrative_notes, a.client_package_id, a.session_number, a.updated_at,
+             cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status,
+             (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_overdue_balance_cents,
+             (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_oldest_overdue_due_at
       FROM appointments a
       JOIN clients c ON c.id = a.client_id
       JOIN services s ON s.id = a.service_id
+      LEFT JOIN client_packages cp ON cp.id = a.client_package_id
       WHERE a.id = ? AND a.clinic_id = ?
-    `).get(appointmentId, IDS.clinic));
+    `).get(todaySimpleStr, todaySimpleStr, appointmentId, IDS.clinic));
     (await database.exec('COMMIT'));
     return mapAppointmentSummary(updated);
   } catch (error) {
@@ -2051,15 +2058,22 @@ export async function resizeAppointment(
       ));
     }
 
+    const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
     const updated = (await database.prepare(`
-      SELECT a.id, a.client_id, c.name AS client_name, a.service_id, s.name AS service_name,
+      SELECT a.id, a.client_id, c.name AS client_name, c.phone AS client_phone,
+             (SELECT cr.cpf FROM client_records cr WHERE cr.client_id = a.client_id LIMIT 1) AS client_cpf,
+             a.service_id, s.name AS service_name,
              a.modality, a.start_at, a.end_at, a.status, a.source, a.booking_kind, a.fit_in_reason,
-             a.administrative_notes, a.updated_at
+             a.administrative_notes, a.client_package_id, a.session_number, a.updated_at,
+             cp.package_name, cp.total_sessions AS package_total_sessions, cp.used_sessions AS package_used_sessions, cp.status AS package_status,
+             (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_overdue_balance_cents,
+             (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = a.client_id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS client_oldest_overdue_due_at
       FROM appointments a
       JOIN clients c ON c.id = a.client_id
       JOIN services s ON s.id = a.service_id
+      LEFT JOIN client_packages cp ON cp.id = a.client_package_id
       WHERE a.id = ? AND a.clinic_id = ?
-    `).get(appointmentId, IDS.clinic));
+    `).get(todaySimpleStr, todaySimpleStr, appointmentId, IDS.clinic));
     (await database.exec('COMMIT'));
 
     return {

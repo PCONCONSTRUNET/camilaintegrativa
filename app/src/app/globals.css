@@ -3332,7 +3332,17 @@ a:hover { color: var(--color-primary-hover); }
 }
 .gcal-time-event:hover,
 .gcal-time-event.is-selected { z-index: 8; box-shadow: 0 3px 9px rgba(32, 65, 58, .22); }
-.gcal-time-event[draggable="true"] .gcal-time-event-content { cursor: grab; }
+.gcal-time-event[draggable="true"] .gcal-time-event-content,
+.gcal-time-event.is-movable .gcal-time-event-content {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.gcal-time-event.is-drag-origin .gcal-time-event-content {
+  cursor: grabbing;
+}
 .gcal-time-event.is-drag-origin {
   opacity: .3;
   box-shadow: 0 0 0 2px rgba(47, 117, 103, .2);
@@ -3613,7 +3623,7 @@ a:hover { color: var(--color-primary-hover); }
 }
 
 @media (hover: none) {
-  .gcal-event-resize-handle { bottom: -10px; height: 22px; }
+  .gcal-event-resize-handle { bottom: -12px; height: 18px; }
   .gcal-event-resize-handle span { bottom: 9px; opacity: .55; }
 }
 
@@ -9545,7 +9555,7 @@ a:hover { color: var(--color-primary-hover); }
   text-overflow: ellipsis;
 }
 
-.gcal-app.is-mobile-gcal .gcal-timed-calendar.is-week .gcal-time-event span,
+.gcal-app.is-mobile-gcal .gcal-timed-calendar.is-week .gcal-time-event-content > span,
 .gcal-app.is-mobile-gcal .gcal-timed-calendar.is-week .gcal-time-event small,
 .gcal-app.is-mobile-gcal .gcal-timed-calendar.is-week .gcal-event-footer-row {
   display: none;

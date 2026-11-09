@@ -80,6 +80,7 @@ const RESIZE_STEP_MINUTES = 15;
 const MIN_APPOINTMENT_MINUTES = 15;
 const MAX_APPOINTMENT_MINUTES = 480;
 const RESIZE_DRAG_THRESHOLD = 4;
+const MOVE_DRAG_THRESHOLD = 6;
 const AUTO_SCROLL_EDGE = 48;
 const COMPACT_SIDEBAR_QUERY = '(max-width: 900px)';
 
@@ -109,6 +110,18 @@ type MoveDraft = {
 
 type MoveSession = {
   appointmentId: string;
+  pointerId?: number;
+  target?: HTMLElement;
+  startClientX?: number;
+  startClientY?: number;
+  lastClientX?: number;
+  lastClientY?: number;
+  grabOffsetY?: number;
+  durationMinutes?: number;
+  initialDate?: string;
+  initialTime?: string;
+  moved?: boolean;
+  draft?: MoveDraft | null;
 };
 
 function subscribeCompactSidebar(callback: () => void) {
@@ -608,6 +621,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   const [moveSavingId, setMoveSavingId] = useState<string | null>(null);
   const [moveAnnouncement, setMoveAnnouncement] = useState('');
   const moveSessionRef = useRef<MoveSession | null>(null);
+  const suppressNextEventClickRef = useRef(false);
   const closeQuickAppointment = useCallback(() => setQuickSlot(null), []);
   const closeAppointmentEdit = useCallback(() => setEditingAppointment(null), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -705,7 +719,11 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       if (autoScrollFrameRef.current !== null) window.cancelAnimationFrame(autoScrollFrameRef.current);
       autoScrollFrameRef.current = null;
       if (moveSessionRef.current) {
+        const moveSession = moveSessionRef.current;
         moveSessionRef.current = null;
+        if (moveSession.target && moveSession.pointerId !== undefined && moveSession.target.hasPointerCapture(moveSession.pointerId)) {
+          moveSession.target.releasePointerCapture(moveSession.pointerId);
+        }
         setMovingId(null);
         setMoveDraft(null);
         setMoveAnnouncement('Movimentação cancelada.');
@@ -1034,16 +1052,20 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
   }
 
   function cancelMove(announce = false) {
-    const hadActiveMove = Boolean(moveSessionRef.current || movingId || moveDraft);
+    const session = moveSessionRef.current;
+    const hadActiveMove = Boolean(session?.moved || movingId || moveDraft);
     moveSessionRef.current = null;
+    if (session?.target && session.pointerId !== undefined && session.target.hasPointerCapture(session.pointerId)) {
+      session.target.releasePointerCapture(session.pointerId);
+    }
+    stopAutoScroll();
     setMovingId(null);
     setMoveDraft(null);
     if (announce && hadActiveMove) setMoveAnnouncement('Movimentação cancelada.');
   }
 
   function canMove(appointment: AppointmentSummary) {
-    return !compactSidebar
-      && !['concluido', 'cancelado', 'nao_compareceu'].includes(appointment.status);
+    return !['concluido', 'cancelado', 'nao_compareceu'].includes(appointment.status);
   }
 
   function appointmentStartMinute(appointment: AppointmentSummary) {
@@ -1085,13 +1107,160 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
     }
   }
 
+  function updatePointerMovePreview(clientX: number, clientY: number) {
+    const session = moveSessionRef.current;
+    const scroll = timeScrollRef.current;
+    if (!session || !session.moved || !scroll) return;
+    const appointment = appointments.find((item) => item.id === session.appointmentId);
+    if (!appointment) return;
+
+    const columns = Array.from(scroll.querySelectorAll<HTMLElement>('.gcal-time-column[data-date]'));
+    if (columns.length === 0) return;
+
+    let targetCol = columns[0];
+    let minDistance = Infinity;
+    for (const col of columns) {
+      const rect = col.getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right) {
+        targetCol = col;
+        minDistance = 0;
+        break;
+      }
+      const dist = clientX < rect.left ? rect.left - clientX : clientX - rect.right;
+      if (dist < minDistance) {
+        minDistance = dist;
+        targetCol = col;
+      }
+    }
+
+    const date = targetCol.dataset.date;
+    if (!date) return;
+
+    const colRect = targetCol.getBoundingClientRect();
+    const grabOffsetY = session.grabOffsetY ?? 0;
+    const relativeY = clientY - grabOffsetY - colRect.top;
+    const rawMinutes = (relativeY / HOUR_HEIGHT) * 60;
+    const snappedMinutes = Math.round(rawMinutes / RESIZE_STEP_MINUTES) * RESIZE_STEP_MINUTES;
+    const durationMinutes = session.durationMinutes ?? appointmentDuration(appointment);
+    const maxStartMinutes = Math.max(0, END_HOUR * 60 - Math.min(durationMinutes, END_HOUR * 60));
+    const clampedMinutes = Math.max(START_HOUR * 60, Math.min(maxStartMinutes, snappedMinutes));
+    const time = timeFromMinutes(clampedMinutes);
+
+    const hasConflict = hasMoveConflict(appointment, date, time);
+    const nextDraft: MoveDraft = { appointmentId: appointment.id, date, time, hasConflict };
+    session.draft = nextDraft;
+
+    setMoveDraft((current) => (
+      current
+      && current.appointmentId === nextDraft.appointmentId
+      && current.date === nextDraft.date
+      && current.time === nextDraft.time
+      && current.hasConflict === nextDraft.hasConflict
+        ? current
+        : nextDraft
+    ));
+    setMoveAnnouncement(
+      formatFullDate(date, false) + ' às ' + time + '. '
+      + (hasConflict ? 'Conflito com outro atendimento ou bloqueio.' : 'Sem conflito visível; a agenda validará ao soltar.'),
+    );
+  }
+
+  function beginPointerMove(event: ReactPointerEvent<HTMLButtonElement>, appointment: AppointmentSummary) {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (!canMove(appointment) || moveSavingId || resizeSavingId || resizeSessionRef.current) return;
+    touchStartRef.current = null;
+    const cardBounds = event.currentTarget.getBoundingClientRect();
+    const grabOffsetY = Math.max(0, Math.min(cardBounds.height, event.clientY - cardBounds.top));
+    const currentStart = timeParts(appointment.startAt);
+    const initialTime = timeFromMinutes(currentStart.hour * 60 + currentStart.minute);
+    const initialDate = eventDateKey(appointment.startAt);
+    moveSessionRef.current = {
+      appointmentId: appointment.id,
+      pointerId: event.pointerId,
+      target: event.currentTarget,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
+      grabOffsetY,
+      durationMinutes: appointmentDuration(appointment),
+      initialDate,
+      initialTime,
+      moved: false,
+      draft: null,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function movePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const session = moveSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    session.lastClientX = event.clientX;
+    session.lastClientY = event.clientY;
+    const dx = event.clientX - (session.startClientX ?? event.clientX);
+    const dy = event.clientY - (session.startClientY ?? event.clientY);
+    if (!session.moved) {
+      if (Math.hypot(dx, dy) < MOVE_DRAG_THRESHOLD) return;
+      session.moved = true;
+      cancelResize();
+      setSelectedId(null);
+      setSelectedBlockId(null);
+      setSelectedGroupSessionId(null);
+      setQuickSlot(null);
+      setMessage('');
+      setMovingId(session.appointmentId);
+      setMoveAnnouncement('Movendo atendimento. Solte no novo dia e horário.');
+      if (event.pointerType === 'touch' && 'vibrate' in navigator) navigator.vibrate(10);
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    updatePointerMovePreview(event.clientX, event.clientY);
+    if (autoScrollFrameRef.current === null) autoScrollFrameRef.current = window.requestAnimationFrame(runAutoScroll);
+  }
+
+  function finishPointerMove(event: ReactPointerEvent<HTMLButtonElement>, appointment: AppointmentSummary) {
+    const session = moveSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    moveSessionRef.current = null;
+    stopAutoScroll();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (!session.moved) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextEventClickRef.current = true;
+    setMovingId(null);
+
+    const draft = session.draft;
+    if (!draft) {
+      setMoveDraft(null);
+      return;
+    }
+    if (draft.hasConflict) {
+      setMoveDraft(null);
+      setMessage('Não foi possível reagendar: já existe outro atendimento nesse período.');
+      setMoveAnnouncement('Movimentação cancelada por conflito de horário.');
+      return;
+    }
+    if (draft.date === session.initialDate && draft.time === session.initialTime) {
+      setMoveDraft(null);
+      setMoveAnnouncement('O atendimento permaneceu no horário original.');
+      return;
+    }
+    setMoveDraft(draft);
+    void persistMove(appointment, draft);
+  }
+
   function beginMove(event: ReactDragEvent<HTMLDivElement>, appointment: AppointmentSummary) {
     if (!canMove(appointment) || moveSavingId || resizeSavingId || resizeSessionRef.current) {
       event.preventDefault();
       return;
     }
     cancelResize();
-    moveSessionRef.current = { appointmentId: appointment.id };
+    moveSessionRef.current = { appointmentId: appointment.id, moved: true };
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', appointment.id);
     setSelectedId(null);
@@ -1145,11 +1314,14 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           operation: 'edit',
           clientId: appointment.clientId,
           serviceId: appointment.serviceId,
+          clientPackageId: appointment.clientPackageId ?? null,
           modality: appointment.modality,
           date: draft.date,
           time: draft.time,
           endTime: timeFromMinutes(endMinutes),
           status: appointment.status,
+          bookingKind: appointment.bookingKind,
+          fitInReason: appointment.fitInReason ?? null,
           notes: appointment.administrativeNotes ?? '',
           expectedUpdatedAt: appointment.updatedAt,
         }),
@@ -1158,7 +1330,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       if (!response.ok) throw Object.assign(new Error(body?.error ?? 'Não foi possível reagendar o atendimento.'), { status: response.status });
       if (!body?.appointment) throw new Error('Não foi possível obter os dados atualizados do atendimento.');
       const updated = body.appointment as AppointmentSummary;
-      setAppointments((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setAppointments((items) => items.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
       setMessage('Atendimento reagendado para ' + formatCompactDate(draft.date) + ', ' + draft.time + '.');
       setMoveAnnouncement('Atendimento reagendado com sucesso para ' + formatFullDate(draft.date, false) + ' às ' + draft.time + '.');
     } catch (error) {
@@ -1256,22 +1428,32 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
 
   function runAutoScroll() {
     autoScrollFrameRef.current = null;
-    const session = resizeSessionRef.current;
+    const resizeSession = resizeSessionRef.current;
+    const moveSession = moveSessionRef.current;
     const scroll = timeScrollRef.current;
-    if (!session || !scroll) return;
+    const activeY = resizeSession
+      ? resizeSession.lastClientY
+      : (moveSession?.moved && moveSession.lastClientY !== undefined ? moveSession.lastClientY : null);
+    if (activeY === null || !scroll) return;
     const bounds = scroll.getBoundingClientRect();
     const topEdge = bounds.top + 82;
     const bottomEdge = bounds.bottom;
     let speed = 0;
-    if (session.lastClientY < topEdge + AUTO_SCROLL_EDGE) {
-      speed = -Math.min(14, Math.max(4, (topEdge + AUTO_SCROLL_EDGE - session.lastClientY) / 4));
-    } else if (session.lastClientY > bottomEdge - AUTO_SCROLL_EDGE) {
-      speed = Math.min(14, Math.max(4, (session.lastClientY - (bottomEdge - AUTO_SCROLL_EDGE)) / 4));
+    if (activeY < topEdge + AUTO_SCROLL_EDGE) {
+      speed = -Math.min(14, Math.max(4, (topEdge + AUTO_SCROLL_EDGE - activeY) / 4));
+    } else if (activeY > bottomEdge - AUTO_SCROLL_EDGE) {
+      speed = Math.min(14, Math.max(4, (activeY - (bottomEdge - AUTO_SCROLL_EDGE)) / 4));
     }
     if (!speed) return;
     const previousScrollTop = scroll.scrollTop;
     scroll.scrollTop += speed;
-    if (scroll.scrollTop !== previousScrollTop) updateResizePreview(session.lastClientY);
+    if (scroll.scrollTop !== previousScrollTop) {
+      if (resizeSession) {
+        updateResizePreview(resizeSession.lastClientY);
+      } else if (moveSession?.moved && moveSession.lastClientX !== undefined && moveSession.lastClientY !== undefined) {
+        updatePointerMovePreview(moveSession.lastClientX, moveSession.lastClientY);
+      }
+    }
     autoScrollFrameRef.current = window.requestAnimationFrame(runAutoScroll);
   }
 
@@ -1511,6 +1693,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                     + (date === anchorDate ? ' is-selected' : '')
                     + (moveDraft?.date === date ? ' is-move-target' : '')
                   }
+                  data-date={date}
                   style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}
                   onDragOver={(event) => previewMove(event, date)}
                   onDrop={(event) => dropMove(event, date)}
@@ -1645,21 +1828,20 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                     const isShortAppointment = durationMin < 45;
                     const isSaving = resizeSavingId === appointment.id || moveSavingId === appointment.id;
                     const isMoving = movingId === appointment.id;
+                    const isMovable = canMove(appointment) && !moveSavingId && !resizeSavingId;
                     return (
                       <div
                         className={
                           'gcal-time-event event-' + appointment.status
                           + (appointment.bookingKind === 'encaixe' ? ' is-fit-in' : '')
                           + (selectedId === appointment.id ? ' is-selected' : '')
+                          + (isMovable ? ' is-movable' : '')
                           + (appointmentDraft ? ' is-resizing' : '')
                           + (isMoving ? ' is-drag-origin' : '')
                           + (appointmentDraft?.hasConflict ? ' has-conflict' : '')
                           + (isSaving ? ' is-saving' : '')
                         }
                         style={position}
-                        draggable={canMove(appointment) && !moveSavingId && !resizeSavingId}
-                        onDragStart={(event) => beginMove(event, appointment)}
-                        onDragEnd={finishMoveDrag}
                         key={appointment.id}
                       >
                         <button
@@ -1667,8 +1849,24 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                           className="gcal-time-event-content"
                           title={appointment.clientName + ' — ' + appointment.serviceName + ' (' + formatTime(displayedAppointment.startAt) + ' – ' + formatTime(displayedAppointment.endAt) + ')'}
                           aria-describedby={canMove(appointment) ? 'gcal-move-instructions' : undefined}
+                          onPointerDown={(event) => beginPointerMove(event, appointment)}
+                          onPointerMove={movePointerMove}
+                          onPointerUp={(event) => finishPointerMove(event, appointment)}
+                          onPointerCancel={(event) => {
+                            if (moveSessionRef.current?.pointerId !== event.pointerId) return;
+                            event.stopPropagation();
+                            cancelMove(true);
+                          }}
+                          onLostPointerCapture={(event) => {
+                            if (moveSessionRef.current?.pointerId === event.pointerId) cancelMove();
+                          }}
                           onClick={(event) => {
                             event.stopPropagation();
+                            if (suppressNextEventClickRef.current) {
+                              suppressNextEventClickRef.current = false;
+                              event.preventDefault();
+                              return;
+                            }
                             setQuickSlot(null);
                             setSelectedBlockId(null);
                             setSelectedId(appointment.id);
@@ -2075,6 +2273,15 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           className="gcal-main"
           onTouchStart={(event) => {
             if (!compactSidebar || event.touches.length !== 1) return;
+            if (moveSessionRef.current || resizeSessionRef.current) {
+              touchStartRef.current = null;
+              return;
+            }
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('.gcal-time-event, .gcal-event-resize-handle')) {
+              touchStartRef.current = null;
+              return;
+            }
             touchStartRef.current = {
               x: event.touches[0].clientX,
               y: event.touches[0].clientY,
@@ -2082,6 +2289,10 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
           }}
           onTouchEnd={(event) => {
             if (!compactSidebar || !touchStartRef.current || event.changedTouches.length !== 1) return;
+            if (moveSessionRef.current || resizeSessionRef.current) {
+              touchStartRef.current = null;
+              return;
+            }
             const dx = event.changedTouches[0].clientX - touchStartRef.current.x;
             const dy = event.changedTouches[0].clientY - touchStartRef.current.y;
             touchStartRef.current = null;
