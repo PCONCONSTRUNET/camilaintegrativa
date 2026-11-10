@@ -156,6 +156,11 @@ export default function QuickAppointmentDialog({
   const [error, setError] = useState('');
   const firstFieldRef = useRef<HTMLSelectElement>(null);
 
+  // Modo de seleção ou digitação livre de cliente (apenas por nome na agenda, sem ser cliente cadastrado)
+  const [clientMode, setClientMode] = useState<'list' | 'custom'>('list');
+  const [customClientName, setCustomClientName] = useState('');
+  const customClientInputRef = useRef<HTMLInputElement>(null);
+
   // Modo de seleção ou digitação livre de serviço
   const [serviceMode, setServiceMode] = useState<'list' | 'custom'>('list');
   const [customServiceName, setCustomServiceName] = useState('');
@@ -295,9 +300,18 @@ export default function QuickAppointmentDialog({
         ]);
         if (!clientsResponse.ok) throw new Error(clientsBody.error ?? 'Não foi possível carregar os clientes.');
         if (!servicesResponse.ok) throw new Error(servicesBody.error ?? 'Não foi possível carregar os serviços.');
+        const loadedClients: ClientSummary[] = clientsBody.clients ?? [];
         const loadedServices: Service[] = servicesBody.services ?? [];
-        setClients(clientsBody.clients ?? []);
+        setClients(loadedClients);
         setServices(loadedServices);
+
+        if (appointment && appointment.clientId) {
+          const existsInList = loadedClients.some((c) => c.id === appointment.clientId);
+          if (!existsInList && appointment.clientName) {
+            setClientMode('custom');
+            setCustomClientName(appointment.clientName);
+          }
+        }
 
         if (form.serviceId) {
           const currentSvc = loadedServices.find((s) => s.id === form.serviceId);
@@ -305,6 +319,13 @@ export default function QuickAppointmentDialog({
             const matchedTier = currentSvc.pricingTiers.find((t) => form.notes.includes(t.name));
             setSelectedTierId(matchedTier ? matchedTier.id : currentSvc.pricingTiers[0].id);
           }
+        } else if (!appointment && loadedServices.length > 0) {
+          const defaultSvc = loadedServices[0];
+          setForm((prev) => ({
+            ...prev,
+            serviceId: defaultSvc.id,
+            modality: defaultSvc.modalities?.[0] ?? 'presencial',
+          }));
         }
 
         window.requestAnimationFrame(() => {
@@ -382,8 +403,19 @@ export default function QuickAppointmentDialog({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.clientId) {
-      setError('Selecione ou busque o cliente.');
+    const effectiveCustomClientName =
+      clientMode === 'custom'
+        ? customClientName.trim()
+        : !form.clientId && clientSearch.trim()
+        ? clientSearch.trim()
+        : '';
+
+    if (clientMode === 'custom' && !effectiveCustomClientName) {
+      setError('Digite o nome para o agendamento.');
+      return;
+    }
+    if (clientMode === 'list' && !form.clientId && !effectiveCustomClientName) {
+      setError('Selecione um cliente da lista ou clique em "Só digitar nome".');
       return;
     }
     if (serviceMode === 'list' && !form.serviceId) {
@@ -471,18 +503,22 @@ export default function QuickAppointmentDialog({
         body: JSON.stringify(appointment ? {
           operation: 'edit',
           ...form,
+          clientId: effectiveCustomClientName ? '' : form.clientId,
+          customClientName: effectiveCustomClientName || undefined,
           serviceId: finalServiceId,
           notes: finalNotes,
-          clientPackageId: selectedPackageId || null,
+          clientPackageId: effectiveCustomClientName ? null : (selectedPackageId || null),
           ...(!allowFitIn ? { bookingKind: undefined, fitInReason: undefined } : {
             fitInReason: form.bookingKind === 'encaixe' ? form.fitInReason.trim() : null,
           }),
           expectedUpdatedAt: appointment.updatedAt,
         } : {
           ...form,
+          clientId: effectiveCustomClientName ? '' : form.clientId,
+          customClientName: effectiveCustomClientName || undefined,
           serviceId: finalServiceId,
           notes: finalNotes,
-          clientPackageId: selectedPackageId || null,
+          clientPackageId: effectiveCustomClientName ? null : (selectedPackageId || null),
           fitInReason: form.bookingKind === 'encaixe' ? form.fitInReason.trim() : null,
         }),
       });
@@ -568,44 +604,85 @@ export default function QuickAppointmentDialog({
                 )}
 
                 <div className="gcal-quick-field" style={{ position: 'relative' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', gap: '6px', flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.82rem', color: '#1e293b' }}>
-                      <UserRound size={15} /> Cliente *
+                      <UserRound size={15} /> {clientMode === 'custom' ? 'Nome na Agenda *' : 'Cliente *'}
                     </span>
-                    {selectedClient && !isSearchingClient && (
+
+                    <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '6px', padding: '2px', gap: '2px' }}>
                       <button
                         type="button"
                         onClick={() => {
-                          setIsSearchingClient(true);
-                          setClientSearch('');
-                          setTimeout(() => searchInputRef.current?.focus(), 50);
+                          setClientMode('list');
                         }}
                         style={{
-                          fontSize: '0.74rem',
-                          color: '#0f766e',
-                          fontWeight: 700,
-                          background: 'none',
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          fontWeight: clientMode === 'list' ? 700 : 500,
+                          background: clientMode === 'list' ? '#ffffff' : 'transparent',
+                          color: clientMode === 'list' ? '#0f766e' : '#64748b',
                           border: 'none',
+                          borderRadius: '4px',
                           cursor: 'pointer',
-                          textDecoration: 'underline',
-                          padding: 0,
+                          boxShadow: clientMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                         }}
                       >
-                        Trocar cliente
+                        📋 Da lista
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientMode('custom');
+                          if (!customClientName && clientSearch.trim()) {
+                            setCustomClientName(clientSearch.trim());
+                          }
+                          setTimeout(() => customClientInputRef.current?.focus(), 50);
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '0.72rem',
+                          fontWeight: clientMode === 'custom' ? 700 : 500,
+                          background: clientMode === 'custom' ? '#ffffff' : 'transparent',
+                          color: clientMode === 'custom' ? '#0f766e' : '#64748b',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          boxShadow: clientMode === 'custom' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        }}
+                      >
+                        ✏️ Só digitar nome
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Campo oculto com validação HTML nativa */}
-                  <input
-                    type="hidden"
-                    name="clientId"
-                    value={form.clientId}
-                    required
-                  />
-
-                  {/* 1. Cliente Selecionado (Card com Nome, CPF e Telefone) */}
-                  {selectedClient && !isSearchingClient ? (
+                  {clientMode === 'custom' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <input
+                        ref={customClientInputRef}
+                        type="text"
+                        value={customClientName}
+                        onChange={(e) => setCustomClientName(e.target.value)}
+                        placeholder="Digite apenas o nome (ex.: Maria, João, Avaliação...)"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          border: '1.5px solid #0f766e',
+                          borderRadius: '10px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxShadow: '0 0 0 3px rgba(15, 118, 110, 0.12)',
+                        }}
+                        required={clientMode === 'custom'}
+                        autoFocus
+                      />
+                      <span style={{ fontSize: '0.73rem', color: '#0f766e', fontWeight: 600 }}>
+                        ✨ Agendamento livre apenas por nome (não cria ficha na aba de Clientes).
+                      </span>
+                    </div>
+                  ) : selectedClient && !isSearchingClient ? (
                     <div
                       style={{
                         padding: '10px 12px',
@@ -678,7 +755,7 @@ export default function QuickAppointmentDialog({
                           type="text"
                           value={clientSearch}
                           onChange={(e) => setClientSearch(e.target.value)}
-                          placeholder="Buscar por Nome, CPF ou Telefone..."
+                          placeholder="Buscar cliente ou digitar apenas o nome..."
                           style={{
                             width: '100%',
                             padding: '9px 32px 9px 34px',
@@ -734,6 +811,37 @@ export default function QuickAppointmentDialog({
                         )}
                       </div>
 
+                      {/* Atalho imediato quando ela digita um nome no campo de busca */}
+                      {clientSearch.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientMode('custom');
+                            setCustomClientName(clientSearch.trim());
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '8px 12px',
+                            borderRadius: '9px',
+                            border: '1.5px solid #0f766e',
+                            background: '#f0fdf4',
+                            color: '#0f766e',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                          }}
+                        >
+                          <span>✏️ Usar apenas o nome &quot;{clientSearch.trim()}&quot; (sem cadastrar cliente)</span>
+                          <Check size={15} />
+                        </button>
+                      )}
+
                       {/* Lista de Resultados Filtrados */}
                       <div
                         style={{
@@ -748,12 +856,34 @@ export default function QuickAppointmentDialog({
                       >
                         <div style={{ padding: '6px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
                           <span>{clientSearch ? `Resultados da busca (${filteredClients.length})` : `Selecione um cliente (${clients.length})`}</span>
-                          {clientSearch && <span style={{ color: '#0f766e' }}>Filtro: "{clientSearch}"</span>}
+                          {clientSearch && <span style={{ color: '#0f766e' }}>Filtro: &quot;{clientSearch}&quot;</span>}
                         </div>
 
                         {filteredClients.length === 0 ? (
-                          <div style={{ padding: '16px 12px', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>
-                            <p style={{ margin: '0 0 8px' }}>Nenhum cliente encontrado com "{clientSearch}".</p>
+                          <div style={{ padding: '14px 12px', textAlign: 'center', color: '#64748b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                            <p style={{ margin: 0 }}>Nenhum cliente cadastrado com &quot;{clientSearch}&quot;.</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClientMode('custom');
+                                setCustomClientName(clientSearch.trim());
+                              }}
+                              style={{
+                                color: '#ffffff',
+                                background: '#0f766e',
+                                fontWeight: 800,
+                                border: 'none',
+                                borderRadius: '7px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                fontSize: '0.79rem',
+                                padding: '6px 12px',
+                              }}
+                            >
+                              ✏️ Agendar só com o nome &quot;{clientSearch.trim()}&quot;
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -762,18 +892,18 @@ export default function QuickAppointmentDialog({
                               }}
                               style={{
                                 color: '#0f766e',
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                fontSize: '0.82rem',
-                                padding: '4px 8px',
+                                fontSize: '0.77rem',
+                                padding: '2px 6px',
                               }}
                             >
-                              <Plus size={14} /> Cadastrar "{clientSearch}" agora
+                              <Plus size={13} /> Ou cadastrar na lista de clientes
                             </button>
                           </div>
                         ) : (
@@ -844,29 +974,31 @@ export default function QuickAppointmentDialog({
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCreatingClient(true);
-                    setNewClientName(clientSearch);
-                  }}
-                  className="gcal-quick-new-client"
-                  style={{
-                    marginTop: '4px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '2px 0',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    color: '#0f766e',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                  }}
-                >
-                  <Plus size={14} /> Cadastrar novo cliente
-                </button>
+                {clientMode === 'list' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingClient(true);
+                      setNewClientName(clientSearch);
+                    }}
+                    className="gcal-quick-new-client"
+                    style={{
+                      marginTop: '4px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px 0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      color: '#0f766e',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <Plus size={14} /> Cadastrar novo cliente
+                  </button>
+                )}
 
                 {/* Exibição e Seleção de Pacotes Ativos do Cliente */}
                 {clientPackages.length > 0 && (

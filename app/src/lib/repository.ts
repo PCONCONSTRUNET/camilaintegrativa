@@ -1081,6 +1081,7 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
     LEFT JOIN appointments a ON a.client_id = c.id
     LEFT JOIN client_records cr_search ON cr_search.client_id = c.id
     WHERE c.clinic_id = ?
+      AND COALESCE(c.administrative_notes, '') != '__AGENDA_AVULSO__'
       AND (
         ? = ''
         OR c.name LIKE ?
@@ -1596,6 +1597,45 @@ function mapAppointmentSummary(row: unknown): AppointmentSummary {
   };
 }
 
+async function resolveAppointmentClientId(
+  database: Database,
+  clientId?: string,
+  customClientName?: string,
+): Promise<string> {
+  const cleanCustomName = (customClientName || '').trim();
+  if (cleanCustomName) {
+    await ensureClientsOptionalSchema(database);
+    const existingAvulso = (await database
+      .prepare(
+        `SELECT id FROM clients WHERE clinic_id = ? AND administrative_notes = '__AGENDA_AVULSO__' AND LOWER(name) = LOWER(?) LIMIT 1`,
+      )
+      .get(IDS.clinic, cleanCustomName)) as { id: string } | undefined;
+
+    if (existingAvulso) {
+      return existingAvulso.id;
+    }
+
+    const newAvulsoId = randomUUID();
+    await database
+      .prepare(
+        `INSERT INTO clients (id, clinic_id, name, phone, email, status, administrative_notes) VALUES (?, ?, ?, '', NULL, 'inativo', '__AGENDA_AVULSO__')`,
+      )
+      .run(newAvulsoId, IDS.clinic, cleanCustomName);
+    return newAvulsoId;
+  }
+
+  const cleanId = (clientId || '').trim();
+  if (!cleanId) {
+    throw new BookingValidationError('Selecione um cliente ou digite o nome para o agendamento.');
+  }
+
+  const client = (await database
+    .prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?')
+    .get(cleanId, IDS.clinic)) as { id: string } | undefined;
+  if (!client) throw new BookingValidationError('Cliente não encontrado.');
+  return client.id;
+}
+
 export async function createInternalAppointment(
   input: InternalAppointmentInput,
   actorUserId: string,
@@ -1606,11 +1646,7 @@ export async function createInternalAppointment(
   const service = (await getService(input.serviceId, false));
   if (!service) throw new BookingValidationError('Serviço indisponível.');
 
-  const client = (await database.prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?').get(
-    input.clientId,
-    IDS.clinic,
-  )) as { id: string } | undefined;
-  if (!client) throw new BookingValidationError('Cliente não encontrado.');
+  const resolvedClientId = await resolveAppointmentClientId(database, input.clientId, input.customClientName);
 
   const modality = (await database.prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?').get(
     input.serviceId,
@@ -1669,7 +1705,7 @@ export async function createInternalAppointment(
       appointmentId,
       IDS.clinic,
       IDS.professional,
-      input.clientId,
+      resolvedClientId,
       input.serviceId,
       input.modality,
       start.toISOString(),
@@ -1867,11 +1903,7 @@ export async function editAppointment(
 
     const service = (await getService(input.serviceId, false));
     if (!service) throw new BookingValidationError('Serviço indisponível.');
-    const client = (await database.prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?').get(
-      input.clientId,
-      IDS.clinic,
-    )) as { id: string } | undefined;
-    if (!client) throw new BookingValidationError('Cliente não encontrado.');
+    const resolvedClientId = await resolveAppointmentClientId(database, input.clientId, input.customClientName);
     const modality = (await database.prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?').get(
       input.serviceId,
       input.modality,
@@ -1920,7 +1952,7 @@ export async function editAppointment(
           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
       WHERE id = ? AND clinic_id = ?
     `).run(
-      input.clientId,
+      resolvedClientId,
       input.serviceId,
       input.modality,
       start.toISOString(),
@@ -1945,7 +1977,7 @@ export async function editAppointment(
       hasNotes: Boolean(current.administrative_notes),
     };
     const newValue = {
-      clientId: input.clientId,
+      clientId: resolvedClientId,
       serviceId: input.serviceId,
       modality: input.modality,
       startAt: start.toISOString(),
@@ -4106,6 +4138,7 @@ export async function listProntuarios(search = '', status = 'todos'): Promise<Pr
     LEFT JOIN treatment_goals g ON g.client_id = c.id
     LEFT JOIN client_records cr ON cr.client_id = c.id
     WHERE c.clinic_id = ?
+      AND COALESCE(c.administrative_notes, '') != '__AGENDA_AVULSO__'
       AND (
         ? = ''
         OR c.name LIKE ?

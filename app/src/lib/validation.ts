@@ -120,7 +120,8 @@ const appointmentTimeSchema = z
   .refine(isRealTime, 'Horário inválido.');
 
 export const internalAppointmentSchema = z.object({
-  clientId: z.string().uuid('Selecione um cliente válido.'),
+  clientId: z.string().trim().optional().or(z.literal('')),
+  customClientName: z.string().trim().max(150, 'Use no máximo 150 caracteres.').optional().or(z.literal('')),
   serviceId: z.string().uuid('Selecione um serviço válido.'),
   clientPackageId: z.string().uuid().optional().nullable(),
   modality: z.enum(['presencial', 'online']),
@@ -132,6 +133,13 @@ export const internalAppointmentSchema = z.object({
   fitInReason: fitInReasonSchema,
   notes: z.string().trim().max(500, 'Use no máximo 500 caracteres.').optional(),
 }).superRefine((input, context) => {
+  if (!input.clientId?.trim() && !input.customClientName?.trim()) {
+    context.addIssue({
+      code: 'custom',
+      path: ['clientId'],
+      message: 'Selecione um cliente ou digite o nome para o agendamento.',
+    });
+  }
   if (input.bookingKind === 'encaixe' && (!input.fitInReason || input.fitInReason.length < 3)) {
     context.addIssue({
       code: 'custom',
@@ -158,7 +166,8 @@ export const internalAppointmentSchema = z.object({
 
 export const appointmentEditSchema = z.object({
   operation: z.literal('edit'),
-  clientId: z.string().uuid('Selecione um cliente válido.'),
+  clientId: z.string().trim().optional().or(z.literal('')),
+  customClientName: z.string().trim().max(150, 'Use no máximo 150 caracteres.').optional().or(z.literal('')),
   serviceId: z.string().uuid('Selecione um serviço válido.'),
   clientPackageId: z.string().uuid().optional().nullable(),
   modality: z.enum(['presencial', 'online']),
@@ -171,6 +180,13 @@ export const appointmentEditSchema = z.object({
   notes: z.string().trim().max(500, 'Use no máximo 500 caracteres.').optional(),
   expectedUpdatedAt: z.string().optional(),
 }).superRefine((input, context) => {
+  if (!input.clientId?.trim() && !input.customClientName?.trim()) {
+    context.addIssue({
+      code: 'custom',
+      path: ['clientId'],
+      message: 'Selecione um cliente ou digite o nome para o agendamento.',
+    });
+  }
   if (input.bookingKind === 'encaixe' && (!input.fitInReason || input.fitInReason.length < 3)) {
     context.addIssue({
       code: 'custom',
