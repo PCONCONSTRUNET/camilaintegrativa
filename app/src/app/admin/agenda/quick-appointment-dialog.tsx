@@ -319,13 +319,6 @@ export default function QuickAppointmentDialog({
             const matchedTier = currentSvc.pricingTiers.find((t) => form.notes.includes(t.name));
             setSelectedTierId(matchedTier ? matchedTier.id : currentSvc.pricingTiers[0].id);
           }
-        } else if (!appointment && loadedServices.length > 0) {
-          const defaultSvc = loadedServices[0];
-          setForm((prev) => ({
-            ...prev,
-            serviceId: defaultSvc.id,
-            modality: defaultSvc.modalities?.[0] ?? 'presencial',
-          }));
         }
 
         window.requestAnimationFrame(() => {
@@ -415,15 +408,7 @@ export default function QuickAppointmentDialog({
       return;
     }
     if (clientMode === 'list' && !form.clientId && !effectiveCustomClientName) {
-      setError('Selecione um cliente da lista ou clique em "Só digitar nome".');
-      return;
-    }
-    if (serviceMode === 'list' && !form.serviceId) {
-      setError('Selecione um serviço ou clique em "Digitar outro".');
-      return;
-    }
-    if (serviceMode === 'custom' && !customServiceName.trim()) {
-      setError('Digite o nome do serviço personalizado.');
+      setError('Selecione um cliente da lista ou digite apenas o nome.');
       return;
     }
     if (form.bookingKind === 'encaixe' && form.fitInReason.trim().length < 3) {
@@ -451,7 +436,7 @@ export default function QuickAppointmentDialog({
 
     let finalServiceId = form.serviceId;
 
-    if (serviceMode === 'custom') {
+    if (serviceMode === 'custom' && customServiceName.trim()) {
       const cleanCustomName = customServiceName.trim();
       const existingMatch = services.find(
         (s) => s.name.trim().toLowerCase() === cleanCustomName.toLowerCase(),
@@ -1058,7 +1043,7 @@ export default function QuickAppointmentDialog({
                 <div className="gcal-quick-field">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1e293b' }}>
-                      <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', color: '#245d80' }} /> Serviço *
+                      <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', color: '#245d80' }} /> Serviço <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.74rem' }}>(opcional)</span>
                     </span>
                     <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '6px', padding: '2px', gap: '2px' }}>
                       <button
@@ -1116,9 +1101,8 @@ export default function QuickAppointmentDialog({
                           chooseService(event.target.value);
                         }
                       }}
-                      required={serviceMode === 'list'}
                     >
-                      <option value="">Selecione um serviço</option>
+                      <option value="">Opcional (sem serviço específico)</option>
                       {services.map((service) => (
                         <option value={service.id} key={service.id}>
                           {service.name} · {service.durationMinutes} min
@@ -1133,7 +1117,7 @@ export default function QuickAppointmentDialog({
                         type="text"
                         value={customServiceName}
                         onChange={(e) => setCustomServiceName(e.target.value)}
-                        placeholder="Digite o nome do serviço (ex.: Conversa inicial, Retorno, Avaliação...)"
+                        placeholder="Digite o nome do serviço (opcional)..."
                         style={{
                           flex: 1,
                           padding: '8px 12px',
@@ -1145,7 +1129,6 @@ export default function QuickAppointmentDialog({
                           color: '#0f172a',
                           outline: 'none',
                         }}
-                        required={serviceMode === 'custom'}
                         autoFocus
                       />
                       <button

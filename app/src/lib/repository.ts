@@ -1636,6 +1636,77 @@ async function resolveAppointmentClientId(
   return client.id;
 }
 
+async function resolveAppointmentService(
+  database: Database,
+  serviceId?: string,
+  modality: 'presencial' | 'online' = 'presencial',
+): Promise<{ id: string; name: string; duration_minutes: number; interval_minutes: number }> {
+  const cleanId = (serviceId || '').trim();
+  if (cleanId) {
+    const svc = await getService(cleanId, false);
+    if (svc) {
+      const hasMod = await database
+        .prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?')
+        .get(svc.id, modality);
+      if (!hasMod) {
+        await database
+          .prepare('INSERT INTO service_modalities (service_id, modality) VALUES (?, ?)')
+          .run(svc.id, modality)
+          .catch(() => null);
+      }
+      return svc;
+    }
+  }
+
+  // Fallback quando nenhum serviço é selecionado: busca "Atendimento" ou primeiro serviço da clínica
+  const fallback = (await database
+    .prepare(
+      `SELECT id, name, description, duration_minutes, interval_minutes, price_cents, price_visible, published
+       FROM services
+       WHERE clinic_id = ?
+       ORDER BY CASE WHEN LOWER(name) = 'atendimento' THEN 0 ELSE 1 END, created_at ASC
+       LIMIT 1`,
+    )
+    .get(IDS.clinic)) as ServiceRow | undefined;
+
+  if (fallback) {
+    const hasMod = await database
+      .prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?')
+      .get(fallback.id, modality);
+    if (!hasMod) {
+      await database
+        .prepare('INSERT INTO service_modalities (service_id, modality) VALUES (?, ?)')
+        .run(fallback.id, modality)
+        .catch(() => null);
+    }
+    return fallback;
+  }
+
+  // Caso não haja nenhum serviço na tabela, cria um padrão "Atendimento"
+  const newSvcId = randomUUID();
+  await database
+    .prepare(
+      `INSERT INTO services (id, clinic_id, name, description, duration_minutes, interval_minutes, price_cents, price_visible, published)
+       VALUES (?, ?, 'Atendimento', 'Atendimento geral da agenda', 60, 0, NULL, 0, 0)`,
+    )
+    .run(newSvcId, IDS.clinic);
+  await database
+    .prepare('INSERT INTO service_modalities (service_id, modality) VALUES (?, ?)')
+    .run(newSvcId, 'presencial')
+    .catch(() => null);
+  await database
+    .prepare('INSERT INTO service_modalities (service_id, modality) VALUES (?, ?)')
+    .run(newSvcId, 'online')
+    .catch(() => null);
+
+  return {
+    id: newSvcId,
+    name: 'Atendimento',
+    duration_minutes: 60,
+    interval_minutes: 0,
+  };
+}
+
 export async function createInternalAppointment(
   input: InternalAppointmentInput,
   actorUserId: string,
@@ -1643,16 +1714,8 @@ export async function createInternalAppointment(
 ): Promise<AppointmentSummary> {
   const database = getDatabase();
   if (input.bookingKind === 'encaixe' && !allowFitIn) throw new AgendaPermissionError();
-  const service = (await getService(input.serviceId, false));
-  if (!service) throw new BookingValidationError('Serviço indisponível.');
-
+  const service = await resolveAppointmentService(database, input.serviceId, input.modality);
   const resolvedClientId = await resolveAppointmentClientId(database, input.clientId, input.customClientName);
-
-  const modality = (await database.prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?').get(
-    input.serviceId,
-    input.modality,
-  ));
-  if (!modality) throw new BookingValidationError('Modalidade indisponível para este serviço.');
 
   const start = zonedDateTimeToUtc(input.date, input.time);
   const endDate = input.endTime && timeToMinutes(input.endTime) <= timeToMinutes(input.time)
@@ -1706,7 +1769,7 @@ export async function createInternalAppointment(
       IDS.clinic,
       IDS.professional,
       resolvedClientId,
-      input.serviceId,
+      service.id,
       input.modality,
       start.toISOString(),
       end.toISOString(),
@@ -1901,14 +1964,8 @@ export async function editAppointment(
 
     if (!current) throw new BookingValidationError('Agendamento não encontrado.');
 
-    const service = (await getService(input.serviceId, false));
-    if (!service) throw new BookingValidationError('Serviço indisponível.');
+    const service = await resolveAppointmentService(database, input.serviceId || current.service_id, input.modality);
     const resolvedClientId = await resolveAppointmentClientId(database, input.clientId, input.customClientName);
-    const modality = (await database.prepare('SELECT 1 FROM service_modalities WHERE service_id = ? AND modality = ?').get(
-      input.serviceId,
-      input.modality,
-    ));
-    if (!modality) throw new BookingValidationError('Modalidade indisponível para este serviço.');
 
     const start = zonedDateTimeToUtc(input.date, input.time);
     const endDate = timeToMinutes(input.endTime) <= timeToMinutes(input.time)
@@ -1953,7 +2010,7 @@ export async function editAppointment(
       WHERE id = ? AND clinic_id = ?
     `).run(
       resolvedClientId,
-      input.serviceId,
+      service.id,
       input.modality,
       start.toISOString(),
       end.toISOString(),
@@ -1978,7 +2035,7 @@ export async function editAppointment(
     };
     const newValue = {
       clientId: resolvedClientId,
-      serviceId: input.serviceId,
+      serviceId: service.id,
       modality: input.modality,
       startAt: start.toISOString(),
       endAt: end.toISOString(),

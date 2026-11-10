@@ -122,7 +122,7 @@ const appointmentTimeSchema = z
 export const internalAppointmentSchema = z.object({
   clientId: z.string().trim().optional().or(z.literal('')),
   customClientName: z.string().trim().max(150, 'Use no máximo 150 caracteres.').optional().or(z.literal('')),
-  serviceId: z.string().uuid('Selecione um serviço válido.'),
+  serviceId: z.string().trim().optional().or(z.literal('')),
   clientPackageId: z.string().uuid().optional().nullable(),
   modality: z.enum(['presencial', 'online']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.').refine(isRealDateKey, 'Data inválida.'),
@@ -168,7 +168,7 @@ export const appointmentEditSchema = z.object({
   operation: z.literal('edit'),
   clientId: z.string().trim().optional().or(z.literal('')),
   customClientName: z.string().trim().max(150, 'Use no máximo 150 caracteres.').optional().or(z.literal('')),
-  serviceId: z.string().uuid('Selecione um serviço válido.'),
+  serviceId: z.string().trim().optional().or(z.literal('')),
   clientPackageId: z.string().uuid().optional().nullable(),
   modality: z.enum(['presencial', 'online']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.').refine(isRealDateKey, 'Data inválida.'),
