@@ -24,9 +24,8 @@ export interface ClinicHomeVideoSection {
   updatedAt: string;
 }
 
-export const DEFAULT_SECTION_TITLE = 'Sessões & Atendimentos Reais';
-export const DEFAULT_SECTION_SUBTITLE =
-  'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado';
+export const DEFAULT_SECTION_TITLE = 'Sessões na Prática';
+export const DEFAULT_SECTION_SUBTITLE = 'Registros reais de atendimentos no consultório';
 
 let tablesInitialized = false;
 
@@ -167,10 +166,14 @@ export async function getClinicHomeVideoSection(): Promise<ClinicHomeVideoSectio
       createdAt: r.created_at,
     }));
 
-    const isDefaultOldTitle = settingsRow?.title === 'Conheça o Atendimento';
+    const isDefaultOldTitle =
+      settingsRow?.title === 'Conheça o Atendimento' ||
+      settingsRow?.title === 'Sessões & Atendimentos Reais';
     const isDefaultOldSubtitle =
       settingsRow?.subtitle ===
-      'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa';
+        'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa' ||
+      settingsRow?.subtitle ===
+        'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado';
 
     return {
       enabled: settingsRow ? Number(settingsRow.enabled) !== 0 : true,

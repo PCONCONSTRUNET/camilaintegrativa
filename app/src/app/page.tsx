@@ -56,49 +56,40 @@ function HomeContent() {
   const [expandedDescIds, setExpandedDescIds] = useState<Record<string, boolean>>({});
   const [homeVideoSection, setHomeVideoSection] = useState<HomeVideoPublicSection>({
     enabled: true,
-    sectionTitle: 'SessÃµes & Atendimentos Reais',
+    sectionTitle: 'Por dentro das sessões',
     sectionSubtitle:
-      'Assista a registros reais de sessÃµes e transformaÃ§Ãµes compartilhadas pela Dra. Camila Machado',
+      'Um pouco do que acontece no consultório.',
     videos: [],
   });
 
-  // Carrossel de Reels: setas para avanÃ§ar/voltar
-  const reelsScrollRef = useRef<HTMLDivElement | null>(null);
-  const [reelsCanPrev, setReelsCanPrev] = useState(false);
-  const [reelsCanNext, setReelsCanNext] = useState(false);
+  // Carrossel de Reels: navegação limpa 1 por vez com setas e gesto de arrastar
+  const [activeReelIdx, setActiveReelIdx] = useState(0);
+  const reelTouchStartX = useRef<number | null>(null);
 
-  const updateReelsArrows = useCallback(() => {
-    const el = reelsScrollRef.current;
-    if (!el) return;
-    setReelsCanPrev(el.scrollLeft > 4);
-    setReelsCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  const scrollReels = useCallback((direction: 1 | -1) => {
-    const el = reelsScrollRef.current;
-    if (!el) return;
-    const firstCard = el.firstElementChild as HTMLElement | null;
-    const step = firstCard ? firstCard.offsetWidth + 14 : 264;
-    el.scrollBy({ left: direction * step, behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
-    updateReelsArrows();
-    window.addEventListener('resize', updateReelsArrows);
-    return () => window.removeEventListener('resize', updateReelsArrows);
-  }, [homeVideoSection.videos.length, updateReelsArrows]);
+  const goToReel = useCallback(
+    (nextIdx: number) => {
+      const total = homeVideoSection.videos.length;
+      if (total <= 1) return;
+      const clamped = ((nextIdx % total) + total) % total;
+      document.querySelectorAll('video').forEach((v) => {
+        if (!v.paused) v.pause();
+      });
+      setActiveReelIdx(clamped);
+    },
+    [homeVideoSection.videos.length]
+  );
 
   // Redirecionamento inteligente ao abrir PWA instalado (Standalone)
   useEffect(() => {
     try {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        // @ts-expect-error - navigator.standalone especÃ­fico do iOS Safari
+        // @ts-expect-error - navigator.standalone específico do iOS Safari
         window.navigator.standalone === true;
 
       if (!isStandalone) return;
 
-      // Se o usuÃ¡rio quer explicitamente ver a landing page pÃºblica dentro do PWA (ex: ?site=1 ou ?home=1)
+      // Se o usuário quer explicitamente ver a landing page pública dentro do PWA (ex: ?site=1 ou ?home=1)
       const stayOnSite = searchParams.get('site') === '1' || searchParams.get('home') === '1';
       if (stayOnSite) return;
 
@@ -140,10 +131,10 @@ function HomeContent() {
         if (data?.section) {
           setHomeVideoSection({
             enabled: Boolean(data.section.enabled),
-            sectionTitle: data.section.sectionTitle || 'SessÃµes & Atendimentos Reais',
+            sectionTitle: data.section.sectionTitle || 'Por dentro das sessões',
             sectionSubtitle:
               data.section.sectionSubtitle ??
-              'Assista a registros reais de sessÃµes e transformaÃ§Ãµes compartilhadas pela Dra. Camila Machado',
+              'Um pouco do que acontece no consultório.',
             videos: Array.isArray(data.section.videos) ? data.section.videos : [],
           });
         }
@@ -179,7 +170,7 @@ function HomeContent() {
 
           <Image
             src="/logo-camila-machado.png"
-            alt="Camila Machado - Hipnose ClÃ­nica Multidimensional Integrativa"
+            alt="Camila Machado - Hipnose Clínica Multidimensional Integrativa"
             width={320}
             height={95}
             className="linktree-logo-img"
@@ -187,14 +178,14 @@ function HomeContent() {
           />
 
           <span className="linktree-badge-title">
-            <Sparkles size={13} /> Hipnose ClÃ­nica Multidimensional Integrativa
+            <Sparkles size={13} /> Hipnose Clínica Multidimensional Integrativa
           </span>
 
           <p className="linktree-bio-text">
-            Um espaÃ§o de escuta, cuidado e presenÃ§a para sua transformaÃ§Ã£o emocional e autoconhecimento.
+            Um espaço de escuta, cuidado e presença para sua transformação emocional e autoconhecimento.
           </p>
 
-          {/* Faixa de Contato RÃ¡pido: Apenas Ãcones WhatsApp e Instagram */}
+          {/* Faixa de Contato Rápido: Apenas Ícones WhatsApp e Instagram */}
           <div
             style={{
               display: 'flex',
@@ -293,7 +284,7 @@ function HomeContent() {
               </div>
               <div className="card-btn-text">
                 <h3>Agendar Atendimento</h3>
-                <p>Consulte dias e horÃ¡rios livres em tempo real</p>
+                <p>Consulte dias e horários livres em tempo real</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -301,7 +292,7 @@ function HomeContent() {
             </div>
           </Link>
 
-          {/* Card 2: Ãrea do Cliente (Portal) -> Rota externa dedicada */}
+          {/* Card 2: Área do Cliente (Portal) -> Rota externa dedicada */}
           <Link
             href="/cliente/entrar"
             className="linktree-card-btn client-highlight"
@@ -311,8 +302,8 @@ function HomeContent() {
                 <UserCheck size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>Ãrea do Cliente (Portal)</h3>
-                <p>Criar conta ou acessar histÃ³rico e teleatendimento</p>
+                <h3>Área do Cliente (Portal)</h3>
+                <p>Criar conta ou acessar histórico e teleatendimento</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -323,7 +314,7 @@ function HomeContent() {
             </div>
           </Link>
 
-          {/* Card 3: Nossos ServiÃ§os & Abordagens */}
+          {/* Card 3: Nossos Serviços & Abordagens */}
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'servicos' ? null : 'servicos')}
             className={`linktree-card-btn ${activeDrawer === 'servicos' ? 'active-open' : ''}`}
@@ -333,8 +324,8 @@ function HomeContent() {
                 <HeartHandshake size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>ServiÃ§os & Metodologia</h3>
-                <p>Conversa inicial, sessÃµes de hipnose e acompanhamento</p>
+                <h3>Serviços & Metodologia</h3>
+                <p>Conversa inicial, sessões de hipnose e acompanhamento</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -346,18 +337,18 @@ function HomeContent() {
             </div>
           </button>
 
-          {/* Embedded Drawer: ServiÃ§os */}
+          {/* Embedded Drawer: Serviços */}
           {activeDrawer === 'servicos' && (
             <div className="linktree-drawer">
               <div className="drawer-header">
                 <div className="drawer-title-row">
                   <HeartHandshake size={18} className="text-primary" />
-                  <h2>ServiÃ§os Oferecidos</h2>
+                  <h2>Serviços Oferecidos</h2>
                 </div>
                 <button
                   onClick={() => setActiveDrawer(null)}
                   className="drawer-close-btn"
-                  aria-label="Fechar serviÃ§os"
+                  aria-label="Fechar serviços"
                 >
                   <X size={16} />
                 </button>
@@ -453,7 +444,7 @@ function HomeContent() {
                               borderRadius: '6px'
                             }}
                           >
-                            âœ“ {t.name}: <strong>{formatCurrency(t.priceCents)}</strong>
+                            ✓ {t.name}: <strong>{formatCurrency(t.priceCents)}</strong>
                           </span>
                         ))}
                       </div>
@@ -503,7 +494,7 @@ function HomeContent() {
                       }}
                     >
                       <Users size={15} />
-                      <span>SessÃµes em Grupo com Vagas Abertas</span>
+                      <span>Sessões em Grupo com Vagas Abertas</span>
                     </div>
 
                     {groupSessions.map((gs) => {
@@ -541,7 +532,7 @@ function HomeContent() {
                                   marginBottom: '6px',
                                 }}
                               >
-                                <Users size={11} /> SessÃ£o em Grupo
+                                <Users size={11} /> Sessão em Grupo
                               </span>
                               <h3>{gs.title}</h3>
                             </div>
@@ -612,8 +603,8 @@ function HomeContent() {
                           )}
                           <div className="service-badges-list" style={{ marginTop: '8px' }}>
                             <span className="badge-pill badge-pill-duration">
-                              <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} Â· {gs.startTime}
-                              {gs.endTime ? ` Ã s ${gs.endTime}` : ''}
+                              <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} · {gs.startTime}
+                              {gs.endTime ? ` às ${gs.endTime}` : ''}
                             </span>
                             {gs.showRemainingSpots !== false && (
                               <span
@@ -629,14 +620,14 @@ function HomeContent() {
                                   ? 'Vagas esgotadas'
                                   : spotsLeft !== null
                                   ? !isUnlimited && gs.customRemainingSpots == null
-                                    ? `${spotsLeft} de ${gs.maxParticipants} vagas disponÃ­veis`
+                                    ? `${spotsLeft} de ${gs.maxParticipants} vagas disponíveis`
                                     : `Restam ${spotsLeft} vagas`
                                   : 'Vagas abertas'}
                               </span>
                             )}
                             {gs.modality === 'presencial' ? (
                               <span className="badge-pill badge-pill-presencial">
-                                <MapPin size={12} /> Presencial{gs.locationNotes ? ` Â· ${gs.locationNotes}` : ''}
+                                <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
                               </span>
                             ) : (
                               <span className="badge-pill badge-pill-online">
@@ -670,7 +661,7 @@ function HomeContent() {
                                   textDecoration: 'none',
                                 }}
                               >
-                                <CalendarDays size={13} /> Garantir minha vaga nesta sessÃ£o
+                                <CalendarDays size={13} /> Garantir minha vaga nesta sessão
                               </Link>
                             </div>
                           )}
@@ -718,7 +709,7 @@ function HomeContent() {
               </div>
               <div className="card-btn-text">
                 <h3>WhatsApp Oficial</h3>
-                <p>Tire dÃºvidas diretamente com a clÃ­nica</p>
+                <p>Tire dúvidas diretamente com a clínica</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -726,7 +717,7 @@ function HomeContent() {
             </div>
           </a>
 
-          {/* Card 5: Onde Atendemos (ConsultÃ³rio & Teleconsulta) */}
+          {/* Card 5: Onde Atendemos (Consultório & Teleconsulta) */}
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'local' ? null : 'local')}
             className={`linktree-card-btn ${activeDrawer === 'local' ? 'active-open' : ''}`}
@@ -736,8 +727,8 @@ function HomeContent() {
                 <MapPin size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>LocalizaÃ§Ã£o & Atendimento Online</h3>
-                <p>ConsultÃ³rio presencial e teleatendimento seguro</p>
+                <h3>Localização & Atendimento Online</h3>
+                <p>Consultório presencial e teleatendimento seguro</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -760,7 +751,7 @@ function HomeContent() {
                 <button
                   onClick={() => setActiveDrawer(null)}
                   className="drawer-close-btn"
-                  aria-label="Fechar localizaÃ§Ã£o"
+                  aria-label="Fechar localização"
                 >
                   <X size={16} />
                 </button>
@@ -770,13 +761,13 @@ function HomeContent() {
                 <div className="service-expand-item">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <MapPin size={18} className="text-primary" />
-                    <h3>ConsultÃ³rio Presencial</h3>
+                    <h3>Consultório Presencial</h3>
                   </div>
                   <p>
-                    EspaÃ§o acolhedor e privativo, projetado para oferecer o mÃ¡ximo conforto e tranquilidade durante sua sessÃ£o de hipnose clÃ­nica.
+                    Espaço acolhedor e privativo, projetado para oferecer o máximo conforto e tranquilidade durante sua sessão de hipnose clínica.
                   </p>
                   <span style={{ fontSize: '0.82rem', color: '#647784' }}>
-                    Urussanga - SC â€¢ EndereÃ§o com orientaÃ§Ãµes enviado apÃ³s confirmaÃ§Ã£o da sessÃ£o.
+                    Urussanga - SC • Endereço com orientações enviado após confirmação da sessão.
                   </span>
                 </div>
 
@@ -786,14 +777,14 @@ function HomeContent() {
                     <h3>Teleatendimento Seguro (Online)</h3>
                   </div>
                   <p>
-                    Atendimento de onde vocÃª estiver com o mesmo acolhimento, via sala de videoconferÃªncia com link criptografado e exclusivo na Ãrea do Cliente.
+                    Atendimento de onde você estiver com o mesmo acolhimento, via sala de videoconferência com link criptografado e exclusivo na Área do Cliente.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Eventos em Grupo DisponÃ­veis (No Final da PÃ¡gina com Gatilho Pulsante) */}
+          {/* Eventos em Grupo Disponíveis (No Final da Página com Gatilho Pulsante) */}
           {groupSessions.filter((gs) => gs.showOnHome !== false).length > 0 && (
             <div
               className="group-events-home-card"
@@ -831,7 +822,7 @@ function HomeContent() {
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <span className="blinking-dot" />
-                  <span>âœ¨ CONDIÃ‡ÃƒO ESPECIAL â€¢ VAGAS LIMITADAS</span>
+                  <span>✨ CONDIÇÃO ESPECIAL • VAGAS LIMITADAS</span>
                 </span>
                 <span
                   className="blinking-badge-pill"
@@ -845,7 +836,7 @@ function HomeContent() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  ðŸ”¥ Ãšltimas Vagas
+                  🔥 Últimas Vagas
                 </span>
               </div>
 
@@ -867,10 +858,10 @@ function HomeContent() {
                   </span>
                   <div>
                     <strong style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>
-                      Eventos em Grupo DisponÃ­veis
+                      Eventos em Grupo Disponíveis
                     </strong>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      VivÃªncias e encontros especiais com data marcada
+                      Vivências e encontros especiais com data marcada
                     </span>
                   </div>
                 </div>
@@ -884,7 +875,7 @@ function HomeContent() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Ver todos â†’
+                  Ver todos →
                 </Link>
               </div>
 
@@ -998,8 +989,8 @@ function HomeContent() {
 
                       <div className="service-badges-list" style={{ marginTop: '2px' }}>
                         <span className="badge-pill badge-pill-duration">
-                          <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} Â· {gs.startTime}
-                          {gs.endTime ? ` Ã s ${gs.endTime}` : ''}
+                          <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} · {gs.startTime}
+                          {gs.endTime ? ` às ${gs.endTime}` : ''}
                         </span>
 
                         {gs.showRemainingSpots !== false && (
@@ -1025,7 +1016,7 @@ function HomeContent() {
 
                         {gs.modality === 'presencial' ? (
                           <span className="badge-pill badge-pill-presencial">
-                            <MapPin size={12} /> Presencial{gs.locationNotes ? ` Â· ${gs.locationNotes}` : ''}
+                            <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
                           </span>
                         ) : (
                           <span className="badge-pill badge-pill-online">
@@ -1075,331 +1066,273 @@ function HomeContent() {
           )}
         </section>
 
-        {/* SeÃ§Ã£o de SessÃµes & Atendimentos Reais no Fim da Home (Formato Reels 9:16 Sem Bordas Pretas) */}
-        {homeVideoSection.enabled && (
-          <section
-            style={{
-              width: '100%',
-              background: 'rgba(255, 255, 255, 0.97)',
-              borderRadius: '20px',
-              padding: '16px',
-              border: '1.5px solid rgba(229, 200, 142, 0.55)',
-              boxShadow: '0 10px 28px rgba(10, 26, 39, 0.16)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '11px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0, flex: 1 }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #245d80 0%, #163d57 100%)',
-                    color: '#e5c88e',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    boxShadow: '0 4px 12px rgba(22, 61, 87, 0.25)',
-                  }}
-                >
-                  <Play size={18} fill="currentColor" />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      fontSize: '0.66rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      color: '#b8860b',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    Reels Â· SessÃµes na ClÃ­nica
-                  </span>
+        {/* Seção de Sessões & Atendimentos Reais no Fim da Home */}
+        {homeVideoSection.enabled && homeVideoSection.videos.length > 0 && (() => {
+          const totalVids = homeVideoSection.videos.length;
+          const safeIdx = Math.min(activeReelIdx, totalVids - 1);
+          const currentVid = homeVideoSection.videos[safeIdx];
+          if (!currentVid) return null;
+
+          return (
+            <section
+              style={{
+                width: '100%',
+                background: '#ffffff',
+                borderRadius: '20px',
+                padding: '18px 16px 20px',
+                border: '1px solid rgba(203, 213, 225, 0.75)',
+                boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
+              {/* Cabeçalho limpo e direto */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  padding: '0 2px',
+                }}
+              >
+                <div>
                   <h2
                     style={{
                       margin: 0,
-                      fontSize: '1.02rem',
+                      fontFamily: "'Manrope', 'Inter', sans-serif",
+                      fontSize: '1.08rem',
                       fontWeight: 800,
-                      color: '#123247',
+                      color: '#0f172a',
+                      letterSpacing: '-0.01em',
                       lineHeight: 1.25,
                     }}
                   >
-                    {homeVideoSection.sectionTitle || 'SessÃµes & Atendimentos Reais'}
+                    {homeVideoSection.sectionTitle || 'Sessões na Prática'}
                   </h2>
                   {homeVideoSection.sectionSubtitle && (
                     <p
                       style={{
                         margin: '3px 0 0',
-                        fontSize: '0.79rem',
-                        color: '#475569',
-                        lineHeight: 1.38,
+                        fontSize: '0.8rem',
+                        color: '#64748b',
+                        lineHeight: 1.35,
                       }}
                     >
                       {homeVideoSection.sectionSubtitle}
                     </p>
                   )}
                 </div>
+
+                {totalVids > 1 && (
+                  <span
+                    style={{
+                      fontSize: '0.76rem',
+                      fontWeight: 700,
+                      color: '#475569',
+                      background: '#f1f5f9',
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {safeIdx + 1} / {totalVids}
+                  </span>
+                )}
               </div>
 
-              {homeVideoSection.videos.length > 1 && (
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    padding: '4px 10px',
-                    borderRadius: '999px',
-                    background: '#f0f9ff',
-                    color: '#1b4b6b',
-                    border: '1px solid #bae6fd',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {homeVideoSection.videos.length} sessÃµes
-                </span>
-              )}
-            </div>
-
-            {homeVideoSection.videos.length > 0 ? (
-              <div style={{ position: 'relative' }}>
-              {homeVideoSection.videos.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    aria-label="VÃ­deo anterior"
-                    onClick={() => scrollReels(-1)}
-                    disabled={!reelsCanPrev}
-                    style={{
-                      position: 'absolute',
-                      left: '-6px',
-                      top: '222px',
-                      transform: 'translateY(-50%)',
-                      zIndex: 3,
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      border: '1.5px solid rgba(229, 200, 142, 0.7)',
-                      background: 'rgba(13, 34, 50, 0.88)',
-                      color: '#e5c88e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: reelsCanPrev ? 'pointer' : 'default',
-                      opacity: reelsCanPrev ? 1 : 0,
-                      pointerEvents: reelsCanPrev ? 'auto' : 'none',
-                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.28)',
-                      transition: 'opacity 0.2s ease',
-                    }}
-                  >
-                    <ChevronLeft size={22} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="PrÃ³ximo vÃ­deo"
-                    onClick={() => scrollReels(1)}
-                    disabled={!reelsCanNext}
-                    style={{
-                      position: 'absolute',
-                      right: '-6px',
-                      top: '222px',
-                      transform: 'translateY(-50%)',
-                      zIndex: 3,
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '50%',
-                      border: '1.5px solid rgba(229, 200, 142, 0.7)',
-                      background: 'rgba(13, 34, 50, 0.88)',
-                      color: '#e5c88e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: reelsCanNext ? 'pointer' : 'default',
-                      opacity: reelsCanNext ? 1 : 0,
-                      pointerEvents: reelsCanNext ? 'auto' : 'none',
-                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.28)',
-                      transition: 'opacity 0.2s ease',
-                    }}
-                  >
-                    <ChevronRight size={22} />
-                  </button>
-                </>
-              )}
+              {/* Player 9:16 Centralizado com Setas Laterais */}
               <div
-                ref={reelsScrollRef}
-                onScroll={updateReelsArrows}
-                style={{
-                  display: 'flex',
-                  gap: '14px',
-                  overflowX: homeVideoSection.videos.length > 1 ? 'auto' : 'visible',
-                  justifyContent: homeVideoSection.videos.length === 1 ? 'center' : 'flex-start',
-                  scrollSnapType: 'x mandatory',
-                  paddingBottom: homeVideoSection.videos.length > 1 ? '6px' : '0',
-                  WebkitOverflowScrolling: 'touch',
-                  scrollbarWidth: 'none',
+                onTouchStart={(e) => {
+                  reelTouchStartX.current = e.touches[0]?.clientX ?? null;
                 }}
-              >
-                {homeVideoSection.videos.map((vid) => (
-                  <div
-                    key={vid.id}
-                    style={{
-                      flex:
-                        homeVideoSection.videos.length === 1
-                          ? '0 1 285px'
-                          : '0 0 250px',
-                      width: '100%',
-                      maxWidth: homeVideoSection.videos.length === 1 ? '285px' : '250px',
-                      scrollSnapAlign: 'center',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '7px',
-                    }}
-                  >
-                    {/* Moldura 9:16 Pura de Reels â€” Preenche 100% sem bordas pretas */}
-                    <div
-                      style={{
-                        width: '100%',
-                        aspectRatio: '9 / 16',
-                        borderRadius: '18px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        background: '#0d2232',
-                        border: '1.5px solid rgba(229, 200, 142, 0.5)',
-                        boxShadow: '0 8px 22px rgba(13, 34, 50, 0.2)',
-                      }}
-                    >
-                      <video
-                        src={vid.videoUrl}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        onPlay={(e) => {
-                          const currentVideo = e.currentTarget;
-                          document.querySelectorAll('video').forEach((other) => {
-                            if (other !== currentVideo && !other.paused) {
-                              other.pause();
-                            }
-                          });
-                        }}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          display: 'block',
-                        }}
-                      />
-                    </div>
-
-                    {(vid.title || vid.subtitle) && (
-                      <div style={{ padding: '0 4px' }}>
-                        {vid.title && (
-                          <div
-                            style={{
-                              fontSize: '0.84rem',
-                              fontWeight: 800,
-                              color: '#123247',
-                              lineHeight: 1.25,
-                            }}
-                          >
-                            {vid.title}
-                          </div>
-                        )}
-                        {vid.subtitle && (
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              color: '#475569',
-                              lineHeight: 1.35,
-                              marginTop: '2px',
-                            }}
-                          >
-                            {vid.subtitle}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              </div>
-            ) : (
-              <div
+                onTouchEnd={(e) => {
+                  if (reelTouchStartX.current === null || totalVids <= 1) return;
+                  const endX = e.changedTouches[0]?.clientX ?? reelTouchStartX.current;
+                  const diff = reelTouchStartX.current - endX;
+                  reelTouchStartX.current = null;
+                  if (Math.abs(diff) > 45) {
+                    goToReel(diff > 0 ? safeIdx + 1 : safeIdx - 1);
+                  }
+                }}
                 style={{
+                  position: 'relative',
                   width: '100%',
-                  maxWidth: '270px',
-                  aspectRatio: '9 / 16',
+                  maxWidth: '290px',
                   margin: '0 auto',
-                  borderRadius: '18px',
-                  padding: '28px 18px',
-                  background: 'linear-gradient(145deg, #0f293c 0%, #1b4b6b 100%)',
-                  color: '#ffffff',
-                  textAlign: 'center',
-                  border: '1.5px dashed rgba(229, 200, 142, 0.5)',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   gap: '10px',
                 }}
               >
+                {totalVids > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Vídeo anterior"
+                      onClick={() => goToReel(safeIdx - 1)}
+                      style={{
+                        position: 'absolute',
+                        left: '-14px',
+                        top: '46%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 4,
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        border: '1px solid rgba(226, 232, 240, 0.95)',
+                        background: 'rgba(255, 255, 255, 0.96)',
+                        color: '#0f172a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
+                      }}
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label="Próximo vídeo"
+                      onClick={() => goToReel(safeIdx + 1)}
+                      style={{
+                        position: 'absolute',
+                        right: '-14px',
+                        top: '46%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 4,
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        border: '1px solid rgba(226, 232, 240, 0.95)',
+                        background: 'rgba(255, 255, 255, 0.96)',
+                        color: '#0f172a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
+                      }}
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+
                 <div
                   style={{
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '50%',
-                    background: 'rgba(229, 200, 142, 0.18)',
-                    border: '1px solid rgba(229, 200, 142, 0.45)',
-                    color: '#e5c88e',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    width: '100%',
+                    aspectRatio: '9 / 16',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    background: '#0d2232',
+                    boxShadow: '0 6px 20px rgba(15, 23, 42, 0.14)',
                   }}
                 >
-                  <Play size={22} fill="currentColor" />
+                  <video
+                    key={currentVid.id}
+                    src={currentVid.videoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
                 </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
-                  SessÃµes em Formato Reels
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.76rem',
-                    color: 'rgba(255,255,255,0.8)',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  EspaÃ§o preparado para compartilhar os vÃ­deos das sessÃµes e atendimentos da clÃ­nica.
-                </div>
+
+                {(currentVid.title || currentVid.subtitle) && (
+                  <div style={{ textAlign: 'center', padding: '0 6px' }}>
+                    {currentVid.title && (
+                      <div
+                        style={{
+                          fontSize: '0.86rem',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {currentVid.title}
+                      </div>
+                    )}
+                    {currentVid.subtitle && (
+                      <div
+                        style={{
+                          fontSize: '0.76rem',
+                          color: '#64748b',
+                          lineHeight: 1.35,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {currentVid.subtitle}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {totalVids > 1 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {homeVideoSection.videos.map((v, idx) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        aria-label={`Ir para vídeo ${idx + 1}`}
+                        onClick={() => goToReel(idx)}
+                        style={{
+                          width: idx === safeIdx ? '20px' : '7px',
+                          height: '7px',
+                          borderRadius: '999px',
+                          border: 'none',
+                          padding: 0,
+                          background: idx === safeIdx ? '#245d80' : '#cbd5e1',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        )}
+            </section>
+          );
+        })()}
 
         {/* Footer Normal com Alta Legibilidade */}
         <footer className="landing-footer-normal">
           <p className="footer-brand-line">
-            <span className="footer-brand-name">Â© 2026 Camila Machado</span>
-            <span className="footer-brand-sep">â€¢</span>
-            <span className="footer-brand-role">Hipnose ClÃ­nica Multidimensional Integrativa</span>
+            <span className="footer-brand-name">© 2026 Camila Machado</span>
+            <span className="footer-brand-sep">•</span>
+            <span className="footer-brand-role">Hipnose Clínica Multidimensional Integrativa</span>
           </p>
 
           <p className="footer-links-line">
             <Link href="/termos" className="footer-text-link">
               Termos de Uso
             </Link>
-            <span className="footer-dot-sep">â€¢</span>
+            <span className="footer-dot-sep">•</span>
             <Link href="/privacidade" className="footer-text-link">
-              PolÃ­tica de Privacidade (LGPD)
+              Política de Privacidade (LGPD)
             </Link>
           </p>
 
           <p className="footer-security-line">
             <ShieldCheck size={16} className="footer-security-icon" />
-            <span>Ambiente seguro com agendamento online e proteÃ§Ã£o de dados LGPD. Urussanga - SC.</span>
+            <span>Ambiente seguro com agendamento online e proteção de dados LGPD. Urussanga - SC.</span>
           </p>
 
           <div className="footer-dev-line">
@@ -1421,7 +1354,7 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Carregandoâ€¦</div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Carregando…</div>}>
       <HomeContent />
     </Suspense>
   );
