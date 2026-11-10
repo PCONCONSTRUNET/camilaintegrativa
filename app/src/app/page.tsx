@@ -1,12 +1,13 @@
 'use client';
 
-import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   Clock3,
@@ -55,23 +56,49 @@ function HomeContent() {
   const [expandedDescIds, setExpandedDescIds] = useState<Record<string, boolean>>({});
   const [homeVideoSection, setHomeVideoSection] = useState<HomeVideoPublicSection>({
     enabled: true,
-    sectionTitle: 'Sessões & Atendimentos Reais',
+    sectionTitle: 'SessÃµes & Atendimentos Reais',
     sectionSubtitle:
-      'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado',
+      'Assista a registros reais de sessÃµes e transformaÃ§Ãµes compartilhadas pela Dra. Camila Machado',
     videos: [],
   });
+
+  // Carrossel de Reels: setas para avanÃ§ar/voltar
+  const reelsScrollRef = useRef<HTMLDivElement | null>(null);
+  const [reelsCanPrev, setReelsCanPrev] = useState(false);
+  const [reelsCanNext, setReelsCanNext] = useState(false);
+
+  const updateReelsArrows = useCallback(() => {
+    const el = reelsScrollRef.current;
+    if (!el) return;
+    setReelsCanPrev(el.scrollLeft > 4);
+    setReelsCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  const scrollReels = useCallback((direction: 1 | -1) => {
+    const el = reelsScrollRef.current;
+    if (!el) return;
+    const firstCard = el.firstElementChild as HTMLElement | null;
+    const step = firstCard ? firstCard.offsetWidth + 14 : 264;
+    el.scrollBy({ left: direction * step, behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    updateReelsArrows();
+    window.addEventListener('resize', updateReelsArrows);
+    return () => window.removeEventListener('resize', updateReelsArrows);
+  }, [homeVideoSection.videos.length, updateReelsArrows]);
 
   // Redirecionamento inteligente ao abrir PWA instalado (Standalone)
   useEffect(() => {
     try {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        // @ts-expect-error - navigator.standalone específico do iOS Safari
+        // @ts-expect-error - navigator.standalone especÃ­fico do iOS Safari
         window.navigator.standalone === true;
 
       if (!isStandalone) return;
 
-      // Se o usuário quer explicitamente ver a landing page pública dentro do PWA (ex: ?site=1 ou ?home=1)
+      // Se o usuÃ¡rio quer explicitamente ver a landing page pÃºblica dentro do PWA (ex: ?site=1 ou ?home=1)
       const stayOnSite = searchParams.get('site') === '1' || searchParams.get('home') === '1';
       if (stayOnSite) return;
 
@@ -113,10 +140,10 @@ function HomeContent() {
         if (data?.section) {
           setHomeVideoSection({
             enabled: Boolean(data.section.enabled),
-            sectionTitle: data.section.sectionTitle || 'Sessões & Atendimentos Reais',
+            sectionTitle: data.section.sectionTitle || 'SessÃµes & Atendimentos Reais',
             sectionSubtitle:
               data.section.sectionSubtitle ??
-              'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado',
+              'Assista a registros reais de sessÃµes e transformaÃ§Ãµes compartilhadas pela Dra. Camila Machado',
             videos: Array.isArray(data.section.videos) ? data.section.videos : [],
           });
         }
@@ -152,7 +179,7 @@ function HomeContent() {
 
           <Image
             src="/logo-camila-machado.png"
-            alt="Camila Machado - Hipnose Clínica Multidimensional Integrativa"
+            alt="Camila Machado - Hipnose ClÃ­nica Multidimensional Integrativa"
             width={320}
             height={95}
             className="linktree-logo-img"
@@ -160,14 +187,14 @@ function HomeContent() {
           />
 
           <span className="linktree-badge-title">
-            <Sparkles size={13} /> Hipnose Clínica Multidimensional Integrativa
+            <Sparkles size={13} /> Hipnose ClÃ­nica Multidimensional Integrativa
           </span>
 
           <p className="linktree-bio-text">
-            Um espaço de escuta, cuidado e presença para sua transformação emocional e autoconhecimento.
+            Um espaÃ§o de escuta, cuidado e presenÃ§a para sua transformaÃ§Ã£o emocional e autoconhecimento.
           </p>
 
-          {/* Faixa de Contato Rápido: Apenas Ícones WhatsApp e Instagram */}
+          {/* Faixa de Contato RÃ¡pido: Apenas Ãcones WhatsApp e Instagram */}
           <div
             style={{
               display: 'flex',
@@ -266,7 +293,7 @@ function HomeContent() {
               </div>
               <div className="card-btn-text">
                 <h3>Agendar Atendimento</h3>
-                <p>Consulte dias e horários livres em tempo real</p>
+                <p>Consulte dias e horÃ¡rios livres em tempo real</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -274,7 +301,7 @@ function HomeContent() {
             </div>
           </Link>
 
-          {/* Card 2: Área do Cliente (Portal) -> Rota externa dedicada */}
+          {/* Card 2: Ãrea do Cliente (Portal) -> Rota externa dedicada */}
           <Link
             href="/cliente/entrar"
             className="linktree-card-btn client-highlight"
@@ -284,8 +311,8 @@ function HomeContent() {
                 <UserCheck size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>Área do Cliente (Portal)</h3>
-                <p>Criar conta ou acessar histórico e teleatendimento</p>
+                <h3>Ãrea do Cliente (Portal)</h3>
+                <p>Criar conta ou acessar histÃ³rico e teleatendimento</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -296,7 +323,7 @@ function HomeContent() {
             </div>
           </Link>
 
-          {/* Card 3: Nossos Serviços & Abordagens */}
+          {/* Card 3: Nossos ServiÃ§os & Abordagens */}
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'servicos' ? null : 'servicos')}
             className={`linktree-card-btn ${activeDrawer === 'servicos' ? 'active-open' : ''}`}
@@ -306,8 +333,8 @@ function HomeContent() {
                 <HeartHandshake size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>Serviços & Metodologia</h3>
-                <p>Conversa inicial, sessões de hipnose e acompanhamento</p>
+                <h3>ServiÃ§os & Metodologia</h3>
+                <p>Conversa inicial, sessÃµes de hipnose e acompanhamento</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -319,18 +346,18 @@ function HomeContent() {
             </div>
           </button>
 
-          {/* Embedded Drawer: Serviços */}
+          {/* Embedded Drawer: ServiÃ§os */}
           {activeDrawer === 'servicos' && (
             <div className="linktree-drawer">
               <div className="drawer-header">
                 <div className="drawer-title-row">
                   <HeartHandshake size={18} className="text-primary" />
-                  <h2>Serviços Oferecidos</h2>
+                  <h2>ServiÃ§os Oferecidos</h2>
                 </div>
                 <button
                   onClick={() => setActiveDrawer(null)}
                   className="drawer-close-btn"
-                  aria-label="Fechar serviços"
+                  aria-label="Fechar serviÃ§os"
                 >
                   <X size={16} />
                 </button>
@@ -426,7 +453,7 @@ function HomeContent() {
                               borderRadius: '6px'
                             }}
                           >
-                            ✓ {t.name}: <strong>{formatCurrency(t.priceCents)}</strong>
+                            âœ“ {t.name}: <strong>{formatCurrency(t.priceCents)}</strong>
                           </span>
                         ))}
                       </div>
@@ -476,7 +503,7 @@ function HomeContent() {
                       }}
                     >
                       <Users size={15} />
-                      <span>Sessões em Grupo com Vagas Abertas</span>
+                      <span>SessÃµes em Grupo com Vagas Abertas</span>
                     </div>
 
                     {groupSessions.map((gs) => {
@@ -514,7 +541,7 @@ function HomeContent() {
                                   marginBottom: '6px',
                                 }}
                               >
-                                <Users size={11} /> Sessão em Grupo
+                                <Users size={11} /> SessÃ£o em Grupo
                               </span>
                               <h3>{gs.title}</h3>
                             </div>
@@ -585,8 +612,8 @@ function HomeContent() {
                           )}
                           <div className="service-badges-list" style={{ marginTop: '8px' }}>
                             <span className="badge-pill badge-pill-duration">
-                              <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} · {gs.startTime}
-                              {gs.endTime ? ` às ${gs.endTime}` : ''}
+                              <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} Â· {gs.startTime}
+                              {gs.endTime ? ` Ã s ${gs.endTime}` : ''}
                             </span>
                             {gs.showRemainingSpots !== false && (
                               <span
@@ -602,14 +629,14 @@ function HomeContent() {
                                   ? 'Vagas esgotadas'
                                   : spotsLeft !== null
                                   ? !isUnlimited && gs.customRemainingSpots == null
-                                    ? `${spotsLeft} de ${gs.maxParticipants} vagas disponíveis`
+                                    ? `${spotsLeft} de ${gs.maxParticipants} vagas disponÃ­veis`
                                     : `Restam ${spotsLeft} vagas`
                                   : 'Vagas abertas'}
                               </span>
                             )}
                             {gs.modality === 'presencial' ? (
                               <span className="badge-pill badge-pill-presencial">
-                                <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
+                                <MapPin size={12} /> Presencial{gs.locationNotes ? ` Â· ${gs.locationNotes}` : ''}
                               </span>
                             ) : (
                               <span className="badge-pill badge-pill-online">
@@ -643,7 +670,7 @@ function HomeContent() {
                                   textDecoration: 'none',
                                 }}
                               >
-                                <CalendarDays size={13} /> Garantir minha vaga nesta sessão
+                                <CalendarDays size={13} /> Garantir minha vaga nesta sessÃ£o
                               </Link>
                             </div>
                           )}
@@ -691,7 +718,7 @@ function HomeContent() {
               </div>
               <div className="card-btn-text">
                 <h3>WhatsApp Oficial</h3>
-                <p>Tire dúvidas diretamente com a clínica</p>
+                <p>Tire dÃºvidas diretamente com a clÃ­nica</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -699,7 +726,7 @@ function HomeContent() {
             </div>
           </a>
 
-          {/* Card 5: Onde Atendemos (Consultório & Teleconsulta) */}
+          {/* Card 5: Onde Atendemos (ConsultÃ³rio & Teleconsulta) */}
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'local' ? null : 'local')}
             className={`linktree-card-btn ${activeDrawer === 'local' ? 'active-open' : ''}`}
@@ -709,8 +736,8 @@ function HomeContent() {
                 <MapPin size={22} />
               </div>
               <div className="card-btn-text">
-                <h3>Localização & Atendimento Online</h3>
-                <p>Consultório presencial e teleatendimento seguro</p>
+                <h3>LocalizaÃ§Ã£o & Atendimento Online</h3>
+                <p>ConsultÃ³rio presencial e teleatendimento seguro</p>
               </div>
             </div>
             <div className="card-btn-right">
@@ -733,7 +760,7 @@ function HomeContent() {
                 <button
                   onClick={() => setActiveDrawer(null)}
                   className="drawer-close-btn"
-                  aria-label="Fechar localização"
+                  aria-label="Fechar localizaÃ§Ã£o"
                 >
                   <X size={16} />
                 </button>
@@ -743,13 +770,13 @@ function HomeContent() {
                 <div className="service-expand-item">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <MapPin size={18} className="text-primary" />
-                    <h3>Consultório Presencial</h3>
+                    <h3>ConsultÃ³rio Presencial</h3>
                   </div>
                   <p>
-                    Espaço acolhedor e privativo, projetado para oferecer o máximo conforto e tranquilidade durante sua sessão de hipnose clínica.
+                    EspaÃ§o acolhedor e privativo, projetado para oferecer o mÃ¡ximo conforto e tranquilidade durante sua sessÃ£o de hipnose clÃ­nica.
                   </p>
                   <span style={{ fontSize: '0.82rem', color: '#647784' }}>
-                    Urussanga - SC • Endereço com orientações enviado após confirmação da sessão.
+                    Urussanga - SC â€¢ EndereÃ§o com orientaÃ§Ãµes enviado apÃ³s confirmaÃ§Ã£o da sessÃ£o.
                   </span>
                 </div>
 
@@ -759,14 +786,14 @@ function HomeContent() {
                     <h3>Teleatendimento Seguro (Online)</h3>
                   </div>
                   <p>
-                    Atendimento de onde você estiver com o mesmo acolhimento, via sala de videoconferência com link criptografado e exclusivo na Área do Cliente.
+                    Atendimento de onde vocÃª estiver com o mesmo acolhimento, via sala de videoconferÃªncia com link criptografado e exclusivo na Ãrea do Cliente.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Eventos em Grupo Disponíveis (No Final da Página com Gatilho Pulsante) */}
+          {/* Eventos em Grupo DisponÃ­veis (No Final da PÃ¡gina com Gatilho Pulsante) */}
           {groupSessions.filter((gs) => gs.showOnHome !== false).length > 0 && (
             <div
               className="group-events-home-card"
@@ -804,7 +831,7 @@ function HomeContent() {
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <span className="blinking-dot" />
-                  <span>✨ CONDIÇÃO ESPECIAL • VAGAS LIMITADAS</span>
+                  <span>âœ¨ CONDIÃ‡ÃƒO ESPECIAL â€¢ VAGAS LIMITADAS</span>
                 </span>
                 <span
                   className="blinking-badge-pill"
@@ -818,7 +845,7 @@ function HomeContent() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  🔥 Últimas Vagas
+                  ðŸ”¥ Ãšltimas Vagas
                 </span>
               </div>
 
@@ -840,10 +867,10 @@ function HomeContent() {
                   </span>
                   <div>
                     <strong style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>
-                      Eventos em Grupo Disponíveis
+                      Eventos em Grupo DisponÃ­veis
                     </strong>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      Vivências e encontros especiais com data marcada
+                      VivÃªncias e encontros especiais com data marcada
                     </span>
                   </div>
                 </div>
@@ -857,7 +884,7 @@ function HomeContent() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Ver todos →
+                  Ver todos â†’
                 </Link>
               </div>
 
@@ -971,8 +998,8 @@ function HomeContent() {
 
                       <div className="service-badges-list" style={{ marginTop: '2px' }}>
                         <span className="badge-pill badge-pill-duration">
-                          <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} · {gs.startTime}
-                          {gs.endTime ? ` às ${gs.endTime}` : ''}
+                          <CalendarDays size={12} /> {gs.date.split('-').reverse().join('/')} Â· {gs.startTime}
+                          {gs.endTime ? ` Ã s ${gs.endTime}` : ''}
                         </span>
 
                         {gs.showRemainingSpots !== false && (
@@ -998,7 +1025,7 @@ function HomeContent() {
 
                         {gs.modality === 'presencial' ? (
                           <span className="badge-pill badge-pill-presencial">
-                            <MapPin size={12} /> Presencial{gs.locationNotes ? ` · ${gs.locationNotes}` : ''}
+                            <MapPin size={12} /> Presencial{gs.locationNotes ? ` Â· ${gs.locationNotes}` : ''}
                           </span>
                         ) : (
                           <span className="badge-pill badge-pill-online">
@@ -1048,7 +1075,7 @@ function HomeContent() {
           )}
         </section>
 
-        {/* Seção de Sessões & Atendimentos Reais no Fim da Home (Formato Reels 9:16 Sem Bordas Pretas) */}
+        {/* SeÃ§Ã£o de SessÃµes & Atendimentos Reais no Fim da Home (Formato Reels 9:16 Sem Bordas Pretas) */}
         {homeVideoSection.enabled && (
           <section
             style={{
@@ -1093,7 +1120,7 @@ function HomeContent() {
                       marginBottom: '2px',
                     }}
                   >
-                    Reels · Sessões na Clínica
+                    Reels Â· SessÃµes na ClÃ­nica
                   </span>
                   <h2
                     style={{
@@ -1104,7 +1131,7 @@ function HomeContent() {
                       lineHeight: 1.25,
                     }}
                   >
-                    {homeVideoSection.sectionTitle || 'Sessões & Atendimentos Reais'}
+                    {homeVideoSection.sectionTitle || 'SessÃµes & Atendimentos Reais'}
                   </h2>
                   {homeVideoSection.sectionSubtitle && (
                     <p
@@ -1134,13 +1161,78 @@ function HomeContent() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {homeVideoSection.videos.length} sessões
+                  {homeVideoSection.videos.length} sessÃµes
                 </span>
               )}
             </div>
 
             {homeVideoSection.videos.length > 0 ? (
+              <div style={{ position: 'relative' }}>
+              {homeVideoSection.videos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="VÃ­deo anterior"
+                    onClick={() => scrollReels(-1)}
+                    disabled={!reelsCanPrev}
+                    style={{
+                      position: 'absolute',
+                      left: '-6px',
+                      top: '222px',
+                      transform: 'translateY(-50%)',
+                      zIndex: 3,
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      border: '1.5px solid rgba(229, 200, 142, 0.7)',
+                      background: 'rgba(13, 34, 50, 0.88)',
+                      color: '#e5c88e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: reelsCanPrev ? 'pointer' : 'default',
+                      opacity: reelsCanPrev ? 1 : 0,
+                      pointerEvents: reelsCanPrev ? 'auto' : 'none',
+                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.28)',
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="PrÃ³ximo vÃ­deo"
+                    onClick={() => scrollReels(1)}
+                    disabled={!reelsCanNext}
+                    style={{
+                      position: 'absolute',
+                      right: '-6px',
+                      top: '222px',
+                      transform: 'translateY(-50%)',
+                      zIndex: 3,
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      border: '1.5px solid rgba(229, 200, 142, 0.7)',
+                      background: 'rgba(13, 34, 50, 0.88)',
+                      color: '#e5c88e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: reelsCanNext ? 'pointer' : 'default',
+                      opacity: reelsCanNext ? 1 : 0,
+                      pointerEvents: reelsCanNext ? 'auto' : 'none',
+                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.28)',
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
               <div
+                ref={reelsScrollRef}
+                onScroll={updateReelsArrows}
                 style={{
                   display: 'flex',
                   gap: '14px',
@@ -1149,6 +1241,7 @@ function HomeContent() {
                   scrollSnapType: 'x mandatory',
                   paddingBottom: homeVideoSection.videos.length > 1 ? '6px' : '0',
                   WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'none',
                 }}
               >
                 {homeVideoSection.videos.map((vid) => (
@@ -1167,7 +1260,7 @@ function HomeContent() {
                       gap: '7px',
                     }}
                   >
-                    {/* Moldura 9:16 Pura de Reels — Preenche 100% sem bordas pretas */}
+                    {/* Moldura 9:16 Pura de Reels â€” Preenche 100% sem bordas pretas */}
                     <div
                       style={{
                         width: '100%',
@@ -1233,6 +1326,7 @@ function HomeContent() {
                   </div>
                 ))}
               </div>
+              </div>
             ) : (
               <div
                 style={{
@@ -1269,7 +1363,7 @@ function HomeContent() {
                   <Play size={22} fill="currentColor" />
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
-                  Sessões em Formato Reels
+                  SessÃµes em Formato Reels
                 </div>
                 <div
                   style={{
@@ -1278,7 +1372,7 @@ function HomeContent() {
                     lineHeight: 1.4,
                   }}
                 >
-                  Espaço preparado para compartilhar os vídeos das sessões e atendimentos da clínica.
+                  EspaÃ§o preparado para compartilhar os vÃ­deos das sessÃµes e atendimentos da clÃ­nica.
                 </div>
               </div>
             )}
@@ -1288,24 +1382,24 @@ function HomeContent() {
         {/* Footer Normal com Alta Legibilidade */}
         <footer className="landing-footer-normal">
           <p className="footer-brand-line">
-            <span className="footer-brand-name">© 2026 Camila Machado</span>
-            <span className="footer-brand-sep">•</span>
-            <span className="footer-brand-role">Hipnose Clínica Multidimensional Integrativa</span>
+            <span className="footer-brand-name">Â© 2026 Camila Machado</span>
+            <span className="footer-brand-sep">â€¢</span>
+            <span className="footer-brand-role">Hipnose ClÃ­nica Multidimensional Integrativa</span>
           </p>
 
           <p className="footer-links-line">
             <Link href="/termos" className="footer-text-link">
               Termos de Uso
             </Link>
-            <span className="footer-dot-sep">•</span>
+            <span className="footer-dot-sep">â€¢</span>
             <Link href="/privacidade" className="footer-text-link">
-              Política de Privacidade (LGPD)
+              PolÃ­tica de Privacidade (LGPD)
             </Link>
           </p>
 
           <p className="footer-security-line">
             <ShieldCheck size={16} className="footer-security-icon" />
-            <span>Ambiente seguro com agendamento online e proteção de dados LGPD. Urussanga - SC.</span>
+            <span>Ambiente seguro com agendamento online e proteÃ§Ã£o de dados LGPD. Urussanga - SC.</span>
           </p>
 
           <div className="footer-dev-line">
@@ -1327,7 +1421,7 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Carregando…</div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Carregandoâ€¦</div>}>
       <HomeContent />
     </Suspense>
   );
