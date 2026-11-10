@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import {
-  getClinicHomeVideo,
-  removeClinicHomeVideoFile,
-  saveClinicHomeVideo,
+  addClinicHomeVideoItem,
+  deleteClinicHomeVideoItem,
+  getClinicHomeVideoSection,
+  saveClinicHomeVideoSettings,
+  updateClinicHomeVideoItem,
 } from '@/lib/home-video';
 import { createPresignedVideoUploadUrl } from '@/lib/r2-storage';
 
@@ -13,12 +15,12 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
-    const video = await getClinicHomeVideo();
-    return NextResponse.json({ video });
+    const section = await getClinicHomeVideoSection();
+    return NextResponse.json({ section });
   } catch (error) {
     console.error('[admin/home-video] Erro no GET:', error);
     return NextResponse.json(
-      { error: 'Não foi possível carregar as configurações do vídeo da Home.' },
+      { error: 'Não foi possível carregar os vídeos da Home.' },
       { status: 500 }
     );
   }
@@ -40,23 +42,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(presigned);
     }
 
-    const video = await saveClinicHomeVideo({
+    if (body?.action === 'add_video') {
+      const section = await addClinicHomeVideoItem({
+        title: body.title,
+        subtitle: body.subtitle,
+        videoUrl: String(body.videoUrl || ''),
+        videoName: body.videoName,
+        videoSize: body.videoSize,
+        published: body.published !== false,
+      });
+      return NextResponse.json({ section });
+    }
+
+    if (body?.action === 'update_video') {
+      const section = await updateClinicHomeVideoItem(String(body.id || ''), {
+        title: body.title,
+        subtitle: body.subtitle,
+        published: body.published,
+        displayOrder: body.displayOrder,
+      });
+      return NextResponse.json({ section });
+    }
+
+    const section = await saveClinicHomeVideoSettings({
       enabled: body.enabled,
-      title: body.title,
-      subtitle: body.subtitle,
-      videoUrl: body.videoUrl,
-      videoName: body.videoName,
-      videoSize: body.videoSize,
-      posterUrl: body.posterUrl,
-      orientation: body.orientation,
+      sectionTitle: body.sectionTitle ?? body.title,
+      sectionSubtitle: body.sectionSubtitle ?? body.subtitle,
     });
 
-    return NextResponse.json({ video });
+    return NextResponse.json({ section });
   } catch (error) {
     console.error('[admin/home-video] Erro no POST:', error);
     return NextResponse.json(
       {
-        error: 'Não foi possível salvar o vídeo da Home.',
+        error: 'Não foi possível salvar os vídeos da Home.',
         details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
@@ -64,15 +83,20 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const video = await removeClinicHomeVideoFile();
-    return NextResponse.json({ video });
+    const id = request.nextUrl.searchParams.get('id') || '';
+    if (!id) {
+      return NextResponse.json({ error: 'Informe o ID do vídeo.' }, { status: 400 });
+    }
+
+    const section = await deleteClinicHomeVideoItem(id);
+    return NextResponse.json({ section });
   } catch (error) {
     console.error('[admin/home-video] Erro no DELETE:', error);
     return NextResponse.json(

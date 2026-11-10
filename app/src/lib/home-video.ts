@@ -1,67 +1,84 @@
 import 'server-only';
 
+import crypto from 'crypto';
 import { getDatabase, IDS } from '@/lib/db';
 import { deleteDocumentFromR2 } from '@/lib/r2-storage';
 
-export type HomeVideoOrientation = 'auto' | 'vertical' | 'horizontal';
-
-export interface ClinicHomeVideoConfig {
-  enabled: boolean;
+export interface HomeVideoItem {
+  id: string;
   title: string;
   subtitle: string;
   videoUrl: string;
   videoName: string;
   videoSize: number;
-  posterUrl: string;
-  orientation: HomeVideoOrientation;
+  published: boolean;
+  displayOrder: number;
+  createdAt: string;
+}
+
+export interface ClinicHomeVideoSection {
+  enabled: boolean;
+  sectionTitle: string;
+  sectionSubtitle: string;
+  videos: HomeVideoItem[];
   updatedAt: string;
 }
 
-export const DEFAULT_CLINIC_HOME_VIDEO: ClinicHomeVideoConfig = {
-  enabled: true,
-  title: 'Conheça o Atendimento',
-  subtitle: 'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa',
-  videoUrl: '',
-  videoName: '',
-  videoSize: 0,
-  posterUrl: '',
-  orientation: 'auto',
-  updatedAt: new Date(0).toISOString(),
-};
+export const DEFAULT_SECTION_TITLE = 'Sessões & Atendimentos Reais';
+export const DEFAULT_SECTION_SUBTITLE =
+  'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado';
 
-let tableInitialized = false;
+let tablesInitialized = false;
 
 export async function ensureHomeVideoTable() {
-  if (tableInitialized) return;
+  if (tablesInitialized) return;
   try {
     const db = getDatabase();
     await db.exec(`
       CREATE TABLE IF NOT EXISTS clinic_home_video (
         clinic_id TEXT PRIMARY KEY,
         enabled INTEGER NOT NULL DEFAULT 1,
-        title TEXT NOT NULL DEFAULT 'Conheça o Atendimento',
-        subtitle TEXT NOT NULL DEFAULT 'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa',
+        title TEXT NOT NULL DEFAULT 'Sessões & Atendimentos Reais',
+        subtitle TEXT NOT NULL DEFAULT 'Assista a registros reais de sessões e transformações compartilhadas pela Dra. Camila Machado',
         video_url TEXT NOT NULL DEFAULT '',
         video_name TEXT NOT NULL DEFAULT '',
         video_size BIGINT NOT NULL DEFAULT 0,
         poster_url TEXT NOT NULL DEFAULT '',
-        orientation TEXT NOT NULL DEFAULT 'auto',
+        orientation TEXT NOT NULL DEFAULT 'vertical',
         updated_at TEXT NOT NULL
       )
     `);
-    tableInitialized = true;
+
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS clinic_home_videos (
+        id TEXT PRIMARY KEY,
+        clinic_id TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        subtitle TEXT NOT NULL DEFAULT '',
+        video_url TEXT NOT NULL,
+        video_name TEXT NOT NULL DEFAULT '',
+        video_size BIGINT NOT NULL DEFAULT 0,
+        published INTEGER NOT NULL DEFAULT 1,
+        display_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
+    tablesInitialized = true;
   } catch (err) {
-    console.error('[home-video] Erro ao inicializar tabela clinic_home_video:', err);
+    console.error('[home-video] Erro ao inicializar tabelas de vídeos da Home:', err);
   }
 }
 
-export async function getClinicHomeVideo(): Promise<ClinicHomeVideoConfig> {
+export async function getClinicHomeVideoSection(): Promise<ClinicHomeVideoSection> {
   await ensureHomeVideoTable();
+  const db = getDatabase();
+
   try {
-    const db = getDatabase();
-    const row = (await db
+    const settingsRow = (await db
       .prepare(`
-        SELECT enabled, title, subtitle, video_url, video_name, video_size, poster_url, orientation, updated_at
+        SELECT enabled, title, subtitle, video_url, video_name, video_size, updated_at
         FROM clinic_home_video
         WHERE clinic_id = ?
       `)
@@ -73,73 +90,125 @@ export async function getClinicHomeVideo(): Promise<ClinicHomeVideoConfig> {
           video_url: string;
           video_name: string;
           video_size: number | string;
-          poster_url: string;
-          orientation: string;
           updated_at: string;
         }
       | undefined;
 
-    if (!row) {
-      return DEFAULT_CLINIC_HOME_VIDEO;
+    let videoRows = (await db
+      .prepare(`
+        SELECT id, title, subtitle, video_url, video_name, video_size, published, display_order, created_at
+        FROM clinic_home_videos
+        WHERE clinic_id = ?
+        ORDER BY display_order ASC, created_at DESC
+      `)
+      .all(IDS.clinic)) as Array<{
+      id: string;
+      title: string;
+      subtitle: string;
+      video_url: string;
+      video_name: string;
+      video_size: number | string;
+      published: number;
+      display_order: number;
+      created_at: string;
+    }>;
+
+    // Migração automática caso já exista um vídeo salvo no formato único anterior
+    if (videoRows.length === 0 && settingsRow?.video_url) {
+      const now = new Date().toISOString();
+      const migratedId = `vid_${crypto.randomUUID().slice(0, 12)}`;
+      await db
+        .prepare(`
+          INSERT INTO clinic_home_videos (
+            id, clinic_id, title, subtitle, video_url, video_name, video_size, published, display_order, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
+        `)
+        .run(
+          migratedId,
+          IDS.clinic,
+          'Sessão na Clínica',
+          '',
+          settingsRow.video_url,
+          settingsRow.video_name || 'video.mp4',
+          Number(settingsRow.video_size || 0),
+          now,
+          now
+        );
+
+      // Limpa o campo legado para não migrar novamente se todos forem apagados no futuro
+      await db
+        .prepare(`UPDATE clinic_home_video SET video_url = '', video_name = '', video_size = 0 WHERE clinic_id = ?`)
+        .run(IDS.clinic);
+
+      videoRows = [
+        {
+          id: migratedId,
+          title: 'Sessão na Clínica',
+          subtitle: '',
+          video_url: settingsRow.video_url,
+          video_name: settingsRow.video_name || 'video.mp4',
+          video_size: Number(settingsRow.video_size || 0),
+          published: 1,
+          display_order: 0,
+          created_at: now,
+        },
+      ];
     }
 
-    const orientation: HomeVideoOrientation =
-      row.orientation === 'vertical' || row.orientation === 'horizontal'
-        ? row.orientation
-        : 'auto';
+    const videos: HomeVideoItem[] = videoRows.map((r) => ({
+      id: r.id,
+      title: r.title || '',
+      subtitle: r.subtitle || '',
+      videoUrl: r.video_url,
+      videoName: r.video_name || '',
+      videoSize: Number(r.video_size || 0),
+      published: Number(r.published) !== 0,
+      displayOrder: Number(r.display_order || 0),
+      createdAt: r.created_at,
+    }));
+
+    const isDefaultOldTitle = settingsRow?.title === 'Conheça o Atendimento';
+    const isDefaultOldSubtitle =
+      settingsRow?.subtitle ===
+      'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa';
 
     return {
-      enabled: Number(row.enabled) !== 0,
-      title: row.title || DEFAULT_CLINIC_HOME_VIDEO.title,
-      subtitle: row.subtitle ?? DEFAULT_CLINIC_HOME_VIDEO.subtitle,
-      videoUrl: row.video_url || '',
-      videoName: row.video_name || '',
-      videoSize: Number(row.video_size || 0),
-      posterUrl: row.poster_url || '',
-      orientation,
-      updatedAt: row.updated_at || DEFAULT_CLINIC_HOME_VIDEO.updatedAt,
+      enabled: settingsRow ? Number(settingsRow.enabled) !== 0 : true,
+      sectionTitle:
+        !settingsRow?.title || isDefaultOldTitle ? DEFAULT_SECTION_TITLE : settingsRow.title,
+      sectionSubtitle:
+        settingsRow?.subtitle === undefined || isDefaultOldSubtitle
+          ? DEFAULT_SECTION_SUBTITLE
+          : settingsRow.subtitle,
+      videos,
+      updatedAt: settingsRow?.updated_at || new Date().toISOString(),
     };
   } catch (err) {
-    console.error('[home-video] Erro ao carregar configuração do vídeo da Home:', err);
-    return DEFAULT_CLINIC_HOME_VIDEO;
+    console.error('[home-video] Erro ao buscar seção de vídeos da Home:', err);
+    return {
+      enabled: true,
+      sectionTitle: DEFAULT_SECTION_TITLE,
+      sectionSubtitle: DEFAULT_SECTION_SUBTITLE,
+      videos: [],
+      updatedAt: new Date().toISOString(),
+    };
   }
 }
 
-export async function saveClinicHomeVideo(
-  input: Partial<Omit<ClinicHomeVideoConfig, 'updatedAt'>>
-): Promise<ClinicHomeVideoConfig> {
+export async function saveClinicHomeVideoSettings(input: {
+  enabled?: boolean;
+  sectionTitle?: string;
+  sectionSubtitle?: string;
+}): Promise<ClinicHomeVideoSection> {
   await ensureHomeVideoTable();
-  const current = await getClinicHomeVideo();
-
-  const nextVideoUrl =
-    input.videoUrl !== undefined ? input.videoUrl.trim() : current.videoUrl;
-
-  // Se substituiu um vídeo do R2 por outro diferente, limpa o arquivo antigo do R2
-  if (
-    current.videoUrl &&
-    current.videoUrl !== nextVideoUrl &&
-    current.videoUrl.includes('.r2.dev/videos-home/')
-  ) {
-    await deleteDocumentFromR2(current.videoUrl).catch(() => null);
-  }
-
+  const current = await getClinicHomeVideoSection();
   const enabled = input.enabled !== undefined ? Boolean(input.enabled) : current.enabled;
-  const title =
-    input.title !== undefined
-      ? input.title.trim() || DEFAULT_CLINIC_HOME_VIDEO.title
-      : current.title;
-  const subtitle =
-    input.subtitle !== undefined ? input.subtitle.trim() : current.subtitle;
-  const videoName =
-    input.videoName !== undefined ? input.videoName.trim() : current.videoName;
-  const videoSize =
-    input.videoSize !== undefined ? Number(input.videoSize || 0) : current.videoSize;
-  const posterUrl =
-    input.posterUrl !== undefined ? input.posterUrl.trim() : current.posterUrl;
-  const orientation: HomeVideoOrientation =
-    input.orientation === 'vertical' || input.orientation === 'horizontal' || input.orientation === 'auto'
-      ? input.orientation
-      : current.orientation;
+  const sectionTitle =
+    input.sectionTitle !== undefined
+      ? input.sectionTitle.trim() || DEFAULT_SECTION_TITLE
+      : current.sectionTitle;
+  const sectionSubtitle =
+    input.sectionSubtitle !== undefined ? input.sectionSubtitle.trim() : current.sectionSubtitle;
   const updatedAt = new Date().toISOString();
 
   const db = getDatabase();
@@ -147,52 +216,104 @@ export async function saveClinicHomeVideo(
     .prepare(`
       INSERT INTO clinic_home_video (
         clinic_id, enabled, title, subtitle, video_url, video_name, video_size, poster_url, orientation, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, '', '', 0, '', 'vertical', ?)
       ON CONFLICT(clinic_id) DO UPDATE SET
         enabled = excluded.enabled,
         title = excluded.title,
         subtitle = excluded.subtitle,
-        video_url = excluded.video_url,
-        video_name = excluded.video_name,
-        video_size = excluded.video_size,
-        poster_url = excluded.poster_url,
-        orientation = excluded.orientation,
         updated_at = excluded.updated_at
     `)
-    .run(
-      IDS.clinic,
-      enabled ? 1 : 0,
-      title,
-      subtitle,
-      nextVideoUrl,
-      videoName,
-      videoSize,
-      posterUrl,
-      orientation,
-      updatedAt
-    );
+    .run(IDS.clinic, enabled ? 1 : 0, sectionTitle, sectionSubtitle, updatedAt);
 
-  return {
-    enabled,
-    title,
-    subtitle,
-    videoUrl: nextVideoUrl,
-    videoName,
-    videoSize,
-    posterUrl,
-    orientation,
-    updatedAt,
-  };
+  return getClinicHomeVideoSection();
 }
 
-export async function removeClinicHomeVideoFile(): Promise<ClinicHomeVideoConfig> {
-  const current = await getClinicHomeVideo();
-  if (current.videoUrl && current.videoUrl.includes('.r2.dev/')) {
-    await deleteDocumentFromR2(current.videoUrl).catch(() => null);
+export async function addClinicHomeVideoItem(input: {
+  title?: string;
+  subtitle?: string;
+  videoUrl: string;
+  videoName?: string;
+  videoSize?: number;
+  published?: boolean;
+}): Promise<ClinicHomeVideoSection> {
+  await ensureHomeVideoTable();
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  const id = `vid_${crypto.randomUUID().slice(0, 12)}`;
+
+  // Coloca o novo vídeo no topo (menor display_order ou reordena)
+  const existing = await getClinicHomeVideoSection();
+  const nextOrder = existing.videos.length > 0 ? Math.min(...existing.videos.map((v) => v.displayOrder)) - 1 : 0;
+
+  await db
+    .prepare(`
+      INSERT INTO clinic_home_videos (
+        id, clinic_id, title, subtitle, video_url, video_name, video_size, published, display_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    .run(
+      id,
+      IDS.clinic,
+      (input.title || '').trim(),
+      (input.subtitle || '').trim(),
+      input.videoUrl.trim(),
+      (input.videoName || '').trim(),
+      Number(input.videoSize || 0),
+      input.published === false ? 0 : 1,
+      nextOrder,
+      now,
+      now
+    );
+
+  return getClinicHomeVideoSection();
+}
+
+export async function updateClinicHomeVideoItem(
+  id: string,
+  input: {
+    title?: string;
+    subtitle?: string;
+    published?: boolean;
+    displayOrder?: number;
   }
-  return saveClinicHomeVideo({
-    videoUrl: '',
-    videoName: '',
-    videoSize: 0,
-  });
+): Promise<ClinicHomeVideoSection> {
+  await ensureHomeVideoTable();
+  const db = getDatabase();
+  const existing = await getClinicHomeVideoSection();
+  const item = existing.videos.find((v) => v.id === id);
+  if (!item) return existing;
+
+  const title = input.title !== undefined ? input.title.trim() : item.title;
+  const subtitle = input.subtitle !== undefined ? input.subtitle.trim() : item.subtitle;
+  const published = input.published !== undefined ? Boolean(input.published) : item.published;
+  const displayOrder =
+    input.displayOrder !== undefined ? Number(input.displayOrder) : item.displayOrder;
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(`
+      UPDATE clinic_home_videos
+      SET title = ?, subtitle = ?, published = ?, display_order = ?, updated_at = ?
+      WHERE id = ? AND clinic_id = ?
+    `)
+    .run(title, subtitle, published ? 1 : 0, displayOrder, now, id, IDS.clinic);
+
+  return getClinicHomeVideoSection();
+}
+
+export async function deleteClinicHomeVideoItem(id: string): Promise<ClinicHomeVideoSection> {
+  await ensureHomeVideoTable();
+  const db = getDatabase();
+  const existing = await getClinicHomeVideoSection();
+  const item = existing.videos.find((v) => v.id === id);
+
+  if (item?.videoUrl && item.videoUrl.includes('.r2.dev/')) {
+    await deleteDocumentFromR2(item.videoUrl).catch(() => null);
+  }
+
+  await db
+    .prepare(`DELETE FROM clinic_home_videos WHERE id = ? AND clinic_id = ?`)
+    .run(id, IDS.clinic);
+
+  return getClinicHomeVideoSection();
 }
