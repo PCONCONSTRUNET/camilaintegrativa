@@ -205,243 +205,6 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* Seção de Sessões & Atendimentos Reais (Formato Reels 9:16 Sem Bordas Pretas) */}
-        {homeVideoSection.enabled && (
-          <section
-            style={{
-              width: '100%',
-              background: 'rgba(255, 255, 255, 0.97)',
-              borderRadius: '20px',
-              padding: '16px',
-              border: '1.5px solid rgba(229, 200, 142, 0.55)',
-              boxShadow: '0 10px 28px rgba(10, 26, 39, 0.16)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '11px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0, flex: 1 }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #245d80 0%, #163d57 100%)',
-                    color: '#e5c88e',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    boxShadow: '0 4px 12px rgba(22, 61, 87, 0.25)',
-                  }}
-                >
-                  <Play size={18} fill="currentColor" />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      fontSize: '0.66rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      color: '#b8860b',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    Reels · Sessões na Clínica
-                  </span>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: '1.02rem',
-                      fontWeight: 800,
-                      color: '#123247',
-                      lineHeight: 1.25,
-                    }}
-                  >
-                    {homeVideoSection.sectionTitle || 'Sessões & Atendimentos Reais'}
-                  </h2>
-                  {homeVideoSection.sectionSubtitle && (
-                    <p
-                      style={{
-                        margin: '3px 0 0',
-                        fontSize: '0.79rem',
-                        color: '#475569',
-                        lineHeight: 1.38,
-                      }}
-                    >
-                      {homeVideoSection.sectionSubtitle}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {homeVideoSection.videos.length > 1 && (
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    padding: '4px 10px',
-                    borderRadius: '999px',
-                    background: '#f0f9ff',
-                    color: '#1b4b6b',
-                    border: '1px solid #bae6fd',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {homeVideoSection.videos.length} sessões
-                </span>
-              )}
-            </div>
-
-            {homeVideoSection.videos.length > 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '14px',
-                  overflowX: homeVideoSection.videos.length > 1 ? 'auto' : 'visible',
-                  justifyContent: homeVideoSection.videos.length === 1 ? 'center' : 'flex-start',
-                  scrollSnapType: 'x mandatory',
-                  paddingBottom: homeVideoSection.videos.length > 1 ? '6px' : '0',
-                  WebkitOverflowScrolling: 'touch',
-                }}
-              >
-                {homeVideoSection.videos.map((vid) => (
-                  <div
-                    key={vid.id}
-                    style={{
-                      flex:
-                        homeVideoSection.videos.length === 1
-                          ? '0 1 285px'
-                          : '0 0 250px',
-                      width: '100%',
-                      maxWidth: homeVideoSection.videos.length === 1 ? '285px' : '250px',
-                      scrollSnapAlign: 'center',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '7px',
-                    }}
-                  >
-                    {/* Moldura 9:16 Pura de Reels — Preenche 100% sem bordas pretas */}
-                    <div
-                      style={{
-                        width: '100%',
-                        aspectRatio: '9 / 16',
-                        borderRadius: '18px',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        background: '#0d2232',
-                        border: '1.5px solid rgba(229, 200, 142, 0.5)',
-                        boxShadow: '0 8px 22px rgba(13, 34, 50, 0.2)',
-                      }}
-                    >
-                      <video
-                        src={vid.videoUrl}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        onPlay={(e) => {
-                          const currentVideo = e.currentTarget;
-                          document.querySelectorAll('video').forEach((other) => {
-                            if (other !== currentVideo && !other.paused) {
-                              other.pause();
-                            }
-                          });
-                        }}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          display: 'block',
-                        }}
-                      />
-                    </div>
-
-                    {(vid.title || vid.subtitle) && (
-                      <div style={{ padding: '0 4px' }}>
-                        {vid.title && (
-                          <div
-                            style={{
-                              fontSize: '0.84rem',
-                              fontWeight: 800,
-                              color: '#123247',
-                              lineHeight: 1.25,
-                            }}
-                          >
-                            {vid.title}
-                          </div>
-                        )}
-                        {vid.subtitle && (
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              color: '#475569',
-                              lineHeight: 1.35,
-                              marginTop: '2px',
-                            }}
-                          >
-                            {vid.subtitle}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: '270px',
-                  aspectRatio: '9 / 16',
-                  margin: '0 auto',
-                  borderRadius: '18px',
-                  padding: '28px 18px',
-                  background: 'linear-gradient(145deg, #0f293c 0%, #1b4b6b 100%)',
-                  color: '#ffffff',
-                  textAlign: 'center',
-                  border: '1.5px dashed rgba(229, 200, 142, 0.5)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                }}
-              >
-                <div
-                  style={{
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '50%',
-                    background: 'rgba(229, 200, 142, 0.18)',
-                    border: '1px solid rgba(229, 200, 142, 0.45)',
-                    color: '#e5c88e',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Play size={22} fill="currentColor" />
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
-                  Sessões em Formato Reels
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.76rem',
-                    color: 'rgba(255,255,255,0.8)',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Espaço preparado para compartilhar os vídeos das sessões e atendimentos da clínica.
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
         {/* Action Hub / Cards Stack */}
         <section className="linktree-links-stack">
           {/* Card 1: Agendar Atendimento -> Navega na mesma tela (PWA-friendly) */}
@@ -1237,6 +1000,243 @@ function HomeContent() {
             </div>
           )}
         </section>
+
+        {/* Seção de Sessões & Atendimentos Reais no Fim da Home (Formato Reels 9:16 Sem Bordas Pretas) */}
+        {homeVideoSection.enabled && (
+          <section
+            style={{
+              width: '100%',
+              background: 'rgba(255, 255, 255, 0.97)',
+              borderRadius: '20px',
+              padding: '16px',
+              border: '1.5px solid rgba(229, 200, 142, 0.55)',
+              boxShadow: '0 10px 28px rgba(10, 26, 39, 0.16)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '11px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #245d80 0%, #163d57 100%)',
+                    color: '#e5c88e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(22, 61, 87, 0.25)',
+                  }}
+                >
+                  <Play size={18} fill="currentColor" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.07em',
+                      textTransform: 'uppercase',
+                      color: '#b8860b',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    Reels · Sessões na Clínica
+                  </span>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: '1.02rem',
+                      fontWeight: 800,
+                      color: '#123247',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {homeVideoSection.sectionTitle || 'Sessões & Atendimentos Reais'}
+                  </h2>
+                  {homeVideoSection.sectionSubtitle && (
+                    <p
+                      style={{
+                        margin: '3px 0 0',
+                        fontSize: '0.79rem',
+                        color: '#475569',
+                        lineHeight: 1.38,
+                      }}
+                    >
+                      {homeVideoSection.sectionSubtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {homeVideoSection.videos.length > 1 && (
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    background: '#f0f9ff',
+                    color: '#1b4b6b',
+                    border: '1px solid #bae6fd',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {homeVideoSection.videos.length} sessões
+                </span>
+              )}
+            </div>
+
+            {homeVideoSection.videos.length > 0 ? (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '14px',
+                  overflowX: homeVideoSection.videos.length > 1 ? 'auto' : 'visible',
+                  justifyContent: homeVideoSection.videos.length === 1 ? 'center' : 'flex-start',
+                  scrollSnapType: 'x mandatory',
+                  paddingBottom: homeVideoSection.videos.length > 1 ? '6px' : '0',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {homeVideoSection.videos.map((vid) => (
+                  <div
+                    key={vid.id}
+                    style={{
+                      flex:
+                        homeVideoSection.videos.length === 1
+                          ? '0 1 285px'
+                          : '0 0 250px',
+                      width: '100%',
+                      maxWidth: homeVideoSection.videos.length === 1 ? '285px' : '250px',
+                      scrollSnapAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '7px',
+                    }}
+                  >
+                    {/* Moldura 9:16 Pura de Reels — Preenche 100% sem bordas pretas */}
+                    <div
+                      style={{
+                        width: '100%',
+                        aspectRatio: '9 / 16',
+                        borderRadius: '18px',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        background: '#0d2232',
+                        border: '1.5px solid rgba(229, 200, 142, 0.5)',
+                        boxShadow: '0 8px 22px rgba(13, 34, 50, 0.2)',
+                      }}
+                    >
+                      <video
+                        src={vid.videoUrl}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        onPlay={(e) => {
+                          const currentVideo = e.currentTarget;
+                          document.querySelectorAll('video').forEach((other) => {
+                            if (other !== currentVideo && !other.paused) {
+                              other.pause();
+                            }
+                          });
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    </div>
+
+                    {(vid.title || vid.subtitle) && (
+                      <div style={{ padding: '0 4px' }}>
+                        {vid.title && (
+                          <div
+                            style={{
+                              fontSize: '0.84rem',
+                              fontWeight: 800,
+                              color: '#123247',
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {vid.title}
+                          </div>
+                        )}
+                        {vid.subtitle && (
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              color: '#475569',
+                              lineHeight: 1.35,
+                              marginTop: '2px',
+                            }}
+                          >
+                            {vid.subtitle}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '270px',
+                  aspectRatio: '9 / 16',
+                  margin: '0 auto',
+                  borderRadius: '18px',
+                  padding: '28px 18px',
+                  background: 'linear-gradient(145deg, #0f293c 0%, #1b4b6b 100%)',
+                  color: '#ffffff',
+                  textAlign: 'center',
+                  border: '1.5px dashed rgba(229, 200, 142, 0.5)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    background: 'rgba(229, 200, 142, 0.18)',
+                    border: '1px solid rgba(229, 200, 142, 0.45)',
+                    color: '#e5c88e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Play size={22} fill="currentColor" />
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                  Sessões em Formato Reels
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.76rem',
+                    color: 'rgba(255,255,255,0.8)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Espaço preparado para compartilhar os vídeos das sessões e atendimentos da clínica.
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Footer Normal com Alta Legibilidade */}
         <footer className="landing-footer-normal">
