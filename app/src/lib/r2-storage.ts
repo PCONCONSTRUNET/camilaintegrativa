@@ -1,9 +1,11 @@
 import 'server-only';
 
+import crypto from 'crypto';
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  PutBucketCorsCommand,
 } from '@aws-sdk/client-s3';
 
 const accountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID || '8d0c788721acdf27e6a852342b117698';
@@ -35,6 +37,134 @@ function getR2Client(): S3Client {
   return s3ClientInstance;
 }
 
+let corsConfigured = false;
+
+export async function ensureR2BucketCors(): Promise<void> {
+  if (corsConfigured) return;
+  try {
+    const s3 = getR2Client();
+    await s3.send(
+      new PutBucketCorsCommand({
+        Bucket: bucketName,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedHeaders: ['*'],
+              AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD'],
+              AllowedOrigins: ['*'],
+              ExposeHeaders: ['ETag'],
+              MaxAgeSeconds: 3600,
+            },
+          ],
+        },
+      })
+    );
+    corsConfigured = true;
+  } catch (err) {
+    console.warn('[r2-storage] Falha ao garantir CORS no bucket:', err);
+  }
+}
+
+function hmacSha256(key: string | Buffer, data: string): Buffer {
+  return crypto.createHmac('sha256', key).update(data, 'utf8').digest();
+}
+
+function sha256Hex(data: string): string {
+  return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
+}
+
+/**
+ * Gera uma URL assinada (Presigned PUT) para upload direto do navegador para o Cloudflare R2,
+ * permitindo enviar vídeos grandes (ex: 20MB - 300MB) sem passar pelo limite de 4.5MB da Vercel.
+ */
+export async function createPresignedVideoUploadUrl(
+  originalFilename: string,
+  _mimeType = 'video/mp4'
+): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+  await ensureR2BucketCors();
+
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 8);
+  const ext = originalFilename.includes('.')
+    ? '.' + originalFilename.split('.').pop()!.toLowerCase()
+    : '.mp4';
+
+  const safeBaseName = originalFilename
+    .replace(/\.[^/.]+$/, '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]/g, '-')
+    .slice(0, 40);
+
+  const key = `videos-home/${timestamp}-${safeBaseName || 'video'}-${randomId}${ext}`;
+  const parsedEndpoint = new URL(endpoint);
+  const host = parsedEndpoint.host;
+  const region = 'auto';
+  const service = 's3';
+
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = [dateStamp, region, service, 'aws4_request'].join('/');
+  const canonicalUri =
+    '/' +
+    bucketName +
+    '/' +
+    key
+      .split('/')
+      .map((seg) => encodeURIComponent(seg))
+      .join('/');
+
+  const queryParams: Record<string, string> = {
+    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+    'X-Amz-Credential': `${accessKeyId}/${credentialScope}`,
+    'X-Amz-Date': amzDate,
+    'X-Amz-Expires': '3600',
+    'X-Amz-SignedHeaders': 'host',
+  };
+
+  const canonicalQueryString = Object.keys(queryParams)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`)
+    .join('&');
+
+  const canonicalHeaders = `host:${host}\n`;
+  const canonicalRequest = [
+    'PUT',
+    canonicalUri,
+    canonicalQueryString,
+    canonicalHeaders,
+    'host',
+    'UNSIGNED-PAYLOAD',
+  ].join('\n');
+
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join('\n');
+
+  const kDate = hmacSha256('AWS4' + secretAccessKey, dateStamp);
+  const kRegion = hmacSha256(kDate, region);
+  const kService = hmacSha256(kRegion, service);
+  const kSigning = hmacSha256(kService, 'aws4_request');
+  const signature = crypto
+    .createHmac('sha256', kSigning)
+    .update(stringToSign, 'utf8')
+    .digest('hex');
+
+  const uploadUrl = `https://${host}${canonicalUri}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+  const finalPublicUrl = `${publicUrl}/${key}`;
+
+  return {
+    uploadUrl,
+    publicUrl: finalPublicUrl,
+    key,
+  };
+}
+
 /**
  * Faz upload de um documento (PDF, DOCX, etc.) para o Cloudflare R2
  */
@@ -42,7 +172,7 @@ export async function uploadDocumentToR2(
   buffer: Buffer,
   originalFilename: string,
   mimeType: string,
-  folder: 'prontuarios' | 'anotacoes' = 'prontuarios'
+  folder: 'prontuarios' | 'anotacoes' | 'videos-home' = 'prontuarios'
 ): Promise<{ url: string; key: string; size: number }> {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 8);

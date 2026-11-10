@@ -26,6 +26,7 @@ import {
   NotebookPen,
   Radio,
   ShieldCheck,
+  Video,
 } from 'lucide-react';
 import { AdminNotificationBell } from '@/components/admin-notification-bell';
 
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { icon: WalletCards, label: 'Financeiro', href: '/admin/financeiro' },
   { icon: Sparkles, label: 'Serviços', href: '/admin/servicos' },
   { icon: CalendarRange, label: 'Sessões em Grupo', href: '/admin/sessoes-grupo' },
+  { icon: Video, label: 'Vídeo da Home', href: '/admin/video-home' },
   { icon: Bell, label: 'Notificações', href: '/admin/notificacoes' },
   { icon: Radio, label: 'OneSignal Push', href: '/admin/onesignal' },
   { icon: ShieldCheck, label: 'Auditoria & LGPD', href: '/admin/auditoria' },

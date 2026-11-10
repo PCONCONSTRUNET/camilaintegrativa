@@ -15,6 +15,7 @@ import {
   MapPin,
   MessageCircle,
   Monitor,
+  Play,
   ShieldCheck,
   Sparkles,
   UserCheck,
@@ -27,6 +28,35 @@ import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
 
+interface HomeVideoPublicConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  videoUrl: string;
+  videoName: string;
+  orientation: 'auto' | 'vertical' | 'horizontal';
+}
+
+function getYoutubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtube.com')) {
+      const v = u.searchParams.get('v');
+      if (v) return `https://www.youtube.com/embed/${v}?rel=0`;
+      const shortsMatch = u.pathname.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
+      if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${shortsMatch[1]}?rel=0`;
+      const embedMatch = u.pathname.match(/\/embed\/([a-zA-Z0-9_-]+)/);
+      if (embedMatch?.[1]) return `https://www.youtube.com/embed/${embedMatch[1]}?rel=0`;
+    }
+    if (u.hostname.includes('youtu.be')) {
+      const id = u.pathname.replace(/^\//, '').split('/')[0];
+      if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
+    }
+  } catch {}
+  return null;
+}
+
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,6 +68,14 @@ function HomeContent() {
   const [services, setServices] = useState<Service[]>([]);
   const [groupSessions, setGroupSessions] = useState<GroupSession[]>([]);
   const [expandedDescIds, setExpandedDescIds] = useState<Record<string, boolean>>({});
+  const [homeVideo, setHomeVideo] = useState<HomeVideoPublicConfig>({
+    enabled: true,
+    title: 'Conheça o Atendimento',
+    subtitle: 'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa',
+    videoUrl: '',
+    videoName: '',
+    orientation: 'auto',
+  });
 
   // Redirecionamento inteligente ao abrir PWA instalado (Standalone)
   useEffect(() => {
@@ -82,6 +120,24 @@ function HomeContent() {
       .then((res) => res.json())
       .then((data) => {
         setGroupSessions(data.sessions ?? []);
+      })
+      .catch(() => {});
+
+    fetch('/api/public/home-video', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.video) {
+          setHomeVideo({
+            enabled: Boolean(data.video.enabled),
+            title: data.video.title || 'Conheça o Atendimento',
+            subtitle:
+              data.video.subtitle ??
+              'Assista ao vídeo de apresentação e entenda como funciona a Hipnose Clínica Integrativa',
+            videoUrl: data.video.videoUrl || '',
+            videoName: data.video.videoName || '',
+            orientation: data.video.orientation || 'auto',
+          });
+        }
       })
       .catch(() => {});
   }, []);
@@ -166,6 +222,173 @@ function HomeContent() {
             </div>
           </div>
         </section>
+
+        {/* Seção Preparada de Vídeo de Apresentação na Home */}
+        {homeVideo.enabled && (
+          <section
+            style={{
+              width: '100%',
+              background: 'rgba(255, 255, 255, 0.97)',
+              borderRadius: '20px',
+              padding: '16px',
+              border: '1.5px solid rgba(229, 200, 142, 0.55)',
+              boxShadow: '0 10px 28px rgba(10, 26, 39, 0.16)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #245d80 0%, #163d57 100%)',
+                  color: '#e5c88e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(22, 61, 87, 0.25)',
+                }}
+              >
+                <Play size={18} fill="currentColor" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.07em',
+                    textTransform: 'uppercase',
+                    color: '#b8860b',
+                    marginBottom: '2px',
+                  }}
+                >
+                  Vídeo de Apresentação
+                </span>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.02rem',
+                    fontWeight: 800,
+                    color: '#123247',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {homeVideo.title || 'Conheça o Atendimento'}
+                </h2>
+                {homeVideo.subtitle && (
+                  <p
+                    style={{
+                      margin: '3px 0 0',
+                      fontSize: '0.8rem',
+                      color: '#475569',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {homeVideo.subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {homeVideo.videoUrl ? (
+              <div
+                style={{
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  background: '#09151f',
+                  border: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                {(() => {
+                  const ytEmbed = getYoutubeEmbedUrl(homeVideo.videoUrl);
+                  if (ytEmbed) {
+                    return (
+                      <iframe
+                        src={ytEmbed}
+                        title={homeVideo.title || 'Vídeo de Apresentação'}
+                        style={{
+                          width: '100%',
+                          aspectRatio: homeVideo.orientation === 'vertical' ? '9 / 16' : '16 / 9',
+                          maxHeight: homeVideo.orientation === 'vertical' ? '520px' : '340px',
+                          border: 'none',
+                        }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    );
+                  }
+                  return (
+                    <video
+                      key={homeVideo.videoUrl}
+                      src={homeVideo.videoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      style={{
+                        width: '100%',
+                        maxHeight: homeVideo.orientation === 'vertical' ? '520px' : '380px',
+                        aspectRatio:
+                          homeVideo.orientation === 'vertical'
+                            ? '9 / 16'
+                            : homeVideo.orientation === 'horizontal'
+                            ? '16 / 9'
+                            : undefined,
+                        objectFit: 'contain',
+                        display: 'block',
+                        background: '#000',
+                      }}
+                    />
+                  );
+                })()}
+              </div>
+            ) : (
+              <div
+                style={{
+                  borderRadius: '14px',
+                  padding: '28px 18px',
+                  background: 'linear-gradient(145deg, #0f293c 0%, #1b4b6b 100%)',
+                  color: '#ffffff',
+                  textAlign: 'center',
+                  border: '1px dashed rgba(229, 200, 142, 0.5)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    background: 'rgba(229, 200, 142, 0.18)',
+                    border: '1px solid rgba(229, 200, 142, 0.45)',
+                    color: '#e5c88e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Play size={20} fill="currentColor" />
+                </div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f8fafc' }}>
+                  Vídeo de Apresentação em Breve
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.78)', maxWidth: '340px', lineHeight: 1.4 }}>
+                  Espaço preparado para assistir ao vídeo explicativo sobre o atendimento.
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Action Hub / Cards Stack */}
         <section className="linktree-links-stack">

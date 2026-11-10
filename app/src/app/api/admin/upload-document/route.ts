@@ -20,7 +20,12 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const targetFolder = folder === 'anotacoes' ? 'anotacoes' : 'prontuarios';
+    const targetFolder =
+      folder === 'anotacoes'
+        ? 'anotacoes'
+        : folder === 'videos-home'
+        ? 'videos-home'
+        : 'prontuarios';
     const result = await uploadDocumentToR2(
       buffer,
       file.name,
