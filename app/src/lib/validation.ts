@@ -31,11 +31,33 @@ export const bookingSchema = z.object({
 });
 
 export const clientSchema = z.object({
-  name: z.string().trim().min(3).max(120),
-  phone,
-  email: z.union([z.string().trim().email(), z.literal('')]).optional(),
-  status: z.enum(['ativo', 'inativo', 'pendente']).default('ativo'),
-  administrativeNotes: z.string().trim().max(500).optional(),
+  name: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform((val) => (val && val.trim() ? val.trim() : 'Cliente sem nome')),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? val.replace(/\D/g, '') : '')),
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => val || ''),
+  status: z.enum(['ativo', 'inativo', 'pendente']).optional().default('ativo'),
+  administrativeNotes: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .nullable()
+    .transform((val) => val || undefined),
   // Dados opcionais da Ficha
   cpf: z.string().trim().optional().nullable(),
   birthDate: z.string().trim().optional().nullable(),

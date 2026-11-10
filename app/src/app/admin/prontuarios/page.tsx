@@ -284,14 +284,7 @@ export default function ProntuariosPage() {
 
   async function handleCreateNewPatientAndRecord(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!patientForm.name.trim() || patientForm.name.trim().length < 3) {
-      setError('Informe o nome completo do paciente.');
-      return;
-    }
-    if (patientForm.phone.replace(/\D/g, '').length < 10) {
-      setError('Informe um WhatsApp válido com DDD.');
-      return;
-    }
+    const finalName = patientForm.name.trim() || 'Cliente sem nome';
 
     setSavingPatient(true);
     try {
@@ -299,7 +292,7 @@ export default function ProntuariosPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: patientForm.name.trim(),
+          name: finalName,
           phone: patientForm.phone,
           email: patientForm.email.trim(),
           status: 'ativo',
@@ -1797,11 +1790,9 @@ export default function ProntuariosPage() {
               }}
             >
               <label className="form-group">
-                <span className="form-label">Nome Completo do Paciente *</span>
+                <span className="form-label">Nome Completo do Paciente (opcional)</span>
                 <input
                   className="form-input"
-                  required
-                  minLength={3}
                   placeholder="Ex: Maria Clara Oliveira"
                   value={patientForm.name}
                   onChange={(e) => setPatientForm({ ...patientForm, name: e.target.value })}
@@ -1811,11 +1802,10 @@ export default function ProntuariosPage() {
 
               <div className="form-row form-row-2">
                 <label className="form-group">
-                  <span className="form-label">WhatsApp com DDD *</span>
+                  <span className="form-label">WhatsApp com DDD (opcional)</span>
                   <input
                     className="form-input"
                     type="tel"
-                    required
                     placeholder="(00) 00000-0000"
                     value={patientForm.phone}
                     onChange={(e) => setPatientForm({ ...patientForm, phone: maskPhone(e.target.value) })}

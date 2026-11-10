@@ -22,14 +22,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   const { id } = await params;
   const body = await req.json();
-  if (!body.name || !body.phone) {
-    return NextResponse.json({ error: 'Nome e WhatsApp são obrigatórios.' }, { status: 400 });
-  }
+  const finalName = (body.name || '').trim() || 'Participante';
+  const finalPhone = (body.phone || '').trim();
 
   const result = await enrollInGroupSession(id, {
     clientId: body.clientId ?? null,
-    name: body.name,
-    phone: body.phone,
+    name: finalName,
+    phone: finalPhone,
     cpf: body.cpf ?? null,
     birthDate: body.birthDate ?? null,
     email: body.email ?? null,

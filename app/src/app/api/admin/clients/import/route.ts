@@ -57,29 +57,24 @@ export async function POST(request: Request) {
     const seenInThisBatch = new Set<string>();
 
     for (const item of contacts) {
-      const cleanName = (item.name || '').trim().replace(/\s+/g, ' ');
+      const cleanName = (item.name || '').trim().replace(/\s+/g, ' ') || 'Cliente sem nome';
       const phoneDigits = normalizePhoneDigits(item.phone || '');
 
-      if (!cleanName || cleanName.length < 2) {
-        errors.push({ name: item.name || '', phone: item.phone || '', error: 'Nome muito curto ou vazio.' });
+      if (!item.name?.trim() && !phoneDigits) {
         continue;
       }
 
-      if (phoneDigits.length < 10 || phoneDigits.length > 11) {
-        errors.push({ name: cleanName, phone: item.phone || '', error: 'Telefone inválido (deve conter DDD + 8 ou 9 dígitos).' });
-        continue;
+      // Evitar duplicidade com contatos já salvos ou duplicados no próprio lote (quando houver telefone)
+      if (phoneDigits.length >= 8) {
+        if (existingPhoneSet.has(phoneDigits) || seenInThisBatch.has(phoneDigits)) {
+          skippedCount++;
+          continue;
+        }
+        seenInThisBatch.add(phoneDigits);
+        existingPhoneSet.add(phoneDigits);
       }
 
-      // Evitar duplicidade com contatos já salvos ou duplicados no próprio lote
-      if (existingPhoneSet.has(phoneDigits) || seenInThisBatch.has(phoneDigits)) {
-        skippedCount++;
-        continue;
-      }
-
-      seenInThisBatch.add(phoneDigits);
-      existingPhoneSet.add(phoneDigits);
-
-      const formattedPhone = formatPhone(phoneDigits);
+      const formattedPhone = phoneDigits ? formatPhone(phoneDigits) : '';
       const cleanEmail = item.email?.trim() ? item.email.trim().toLowerCase() : '';
 
       try {

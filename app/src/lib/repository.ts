@@ -1032,8 +1032,23 @@ export async function createClientPackage(input: {
   };
 }
 
+let clientsOptionalSchemaEnsured = false;
+async function ensureClientsOptionalSchema(database: Database) {
+  if (clientsOptionalSchemaEnsured) return;
+  try {
+    if (database.isPostgres) {
+      await database.prepare('ALTER TABLE clients ALTER COLUMN phone DROP NOT NULL').run().catch(() => null);
+      await database.prepare('ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_clinic_id_phone_key').run().catch(() => null);
+    }
+  } catch {
+    // ignore
+  }
+  clientsOptionalSchemaEnsured = true;
+}
+
 export async function listClients(search = '', status = 'todos'): Promise<ClientSummary[]> {
   const database = getDatabase();
+  await ensureClientsOptionalSchema(database);
   const cleanSearch = search.trim();
   const term = `%${cleanSearch}%`;
   const digitsTerm = cleanSearch.replace(/\D/g, '') ? `%${cleanSearch.replace(/\D/g, '')}%` : term;
@@ -1069,7 +1084,7 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
       AND (
         ? = ''
         OR c.name LIKE ?
-        OR c.phone LIKE ?
+        OR COALESCE(c.phone, '') LIKE ?
         OR COALESCE(c.email, '') LIKE ?
         OR COALESCE(cr_search.cpf, '') LIKE ?
         OR REPLACE(REPLACE(REPLACE(COALESCE(cr_search.cpf, ''), '.', ''), '-', ''), ' ', '') LIKE ?
@@ -1111,8 +1126,8 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
 
     return {
       id: String(item.id),
-      name: String(item.name),
-      phone: String(item.phone),
+      name: String(item.name || 'Cliente sem nome'),
+      phone: item.phone ? String(item.phone) : '',
       email: item.email ? String(item.email) : null,
       status: item.status as ClientSummary['status'],
       createdAt: String(item.created_at),
@@ -1153,11 +1168,14 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
 
 export async function updateClient(clientId: string, input: ClientInput) {
   const database = getDatabase();
+  await ensureClientsOptionalSchema(database);
   const existing = await database.prepare('SELECT id FROM clients WHERE id = ? AND clinic_id = ?').get(clientId, IDS.clinic);
   if (!existing) {
     throw new BookingValidationError('Cliente não encontrado.');
   }
   const now = new Date().toISOString();
+  const cleanName = (input.name || '').trim() || 'Cliente sem nome';
+  const cleanPhone = (input.phone || '').trim();
 
   await database.prepare(`
     UPDATE clients
@@ -1169,10 +1187,10 @@ export async function updateClient(clientId: string, input: ClientInput) {
         updated_at = ?
     WHERE id = ? AND clinic_id = ?
   `).run(
-    input.name.trim(),
-    input.phone,
+    cleanName,
+    cleanPhone,
     input.email?.trim() ? input.email.trim().toLowerCase() : null,
-    input.status,
+    input.status || 'ativo',
     input.administrativeNotes?.trim() ? input.administrativeNotes.trim() : null,
     now,
     clientId,
@@ -1420,8 +1438,11 @@ export async function deleteClient(
 
 export async function createClient(input: ClientInput) {
   const database = getDatabase();
+  await ensureClientsOptionalSchema(database);
+  const cleanName = (input.name || '').trim() || 'Cliente sem nome';
+  const cleanPhone = (input.phone || '').trim();
   const cpfDigits = (input.cpf || '').replace(/\D/g, '');
-  const phoneDigits = (input.phone || '').replace(/\D/g, '');
+  const phoneDigits = cleanPhone.replace(/\D/g, '');
   const cleanEmail = input.email?.trim() ? input.email.trim().toLowerCase() : null;
   const now = new Date().toISOString();
 
@@ -1442,7 +1463,7 @@ export async function createClient(input: ClientInput) {
       SELECT id
       FROM clients
       WHERE clinic_id = ?
-        AND REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', '') = ?
+        AND REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '(', ''), ')', '') = ?
       LIMIT 1
     `).get(IDS.clinic, phoneDigits)) as { id: string } | undefined;
   }
@@ -1455,12 +1476,12 @@ export async function createClient(input: ClientInput) {
       SET name = ?, phone = COALESCE(NULLIF(?, ''), phone), email = COALESCE(?, email),
           status = COALESCE(?, status), administrative_notes = COALESCE(?, administrative_notes), updated_at = ?
       WHERE id = ?
-    `).run(input.name, input.phone, input.email || null, input.status, input.administrativeNotes || null, now, id);
+    `).run(cleanName, cleanPhone, cleanEmail, input.status || 'ativo', input.administrativeNotes || null, now, id);
   } else {
     (await database.prepare(`
       INSERT INTO clients (id, clinic_id, name, phone, email, status, administrative_notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, IDS.clinic, input.name, input.phone, input.email || null, input.status, input.administrativeNotes || null));
+    `).run(id, IDS.clinic, cleanName, cleanPhone, cleanEmail, input.status || 'ativo', input.administrativeNotes || null));
   }
 
   const hasRecord = input.cpf || input.birthDate || input.occupation || input.emergencyContactName || input.emergencyContactPhone || input.emergencyContactRelationship || input.gender;
@@ -3092,8 +3113,8 @@ export async function getProntuario(clientId: string, actor: { userId: string; n
 
   const client: ClientSummary = {
     id: String(clientRow.id),
-    name: String(clientRow.name),
-    phone: String(clientRow.phone),
+    name: String(clientRow.name || 'Cliente sem nome'),
+    phone: clientRow.phone ? String(clientRow.phone) : '',
     email: clientRow.email ? String(clientRow.email) : null,
     status: clientRow.status as ClientSummary['status'],
     createdAt: String(clientRow.created_at),
@@ -4088,7 +4109,7 @@ export async function listProntuarios(search = '', status = 'todos'): Promise<Pr
       AND (
         ? = ''
         OR c.name LIKE ?
-        OR c.phone LIKE ?
+        OR COALESCE(c.phone, '') LIKE ?
         OR COALESCE(c.email, '') LIKE ?
         OR COALESCE(cr.cpf, '') LIKE ?
         OR REPLACE(REPLACE(REPLACE(COALESCE(cr.cpf, ''), '.', ''), '-', ''), ' ', '') LIKE ?
@@ -4098,8 +4119,8 @@ export async function listProntuarios(search = '', status = 'todos'): Promise<Pr
     ORDER BY c.name COLLATE NOCASE
   `).all(nowIso, IDS.clinic, cleanSearch, term, term, term, term, digitsTerm, status, status)) as Record<string, unknown>[]).map((row) => ({
     clientId: String(row.id),
-    name: String(row.name),
-    phone: String(row.phone),
+    name: String(row.name || 'Cliente sem nome'),
+    phone: row.phone ? String(row.phone) : '',
     email: row.email ? String(row.email) : null,
     status: row.status as ClientSummary['status'],
     totalEvolutions: Number(row.total_evolutions ?? 0),
@@ -5205,23 +5226,27 @@ export async function enrollInGroupSession(
   }
 
   // Prevent duplicate active enrollment with same phone in the same group session
-  const cleanPhone = clientData.phone.replace(/\D/g, '');
+  const cleanPhone = (clientData.phone || '').replace(/\D/g, '');
+  const cleanName = (clientData.name || '').trim() || 'Participante';
   const cleanCpf = clientData.cpf ? clientData.cpf.replace(/\D/g, '') : null;
   const cleanBirthDate = clientData.birthDate ? clientData.birthDate.trim() : null;
   const existingEnrollments = (await database.prepare(
     `SELECT client_phone FROM group_session_enrollments WHERE group_session_id = ? AND status != 'cancelado'`
   ).all(groupSessionId)) as Array<{ client_phone: string }>;
-  if (existingEnrollments.some((e) => e.client_phone.replace(/\D/g, '') === cleanPhone && cleanPhone.length >= 10)) {
+  if (cleanPhone.length >= 10 && existingEnrollments.some((e) => (e.client_phone || '').replace(/\D/g, '') === cleanPhone)) {
     return { ok: false, error: 'Você já possui uma vaga reservada nesta sessão em grupo com este WhatsApp.' };
   }
 
   let clientId: string | null = clientData.clientId || null;
   if (!clientId) {
     try {
+      await ensureClientsOptionalSchema(database);
       const allClients = (await database.prepare(
         `SELECT id, phone FROM clients WHERE clinic_id = ?`
-      ).all(IDS.clinic)) as Array<{ id: string; phone: string }>;
-      const matched = allClients.find((c) => c.phone.replace(/\D/g, '') === cleanPhone);
+      ).all(IDS.clinic)) as Array<{ id: string; phone: string | null }>;
+      const matched = cleanPhone.length >= 8
+        ? allClients.find((c) => (c.phone || '').replace(/\D/g, '') === cleanPhone)
+        : undefined;
       if (matched) {
         clientId = matched.id;
       } else {
@@ -5230,7 +5255,7 @@ export async function enrollInGroupSession(
         await database.prepare(`
           INSERT INTO clients (id, clinic_id, name, phone, email, status, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, 'ativo', ?, ?)
-        `).run(clientId, IDS.clinic, clientData.name.trim(), clientData.phone.trim(), clientData.email?.trim() || null, now, now);
+        `).run(clientId, IDS.clinic, cleanName, (clientData.phone || '').trim(), clientData.email?.trim() || null, now, now);
       }
 
       if (clientId && (cleanCpf || cleanBirthDate)) {

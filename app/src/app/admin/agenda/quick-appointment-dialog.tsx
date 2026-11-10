@@ -178,22 +178,9 @@ export default function QuickAppointmentDialog({
   async function handleCreateClient(e?: FormEvent) {
     if (e) e.preventDefault();
     setClientCreateError(null);
-    const trimmedName = newClientName.trim();
+    const trimmedName = newClientName.trim() || 'Cliente sem nome';
     const cleanPhone = newClientPhone.replace(/\D/g, '');
     const cleanCpf = newClientCpf.replace(/\D/g, '');
-
-    if (trimmedName.length < 3) {
-      setClientCreateError('Informe o nome completo do paciente (mínimo 3 letras).');
-      return;
-    }
-    if (cleanPhone.length < 10) {
-      setClientCreateError('Informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
-      return;
-    }
-    if (cleanCpf && cleanCpf.length !== 11) {
-      setClientCreateError('CPF inválido. Deve conter 11 dígitos.');
-      return;
-    }
 
     setSavingClient(true);
     try {
@@ -1219,14 +1206,13 @@ export default function QuickAppointmentDialog({
             <form onSubmit={handleCreateClient} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                  Nome Completo <span style={{ color: '#dc2626' }}>*</span>
+                  Nome Completo <small style={{ color: '#94a3b8' }}>(opcional)</small>
                 </span>
                 <input
                   type="text"
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
                   placeholder="Ex: Maria da Silva"
-                  required
                   autoFocus
                   style={{
                     width: '100%',
@@ -1243,14 +1229,13 @@ export default function QuickAppointmentDialog({
 
               <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#334155' }}>
-                  WhatsApp / Celular <span style={{ color: '#dc2626' }}>*</span>
+                  WhatsApp / Celular <small style={{ color: '#94a3b8' }}>(opcional)</small>
                 </span>
                 <input
                   type="tel"
                   value={newClientPhone}
                   onChange={(e) => setNewClientPhone(formatPhone(e.target.value))}
                   placeholder="(11) 99999-9999"
-                  required
                   style={{
                     width: '100%',
                     padding: '10px 12px',

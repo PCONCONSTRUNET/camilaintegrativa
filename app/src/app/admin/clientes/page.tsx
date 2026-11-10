@@ -317,15 +317,7 @@ export default function ClientesPage() {
     event.preventDefault();
     setFormError('');
 
-    if (!form.name.trim() || form.name.trim().length < 3) {
-      setModalStep(1);
-      return setFormError('Informe o nome completo do cliente (mínimo 3 caracteres).');
-    }
-    const cleanPhone = form.phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setModalStep(1);
-      return setFormError('Informe um número de WhatsApp válido com DDD.');
-    }
+    const finalName = form.name.trim() || 'Cliente sem nome';
 
     setSaving(true);
     try {
@@ -336,7 +328,7 @@ export default function ClientesPage() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: form.name.trim(),
+          name: finalName,
           phone: form.phone,
           email: form.email.trim(),
           status: form.status,
@@ -360,8 +352,8 @@ export default function ClientesPage() {
       setIsFormOpen(false);
       setSuccessMsg(
         editingClient
-          ? `Cadastro de "${form.name.trim()}" atualizado com sucesso!`
-          : `Cliente "${form.name.trim()}" cadastrado com sucesso! A Ficha Inicial já foi alimentada.`,
+          ? `Cadastro de "${finalName}" atualizado com sucesso!`
+          : `Cliente "${finalName}" cadastrado com sucesso! A Ficha Inicial já foi alimentada.`,
       );
       setTimeout(() => setSuccessMsg(''), 4500);
       await load();
@@ -1225,7 +1217,7 @@ export default function ClientesPage() {
                     <td data-label="Contato & CPF">
                       <div className="client-cell-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.24rem' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.84rem', fontWeight: 800, color: '#0f172a' }}>
-                          <Phone size={13} style={{ color: '#0284c7' }} /> {formatPhone(client.phone)}
+                          <Phone size={13} style={{ color: '#0284c7' }} /> {formatPhone(client.phone) || 'Sem telefone'}
                         </span>
                         {client.email && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.76rem', color: '#475569', fontWeight: 500 }}>
@@ -1527,7 +1519,7 @@ export default function ClientesPage() {
                           {client.name}
                         </strong>
                         <span style={{ fontSize: '0.78rem', color: '#0284c7', fontWeight: 700 }}>
-                          {formatPhone(client.phone)}
+                          {formatPhone(client.phone) || 'Sem telefone'}
                         </span>
                       </div>
                     </div>
@@ -1998,7 +1990,7 @@ export default function ClientesPage() {
                     Contato & Identificação
                   </span>
                   <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.32rem', fontSize: '0.84rem', color: '#1e293b' }}>
-                    <div><strong>WhatsApp:</strong> {formatPhone(viewingClient.phone)}</div>
+                    <div><strong>WhatsApp:</strong> {formatPhone(viewingClient.phone) || 'Não informado'}</div>
                     <div><strong>E-mail:</strong> {viewingClient.email || 'Não informado'}</div>
                     <div><strong>CPF:</strong> {viewingClient.cpf ? maskCpf(viewingClient.cpf) : 'Não informado'}</div>
                     <div><strong>Nascimento:</strong> {formatBirthDate(viewingClient.birthDate)}</div>
@@ -2317,11 +2309,9 @@ export default function ClientesPage() {
               {modalStep === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
                   <label className="form-group" style={{ marginBottom: 0 }}>
-                    <span className="form-label">Nome Completo do Cliente *</span>
+                    <span className="form-label">Nome Completo do Cliente (opcional)</span>
                     <input
                       className="form-input"
-                      required
-                      minLength={3}
                       placeholder="Ex: Lucas Pereira de Souza"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -2331,11 +2321,10 @@ export default function ClientesPage() {
 
                   <div className="form-row form-row-2" style={{ marginBottom: 0 }}>
                     <label className="form-group" style={{ marginBottom: 0 }}>
-                      <span className="form-label">WhatsApp com DDD *</span>
+                      <span className="form-label">WhatsApp com DDD (opcional)</span>
                       <input
                         className="form-input"
                         type="tel"
-                        required
                         placeholder="(00) 00000-0000"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: maskPhone(e.target.value) })}
@@ -2345,7 +2334,8 @@ export default function ClientesPage() {
                       <span className="form-label">E-mail (opcional)</span>
                       <input
                         className="form-input"
-                        type="email"
+                        type="text"
+                        inputMode="email"
                         placeholder="cliente@exemplo.com"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}

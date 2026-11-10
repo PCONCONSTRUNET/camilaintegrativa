@@ -468,14 +468,7 @@ export default function AdminSessoesGrupoPage() {
   async function handleAddManualParticipant(e: FormEvent) {
     e.preventDefault();
     if (!participantsSession) return;
-    if (manualParticipant.name.trim().length < 2 || manualParticipant.phone.replace(/\D/g, '').length < 10) {
-      await alertDialog({
-        title: 'Dados incompletos',
-        description: 'Preencha o nome e o WhatsApp do participante.',
-        variant: 'warning',
-      });
-      return;
-    }
+    const finalName = manualParticipant.name.trim() || 'Participante';
 
     const priceCents = parsePriceToCents(manualParticipant.priceRaw);
 
@@ -486,8 +479,8 @@ export default function AdminSessoesGrupoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: manualParticipant.clientId || null,
-          name: manualParticipant.name,
-          phone: manualParticipant.phone,
+          name: finalName,
+          phone: manualParticipant.phone || '',
           cpf: manualParticipant.cpf || null,
           email: manualParticipant.email || null,
           priceCents,
@@ -2604,7 +2597,7 @@ export default function AdminSessoesGrupoPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                        Nome Completo *
+                        Nome Completo (Opcional)
                       </label>
                       <input
                         type="text"
@@ -2612,12 +2605,11 @@ export default function AdminSessoesGrupoPage() {
                         placeholder="Nome do participante"
                         value={manualParticipant.name}
                         onChange={(e) => setManualParticipant({ ...manualParticipant, name: e.target.value })}
-                        required
                       />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                        WhatsApp *
+                        WhatsApp (Opcional)
                       </label>
                       <input
                         type="tel"
@@ -2625,7 +2617,6 @@ export default function AdminSessoesGrupoPage() {
                         placeholder="(48) 99999-9999"
                         value={manualParticipant.phone}
                         onChange={(e) => setManualParticipant({ ...manualParticipant, phone: maskPhone(e.target.value) })}
-                        required
                       />
                     </div>
                     <div>
