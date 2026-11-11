@@ -327,29 +327,41 @@ export function ImportContactsModal({
     setStatusMessage(null);
 
     try {
-      const payload = {
-        contacts: listToSave.map((c) => ({
-          name: (c.name || '').trim() || 'Contato da Agenda',
-          phone: c.phone || '',
-          email: c.email || undefined,
-          notes: 'Importado da agenda do celular',
-        })),
-      };
+      const allItems = listToSave.map((c) => ({
+        name: (c.name || '').trim() || 'Contato da Agenda',
+        phone: c.phone || '',
+        email: c.email || undefined,
+        notes: 'Importado da agenda do celular',
+      }));
 
-      const res = await fetch('/api/admin/clients/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let totalImported = 0;
+      let totalSkipped = 0;
+      const BATCH_SIZE = 300;
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao importar contatos.');
+      for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
+        const chunk = allItems.slice(i, i + BATCH_SIZE);
+        const res = await fetch('/api/admin/clients/import', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: chunk }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          throw new Error('Sua sessão de login expirou. Recarregue a página para entrar novamente e importar os contatos.');
+        }
+        if (!res.ok) {
+          throw new Error(data.error || 'Erro ao importar contatos.');
+        }
+
+        totalImported += Number(data.importedCount ?? 0);
+        totalSkipped += Number(data.skippedCount ?? 0);
       }
 
       setImportSummary({
-        imported: data.importedCount ?? 0,
-        skipped: data.skippedCount ?? 0,
+        imported: totalImported,
+        skipped: totalSkipped,
       });
 
       onImportSuccess();

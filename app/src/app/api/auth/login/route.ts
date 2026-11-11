@@ -41,10 +41,10 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ ok: true });
     response.cookies.set(SESSION_COOKIE, createSessionToken(), {
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: 8 * 60 * 60,
+      maxAge: 30 * 24 * 60 * 60, // 30 dias
     });
     return response;
   } catch (error) {

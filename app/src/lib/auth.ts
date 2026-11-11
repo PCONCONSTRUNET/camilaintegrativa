@@ -34,7 +34,7 @@ export function createSessionToken(): string {
     userId: IDS.owner,
     name: 'Camila Machado',
     role: 'proprietaria',
-    expiresAt: Date.now() + 8 * 60 * 60 * 1000,
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 dias
   };
   const payload = Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
   return `${payload}.${signature(payload, key)}`;
