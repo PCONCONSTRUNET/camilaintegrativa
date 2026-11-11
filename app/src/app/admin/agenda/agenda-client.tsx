@@ -659,6 +659,7 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
       (apt) =>
         apt.clientName.toLowerCase().includes(q)
         || apt.serviceName.toLowerCase().includes(q)
+        || (apt.administrativeNotes && apt.administrativeNotes.toLowerCase().includes(q))
         || (apt.clientPhone && (apt.clientPhone.toLowerCase().includes(q) || (qDigits.length > 0 && apt.clientPhone.replace(/\D/g, '').includes(qDigits))))
         || (apt.clientCpf && (apt.clientCpf.toLowerCase().includes(q) || (qDigits.length > 0 && apt.clientCpf.replace(/\D/g, '').includes(qDigits)))),
     );
@@ -1885,6 +1886,34 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                               </span>
                             )}
                           </div>
+                          {(() => {
+                            const obs = (appointment.administrativeNotes ?? '').replace(/^Opção\/Pacote:[^\n]*\n?/gim, '').trim();
+                            if (!obs) return null;
+                            return (
+                              <div
+                                className="gcal-event-obs-line"
+                                style={{
+                                  marginTop: '2px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 600,
+                                  lineHeight: 1.25,
+                                  color: '#1e293b',
+                                  background: 'rgba(255, 255, 255, 0.55)',
+                                  padding: '1.5px 5px',
+                                  borderRadius: '4px',
+                                  width: '100%',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: durationMin >= 75 ? 3 : 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  whiteSpace: 'normal',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                📝 {obs}
+                              </div>
+                            );
+                          })()}
                         </button>
                         {canResize(appointment) && (
                           <button
@@ -2548,7 +2577,28 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
                           }} key={appointment.id}>
                             <time><strong>{formatTime(appointment.startAt)}</strong><span>{formatTime(appointment.endAt)}</span></time>
                             <i className={'event-' + appointment.status} />
-                            <span className="gcal-list-main"><strong>{appointment.clientName}</strong><small>{appointment.serviceName}</small></span>
+                            <span className="gcal-list-main">
+                              <strong>{appointment.clientName}</strong>
+                              <small>{appointment.serviceName}</small>
+                              {(() => {
+                                const obs = (appointment.administrativeNotes ?? '').replace(/^Opção\/Pacote:[^\n]*\n?/gim, '').trim();
+                                if (!obs) return null;
+                                return (
+                                  <small
+                                    style={{
+                                      display: 'block',
+                                      marginTop: '2px',
+                                      color: '#0f766e',
+                                      fontWeight: 600,
+                                      fontSize: '0.76rem',
+                                      whiteSpace: 'pre-wrap',
+                                    }}
+                                  >
+                                    📝 {obs}
+                                  </small>
+                                );
+                              })()}
+                            </span>
                             <span className="gcal-list-modality">{appointment.modality === 'online' ? <Monitor size={14} /> : <MapPin size={14} />}{appointment.modality}</span>
                             <span className={'badge ' + STATUS_COLORS[appointment.status]}>{appointment.bookingKind === 'encaixe' ? 'Encaixe' : STATUS_LABELS[appointment.status]}</span>
                           </button>
@@ -2980,6 +3030,27 @@ export default function AgendaClient({ initialDate, canManageAgenda }: { initial
             <span>{selectedAppointment.modality === 'online' ? <Monitor size={16} /> : <MapPin size={16} />} {selectedAppointment.modality}</span>
             <span className={'badge ' + STATUS_COLORS[selectedAppointment.status]}>{STATUS_LABELS[selectedAppointment.status]}</span>
             {selectedAppointment.bookingKind === 'encaixe' && <span className="gcal-fit-in-detail"><Sparkles size={15} /> Encaixe: {selectedAppointment.fitInReason}</span>}
+            {(() => {
+              const obs = (selectedAppointment.administrativeNotes ?? '').replace(/^Opção\/Pacote:[^\n]*\n?/gim, '').trim();
+              if (!obs) return null;
+              return (
+                <div
+                  style={{
+                    marginTop: '4px',
+                    padding: '6px 9px',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.78rem',
+                    color: '#1e293b',
+                    whiteSpace: 'pre-wrap',
+                    width: '100%',
+                  }}
+                >
+                  <strong>📝 Observação:</strong> {obs}
+                </div>
+              );
+            })()}
           </div>
           <div className="gcal-popover-actions">
             <button

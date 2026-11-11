@@ -88,7 +88,7 @@ function initialForm(slot?: QuickAppointmentSlot, appointment?: AppointmentSumma
       status: appointment.status,
       bookingKind: appointment.bookingKind,
       fitInReason: appointment.fitInReason ?? '',
-      notes: appointment.administrativeNotes ?? '',
+      notes: (appointment.administrativeNotes ?? '').replace(/^Opção\/Pacote:[^\n]*\n?/gim, '').trim(),
     };
   }
 
@@ -475,11 +475,7 @@ export default function QuickAppointmentDialog({
       }
     }
 
-    const selectedTier = selectedService?.pricingTiers?.find((t) => t.id === selectedTierId);
-    let finalNotes = form.notes.trim();
-    if (selectedTier && !finalNotes.includes(selectedTier.name)) {
-      finalNotes = `Opção/Pacote: ${selectedTier.name} (${formatCurrency(selectedTier.priceCents)})${finalNotes ? '\n' + finalNotes : ''}`;
-    }
+    const finalNotes = form.notes.trim();
 
     try {
       const response = await fetch(appointment ? '/api/admin/appointments/' + appointment.id : '/api/admin/appointments', {
@@ -1229,14 +1225,14 @@ export default function QuickAppointmentDialog({
                 </label>
 
                 <label className="gcal-quick-field">
-                  <span>Observação administrativa</span>
+                  <span>Observação (aparece na agenda)</span>
                   <textarea
                     name="notes"
                     rows={3}
                     maxLength={500}
                     value={form.notes}
                     onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                    placeholder="Opcional"
+                    placeholder="Digite uma observação para aparecer direto no agendamento (opcional)"
                   />
                 </label>
               </>
