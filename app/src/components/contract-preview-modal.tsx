@@ -249,6 +249,69 @@ export function ContractPreviewModal({
               gap: '14px',
             }}
           >
+            {/* Assinatura da Profissional / Proprietária */}
+            <div
+              style={{
+                border: '1px solid #e6ddd0',
+                borderRadius: '12px',
+                background: '#fcf9f3',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minHeight: '132px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: '#7a6850',
+                }}
+              >
+                CONTRATADA (PROPRIETÁRIA)
+              </span>
+              <div
+                style={{
+                  margin: '10px 0 8px',
+                  paddingBottom: '6px',
+                  borderBottom: '1px solid #d5cab8',
+                  minHeight: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                {template.professionalSignatureData ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={template.professionalSignatureData}
+                    alt={`Assinatura de ${profName}`}
+                    style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      fontFamily: 'Georgia, "Times New Roman", serif',
+                      fontStyle: 'italic',
+                      fontSize: '1.15rem',
+                      color: '#17374d',
+                    }}
+                  >
+                    {profName}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#4c5b66', lineHeight: 1.4 }}>
+                <strong style={{ display: 'block', color: '#17374d' }}>{profName}</strong>
+                <span>CPF: {profCpf}</span>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#6b7780' }}>
+                  {profCred}
+                </span>
+              </div>
+            </div>
+
             {/* Assinatura do Cliente */}
             <div
               style={{
@@ -302,69 +365,6 @@ export function ContractPreviewModal({
                 >
                   <ShieldCheck size={13} />
                   {accepted ? 'Concordância marcada (pronto para registrar)' : 'Assinatura eletrônica ao concordar'}
-                </span>
-              </div>
-            </div>
-
-            {/* Assinatura da Profissional / Dona */}
-            <div
-              style={{
-                border: '1px solid #e6ddd0',
-                borderRadius: '12px',
-                background: '#fcf9f3',
-                padding: '14px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                minHeight: '132px',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: '#7a6850',
-                }}
-              >
-                CONTRATADA (CLÍNICA)
-              </span>
-              <div
-                style={{
-                  margin: '10px 0 8px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid #d5cab8',
-                  minHeight: '38px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                {template.professionalSignatureData ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={template.professionalSignatureData}
-                    alt={`Assinatura de ${profName}`}
-                    style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }}
-                  />
-                ) : (
-                  <span
-                    style={{
-                      fontFamily: 'Georgia, "Times New Roman", serif',
-                      fontStyle: 'italic',
-                      fontSize: '1.15rem',
-                      color: '#17374d',
-                    }}
-                  >
-                    {profName}
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: '#4c5b66', lineHeight: 1.4 }}>
-                <strong style={{ display: 'block', color: '#17374d' }}>{profName}</strong>
-                <span>CPF: {profCpf}</span>
-                <span style={{ display: 'block', fontSize: '0.72rem', color: '#6b7780' }}>
-                  {profCred}
                 </span>
               </div>
             </div>

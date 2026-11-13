@@ -1309,24 +1309,8 @@ export default function AdminContratosPage() {
                   gap: '12px',
                 }}
               >
-                <div style={{ border: '1px solid #dce5ec', borderRadius: '12px', padding: '14px', background: '#f7fafc' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#5b7083' }}>CONTRATANTE</span>
-                  <div style={{ margin: '10px 0 6px', borderBottom: '1px solid #b8c7d4', paddingBottom: '4px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.05rem', color: '#17374d' }}>
-                    {viewingContract.clientName}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#394d5c' }}>
-                    <strong>{viewingContract.clientName}</strong>
-                    <div>CPF: {formatCpf(viewingContract.clientCpf)}</div>
-                    {viewingContract.acceptedAt && (
-                      <div style={{ color: '#146d43', marginTop: '2px' }}>
-                        Assinado em {new Date(viewingContract.acceptedAt).toLocaleString('pt-BR')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div style={{ border: '1px solid #e6ddd0', borderRadius: '12px', padding: '14px', background: '#fcf9f3' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#7a6850' }}>CONTRATADA (CLÍNICA)</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#7a6850' }}>CONTRATADA (PROPRIETÁRIA)</span>
                   <div style={{ margin: '8px 0 6px', borderBottom: '1px solid #d5cab8', paddingBottom: '4px', minHeight: '36px', display: 'flex', alignItems: 'center' }}>
                     {viewingContract.professionalSignatureData ? (
                       <img
@@ -1344,6 +1328,22 @@ export default function AdminContratosPage() {
                     <strong>{viewingContract.professionalName}</strong>
                     <div>CPF: {viewingContract.professionalCpf ? formatCpf(viewingContract.professionalCpf) : 'Não informado'}</div>
                     <div>{viewingContract.professionalCredential}</div>
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #dce5ec', borderRadius: '12px', padding: '14px', background: '#f7fafc' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#5b7083' }}>CONTRATANTE (CLIENTE)</span>
+                  <div style={{ margin: '10px 0 6px', borderBottom: '1px solid #b8c7d4', paddingBottom: '4px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.05rem', color: '#17374d' }}>
+                    {viewingContract.clientName}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#394d5c' }}>
+                    <strong>{viewingContract.clientName}</strong>
+                    <div>CPF: {formatCpf(viewingContract.clientCpf)}</div>
+                    {viewingContract.acceptedAt && (
+                      <div style={{ color: '#146d43', marginTop: '2px' }}>
+                        Assinado em {new Date(viewingContract.acceptedAt).toLocaleString('pt-BR')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

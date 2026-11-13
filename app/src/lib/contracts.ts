@@ -48,29 +48,124 @@ export interface SignedContractRecord {
   createdAt: string;
 }
 
-export const DEFAULT_CONTRACT_TITLE = 'Contrato de Prestação de Serviços Terapêuticos';
+export const DEFAULT_PROFESSIONAL_CPF = '08495423910';
 
-export const DEFAULT_CONTRACT_BODY = `Pelo presente instrumento particular de prestação de serviços terapêuticos:
+export const DEFAULT_CONTRACT_TITLE =
+  'Contrato de Prestação de Serviços Terapêuticos e Política de Agendamento, Cancelamento e Reembolso';
 
-CONTRATANTE (CLIENTE): {{NOME_CLIENTE}}, inscrito(a) no CPF sob o nº {{CPF_CLIENTE}}, telefone {{TELEFONE_CLIENTE}}.
-CONTRATADA (TERAPEUTA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, {{REGISTRO_PROFISSIONAL}}, com consultório em {{CIDADE}}.
+const LEGACY_DRAFT_BODY_PREFIX = 'Pelo presente instrumento particular de prestação de serviços terapêuticos:';
 
-As partes acima identificadas celebram o presente contrato mediante as cláusulas e condições a seguir:
+export const DEFAULT_CONTRACT_BODY = `CONTRATADA (PROPRIETÁRIA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos de Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, doravante denominada CONTRATADA.
 
-1. DO OBJETO
-O presente contrato tem como objeto a prestação de atendimento terapêutico referente a {{SERVICO}} (modalidade: {{MODALIDADE}}), agendado para o dia {{DATA_ATENDIMENTO}} às {{HORARIO_ATENDIMENTO}}.
+CONTRATANTE (CLIENTE): {{NOME_CLIENTE}}, inscrito(a) no CPF sob o nº {{CPF_CLIENTE}}, telefone {{TELEFONE_CLIENTE}}, identificado(a) e cadastrado(a) na plataforma de agendamento, cujos dados pessoais, contato, serviço ({{SERVICO}} - {{MODALIDADE}}), data ({{DATA_ATENDIMENTO}}), horário ({{HORARIO_ATENDIMENTO}}) e identificação eletrônica integram este instrumento.
 
-2. DA NATUREZA DO ATENDIMENTO
-O(A) CONTRATANTE declara estar ciente de que a Hipnose Clínica Multidimensional Integrativa e as práticas integrativas são abordagens terapêuticas complementares, não substituindo tratamento médico, psiquiátrico ou medicamentoso.
+As partes celebram o presente contrato, mediante as seguintes cláusulas:
 
-3. DO SIGILO E PROTEÇÃO DE DADOS (LGPD)
-A CONTRATADA compromete-se a manter sigilo absoluto sobre todas as informações compartilhadas durante os atendimentos, protegendo os dados pessoais do(a) CONTRATANTE em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
+CLÁUSULA 1ª — DO OBJETO
+1.1. O presente contrato regulamenta a contratação, o agendamento, o pagamento, a realização, o cancelamento e o reagendamento de sessões e serviços terapêuticos oferecidos pela CONTRATADA.
+1.2. O serviço específico ({{SERVICO}}), a modalidade ({{MODALIDADE}}), a duração, o valor, a data ({{DATA_ATENDIMENTO}}) e o horário ({{HORARIO_ATENDIMENTO}}) constam no comprovativo de agendamento/atendimento, que integra este contrato.
+1.3. Os atendimentos possuem natureza terapêutica, observados os limites da formação, habilitação e atuação profissional da CONTRATADA, não substituindo diagnóstico ou tratamento médico ou psicológico quando necessários.
 
-4. DOS AGENDAMENTOS, FALTAS E REAGENDAMENTOS
-Eventuais solicitações de remarcação ou cancelamento deverão ser comunicadas com antecedência, respeitando as regras de funcionamento da clínica.
+CLÁUSULA 2ª — DA RESERVA DE HORÁRIO
+2.1. O agendamento representa a reserva de um horário individual destinado ao CONTRATANTE.
+2.2. A reserva impede, durante o período contratado, a disponibilização do mesmo horário a outros clientes.
+2.3. O CONTRATANTE reconhece que cancelamentos tardios e ausências podem causar prejuízos operacionais à CONTRATADA.
+2.4. O agendamento será confirmado após o cumprimento das condições de pagamento previamente informadas.
 
-5. DO ACEITE E ASSINATURA ELETRÔNICA
-Ao declarar concordância eletronicamente, o(a) CONTRATANTE confirma a veracidade dos dados informados e a leitura integral das cláusulas acima, assinando este instrumento na data de {{DATA_ASSINATURA}} às {{HORA_ASSINATURA}}.`;
+CLÁUSULA 3ª — DOS PAGAMENTOS
+3.1. O valor do serviço será informado antes da confirmação da contratação.
+3.2. O pagamento poderá ocorrer pelos meios disponibilizados pela CONTRATADA.
+3.3. O CONTRATANTE deverá verificar o serviço, o preço, a data, o horário e as condições de cancelamento antes de confirmar a reserva.
+3.4. Eventuais taxas adicionais deverão ser informadas previamente, não sendo permitidas cobranças ocultas.
+
+CLÁUSULA 4ª — DO CANCELAMENTO COM ANTECEDÊNCIA MÍNIMA DE 72 HORAS
+4.1. O CONTRATANTE poderá solicitar o cancelamento do atendimento com antecedência igual ou superior a 72 (setenta e duas) horas em relação ao horário agendado.
+4.2. Nos cancelamentos voluntários realizados dentro desse prazo, fora das hipóteses de reembolso integral legalmente obrigatório, poderá ser retida uma taxa compensatória de 17% (dezassete por cento) do valor da sessão cancelada, desde que previamente informada, proporcional aos custos administrativos e de reserva efetivamente justificáveis e não considerada abusiva.
+4.3. Quando a retenção for aplicável, o valor restante, correspondente a 83%, será restituído ao CONTRATANTE.
+4.4. A retenção não será aplicada nos casos de exercício válido do direito legal de arrependimento, falha imputável à CONTRATADA ou outras hipóteses em que a legislação determine restituição integral.
+
+CLÁUSULA 5ª — DO CANCELAMENTO COM MENOS DE 72 HORAS
+5.1. Cancelamentos solicitados com antecedência inferior a 72 horas serão considerados tardios.
+5.2. Nesses casos, a CONTRATADA poderá reter valor proporcional aos prejuízos comprováveis decorrentes da reserva não aproveitada, respeitados a boa-fé, o equilíbrio contratual e os direitos do consumidor.
+5.3. A retenção não poderá representar penalidade manifestamente excessiva ou perda integral automática de valores quando tal medida for abusiva ou contrária à legislação.
+5.4. A CONTRATADA deverá considerar a possibilidade de preenchimento do horário por outro cliente e eventuais circunstâncias justificadas antes de definir qualquer retenção.
+
+CLÁUSULA 6ª — DO REAGENDAMENTO
+6.1. O CONTRATANTE poderá solicitar reagendamento sem penalidade, desde que o pedido seja realizado com antecedência mínima de 72 horas, sujeito à disponibilidade da agenda.
+6.2. Solicitações de reagendamento com menos de 72 horas serão analisadas conforme a disponibilidade e as circunstâncias apresentadas.
+6.3. A CONTRATADA poderá oferecer nova data como alternativa ao cancelamento, sem afastar direitos legais de restituição.
+6.4. A confirmação do novo horário será registada eletronicamente.
+
+CLÁUSULA 7ª — DAS FALTAS E ATRASOS
+7.1. O não comparecimento sem comunicação prévia será considerado ausência injustificada.
+7.2. A ausência injustificada poderá resultar na cobrança de compensação proporcional aos prejuízos efetivos da reserva, observadas as limitações legais.
+7.3. Atrasos do CONTRATANTE poderão reduzir o tempo disponível para o atendimento, desde que essa condição tenha sido previamente informada.
+7.4. Atrasos ou impossibilidade de atendimento causados pela CONTRATADA darão direito à solução adequada, incluindo reagendamento sem custos ou restituição cabível.
+
+CLÁUSULA 8ª — DOS PACOTES DE SESSÕES
+8.1. Quando forem contratados pacotes, o preço total, a quantidade de sessões, as condições de utilização e eventual prazo de validade deverão ser informados previamente.
+8.2. Em caso de desistência, serão consideradas as sessões efetivamente realizadas e os valores referentes aos serviços ainda não prestados.
+8.3. Eventuais retenções deverão ser proporcionais, justificáveis e compatíveis com a legislação consumerista.
+8.4. Não haverá perda automática de todo o valor pago por sessões não utilizadas.
+
+CLÁUSULA 9ª — DO DIREITO DE ARREPENDIMENTO
+9.1. Nas contratações realizadas fora do estabelecimento comercial, inclusive por meios digitais, será respeitado o direito de arrependimento previsto no artigo 49 do Código de Defesa do Consumidor, quando aplicável.
+9.2. O exercício regular desse direito dentro do prazo legal de sete dias assegurará a restituição integral dos valores pagos, conforme a legislação.
+9.3. Nenhuma cláusula deste instrumento poderá limitar direitos obrigatórios assegurados ao consumidor.
+
+CLÁUSULA 10ª — DAS SITUAÇÕES EXCEPCIONAIS
+10.1. Situações de emergência médica, caso fortuito, força maior ou outros acontecimentos relevantes serão analisadas individualmente.
+10.2. A CONTRATADA poderá solicitar documentação razoavelmente necessária para avaliar a situação, respeitando a privacidade do CONTRATANTE.
+10.3. As partes buscarão solução equilibrada, privilegiando o reagendamento quando adequado e voluntariamente aceite.
+
+CLÁUSULA 11ª — DAS OBRIGAÇÕES DA CONTRATADA
+11.1. Prestar os serviços contratados com diligência, respeito, ética e observância dos limites profissionais aplicáveis.
+11.2. Informar previamente preços, condições de pagamento, duração e regras de agendamento.
+11.3. Preservar o sigilo das informações obtidas durante os atendimentos, ressalvadas as hipóteses legais.
+11.4. Informar alterações de agenda com antecedência razoável, sempre que possível.
+11.5. Não prometer resultados terapêuticos específicos ou garantidos.
+
+CLÁUSULA 12ª — DAS OBRIGAÇÕES DO CONTRATANTE
+12.1. Fornecer informações verdadeiras e atualizadas necessárias à prestação do serviço.
+12.2. Respeitar os horários e comunicar impossibilidades de comparecimento.
+12.3. Efetuar os pagamentos acordados.
+12.4. Respeitar as orientações de segurança e os limites da prestação terapêutica.
+12.5. Comunicar circunstâncias relevantes que possam interferir na realização segura do atendimento.
+
+CLÁUSULA 13ª — DA PRIVACIDADE E PROTEÇÃO DE DADOS
+13.1. Os dados pessoais serão tratados para identificação, agendamento, prestação dos serviços, pagamentos, cumprimento de obrigações legais e exercício regular de direitos, conforme a Lei Geral de Proteção de Dados Pessoais.
+13.2. Informações relativas à saúde ou ao histórico terapêutico serão tratadas como dados pessoais sensíveis, com medidas de proteção adequadas.
+13.3. O acesso aos dados será limitado a pessoas autorizadas e aos prestadores necessários à operação, observadas as exigências legais.
+13.4. O CONTRATANTE poderá exercer os direitos previstos na LGPD por meio do canal de atendimento informado pela CONTRATADA.
+13.5. O tratamento de dados deverá ser detalhado em aviso de privacidade disponibilizado ao CONTRATANTE.
+
+CLÁUSULA 14ª — DO ACEITE E ASSINATURA ELETRÔNICA
+14.1. O CONTRATANTE terá acesso integral ao contrato antes de manifestar a sua concordância.
+14.2. O aceite será realizado por ação afirmativa no sistema, mediante marcação de caixa de concordância e confirmação eletrônica.
+14.3. A plataforma poderá registar data, horário, identificador do documento, versão contratual, identificação do utilizador e outros elementos técnicos necessários à comprovação da manifestação de vontade, respeitada a LGPD.
+14.4. O documento aceite será disponibilizado ao CONTRATANTE em formato que permita a sua conservação e consulta.
+14.5. A assinatura da CONTRATADA poderá ser previamente aposta por mecanismo eletrônico autorizado. A assinatura do CONTRATANTE deverá corresponder a uma manifestação efetiva de vontade, não podendo ser presumida ou inserida automaticamente sem autorização.
+14.6. As partes reconhecem os meios eletrônicos admitidos pela legislação brasileira para comprovação da autoria, integridade e concordância contratual.
+
+CLÁUSULA 15ª — DA RESPONSABILIDADE E DOS RESULTADOS
+15.1. A CONTRATADA compromete-se a empregar os cuidados e técnicas compatíveis com os serviços efetivamente oferecidos e com a sua habilitação.
+15.2. O CONTRATANTE reconhece que respostas e resultados individuais podem variar.
+15.3. A ausência de resultado subjetivamente esperado não caracteriza, por si só, falha na prestação do serviço.
+15.4. Permanecem integralmente preservadas as responsabilidades legais da CONTRATADA por eventuais defeitos na prestação do serviço.
+
+CLÁUSULA 16ª — DA RESOLUÇÃO DE CONFLITOS
+16.1. Eventuais divergências deverão, preferencialmente, ser submetidas inicialmente a tentativa de solução amigável.
+16.2. Permanecem assegurados os meios administrativos e judiciais de defesa dos direitos de ambas as partes.
+16.3. Será respeitada a competência judicial estabelecida pela legislação aplicável, especialmente as normas de proteção do consumidor.
+
+CLÁUSULA 17ª — DAS DISPOSIÇÕES FINAIS
+17.1. Este contrato será disponibilizado antes da conclusão do agendamento.
+17.2. Qualquer alteração contratual deverá ser comunicada previamente, não produzindo efeitos retroativos prejudiciais ao CONTRATANTE.
+17.3. A eventual invalidade de uma cláusula não comprometerá automaticamente as demais disposições juridicamente independentes.
+17.4. Os comprovativos de agendamento, pagamento, cancelamento, reagendamento e aceite eletrônico integrarão os registos da contratação.
+17.5. As partes declaram ter tido oportunidade de ler e compreender as condições antes da assinatura.
+
+Documento sujeito a validação eletrônica pela plataforma de agendamento. Aceite registrado em {{DATA_ASSINATURA}} às {{HORA_ASSINATURA}}.`;
 
 let tablesInitialized = false;
 
@@ -154,18 +249,20 @@ export async function getContractTemplate(): Promise<ClinicContractTemplate> {
         title: DEFAULT_CONTRACT_TITLE,
         body: DEFAULT_CONTRACT_BODY,
         professionalName: PROFESSIONAL_INFO.name,
-        professionalCpf: '',
+        professionalCpf: DEFAULT_PROFESSIONAL_CPF,
         professionalCredential: PROFESSIONAL_INFO.credentialCode,
         professionalSignatureData: '',
         updatedAt: new Date().toISOString(),
       };
     }
 
+    const isLegacyDraft = row.body?.trim().startsWith(LEGACY_DRAFT_BODY_PREFIX);
+
     return {
-      title: row.title || DEFAULT_CONTRACT_TITLE,
-      body: row.body?.trim() ? row.body : DEFAULT_CONTRACT_BODY,
+      title: isLegacyDraft ? DEFAULT_CONTRACT_TITLE : row.title || DEFAULT_CONTRACT_TITLE,
+      body: !row.body?.trim() || isLegacyDraft ? DEFAULT_CONTRACT_BODY : row.body,
       professionalName: row.professional_name || PROFESSIONAL_INFO.name,
-      professionalCpf: row.professional_cpf || '',
+      professionalCpf: row.professional_cpf?.trim() ? row.professional_cpf : DEFAULT_PROFESSIONAL_CPF,
       professionalCredential: row.professional_credential || PROFESSIONAL_INFO.credentialCode,
       professionalSignatureData: row.professional_signature_data || '',
       updatedAt: row.updated_at || new Date().toISOString(),
@@ -176,7 +273,7 @@ export async function getContractTemplate(): Promise<ClinicContractTemplate> {
       title: DEFAULT_CONTRACT_TITLE,
       body: DEFAULT_CONTRACT_BODY,
       professionalName: PROFESSIONAL_INFO.name,
-      professionalCpf: '',
+      professionalCpf: DEFAULT_PROFESSIONAL_CPF,
       professionalCredential: PROFESSIONAL_INFO.credentialCode,
       professionalSignatureData: '',
       updatedAt: new Date().toISOString(),
@@ -854,11 +951,11 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
       page.drawImage(logoImage, { x: (W - lw) / 2, y: topY - lh, width: lw, height: lh });
       topY = topY - lh - 8;
     } else {
-      const headerLabel = cleanPdfText(`${contract.professionalName} • ${contract.contractTitle}`);
+      const headerLabel = cleanPdfText(`${contract.professionalName} • Contrato de Prestação de Serviços Terapêuticos`);
       page.drawText(headerLabel, {
-        x: (W - bold.widthOfTextAtSize(headerLabel, 10)) / 2,
+        x: Math.max(M, (W - bold.widthOfTextAtSize(headerLabel, 9.5)) / 2),
         y: topY,
-        size: 10,
+        size: 9.5,
         font: bold,
         color: NAVY,
       });
@@ -876,17 +973,7 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
       });
       topY -= 12;
       page.drawLine({ start: { x: M, y: topY }, end: { x: W - M, y: topY }, thickness: 1.5, color: GOLD });
-      topY -= 24;
-
-      const titleUpper = cleanPdfText(contract.contractTitle.toUpperCase());
-      page.drawText(titleUpper, {
-        x: Math.max(M, (W - bold.widthOfTextAtSize(titleUpper, 12.5)) / 2),
-        y: topY,
-        size: 12.5,
-        font: bold,
-        color: NAVY,
-      });
-      topY -= 20;
+      topY -= 22;
     } else {
       page.drawLine({ start: { x: M, y: topY }, end: { x: W - M, y: topY }, thickness: 1, color: GOLD });
       topY -= 22;
@@ -897,6 +984,23 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
 
   let page = pdf.addPage([W, H]);
   let y = drawPageHeader(page, true);
+
+  const titleWrap = wrapPdfLines(contract.contractTitle.toUpperCase(), bold, 11, contentWidth);
+  for (const tLine of titleWrap) {
+    if (y < 145) {
+      page = pdf.addPage([W, H]);
+      y = drawPageHeader(page, false);
+    }
+    page.drawText(tLine, {
+      x: Math.max(M, (W - bold.widthOfTextAtSize(tLine, 11)) / 2),
+      y,
+      size: 11,
+      font: bold,
+      color: NAVY,
+    });
+    y -= 15;
+  }
+  y -= 6;
 
   // Quadro resumo do atendimento / assinatura
   page.drawRectangle({
@@ -910,7 +1014,7 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
   });
 
   const cpfFmt = contract.clientCpf ? formatCpf(contract.clientCpf) : 'Não informado';
-  const profCpfFmt = contract.professionalCpf ? formatCpf(contract.professionalCpf) : 'Não informado';
+  const profCpfFmt = formatCpf(contract.professionalCpf || DEFAULT_PROFESSIONAL_CPF);
   page.drawText(cleanPdfText(`CONTRATANTE: ${contract.clientName || '—'}  |  CPF: ${cpfFmt}`), {
     x: M + 12,
     y: y - 18,
@@ -932,7 +1036,7 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
   );
   page.drawText(
     cleanPdfText(
-      `CONTRATADA: ${contract.professionalName}  |  CPF: ${profCpfFmt}  |  REGISTRO: ${contract.professionalCredential}`
+      `CONTRATADA (PROPRIETÁRIA): ${contract.professionalName}  |  CPF: ${profCpfFmt}  |  REGISTRO: ${contract.professionalCredential}`
     ),
     {
       x: M + 12,
@@ -945,83 +1049,67 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
 
   y -= 72;
 
-  const lines = wrapPdfLines(contract.contractBodySnapshot || '', regular, 9.5, contentWidth);
+  const lines = wrapPdfLines(contract.contractBodySnapshot || '', regular, 9.2, contentWidth);
   for (const line of lines) {
     if (y < 145) {
       page = pdf.addPage([W, H]);
       y = drawPageHeader(page, false);
     }
     if (line === '') {
-      y -= 8;
+      y -= 7;
       continue;
     }
-    const isHeading = /^\d+\.\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(line);
+    const isHeading =
+      /^CL[ÁA]USULA\s+\d+/i.test(line) ||
+      /^\d+\.\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(line);
     page.drawText(line, {
       x: M,
       y,
-      size: 9.5,
+      size: isHeading ? 9.6 : 9.1,
       font: isHeading ? bold : regular,
       color: isHeading ? NAVY : DARK,
     });
-    y -= 13.5;
+    y -= isHeading ? 14 : 12.8;
   }
 
-  // Garante espaço para o bloco de assinaturas lado a lado
-  if (y < 170) {
+  // Garante espaço para o bloco de assinaturas lado a lado (Proprietária à esquerda, Cliente ao lado)
+  if (y < 185) {
     page = pdf.addPage([W, H]);
     y = drawPageHeader(page, false);
   }
 
-  const signY = Math.max(92, y - 58);
-  const halfW = (contentWidth - 28) / 2;
-  const x1 = M;
-  const x2 = M + halfW + 28;
+  const sectionLabel = 'ASSINATURAS ELETRÔNICAS';
+  page.drawText(sectionLabel, {
+    x: M,
+    y: y - 10,
+    size: 9.5,
+    font: bold,
+    color: NAVY,
+  });
+  y -= 24;
 
-  // Bloco 1: Assinatura Eletrônica do Cliente
+  const signY = Math.max(96, y - 54);
+  const halfW = (contentWidth - 20) / 2;
+  const x1 = M;
+  const x2 = M + halfW + 20;
+
+  // Bloco 1 (Esquerda): Proprietária / Contratada — Assinatura padrão da Camila + Nome + CPF
   page.drawRectangle({
     x: x1,
-    y: signY - 46,
+    y: signY - 52,
     width: halfW,
-    height: 92,
-    color: rgb(0.975, 0.99, 0.985),
-    borderColor: rgb(0.75, 0.88, 0.82),
+    height: 100,
+    color: rgb(0.985, 0.98, 0.965),
+    borderColor: rgb(0.84, 0.79, 0.7),
     borderWidth: 1,
   });
-  const cSignLabel = cleanPdfText(
-    contract.status === 'assinado' ? 'ASSINADO ELETRONICAMENTE POR:' : 'AGUARDANDO ASSINATURA:'
-  );
-  page.drawText(cSignLabel, { x: x1 + 10, y: signY + 32, size: 7.2, font: bold, color: rgb(0.05, 0.45, 0.3) });
-  const cNameItalic = cleanPdfText(contract.clientName || 'Cliente');
-  page.drawText(cNameItalic, { x: x1 + 10, y: signY + 12, size: 11.5, font: italic, color: NAVY });
-  page.drawLine({ start: { x: x1 + 10, y: signY + 6 }, end: { x: x1 + halfW - 10, y: signY + 6 }, thickness: 0.7, color: GRAY });
-  page.drawText(cleanPdfText(`CPF: ${cpfFmt}`), { x: x1 + 10, y: signY - 8, size: 8, font: bold, color: DARK });
-  if (contract.acceptedAt) {
-    page.drawText(
-      cleanPdfText(`Data/Hora: ${formatDateBr(contract.acceptedAt)} às ${formatTimeBr(contract.acceptedAt)}`),
-      { x: x1 + 10, y: signY - 20, size: 7.4, font: regular, color: GRAY }
-    );
-  }
-  if (contract.ipAddress) {
-    page.drawText(cleanPdfText(`IP: ${contract.ipAddress}`), {
-      x: x1 + 10,
-      y: signY - 31,
-      size: 7.2,
-      font: regular,
-      color: GRAY,
-    });
-  }
-
-  // Bloco 2: Assinatura Padrão da Camila + CPF
-  page.drawRectangle({
-    x: x2,
-    y: signY - 46,
-    width: halfW,
-    height: 92,
-    color: rgb(0.98, 0.985, 0.995),
-    borderColor: rgb(0.82, 0.86, 0.92),
-    borderWidth: 1,
+  page.drawText('CONTRATADA (PROPRIETÁRIA):', {
+    x: x1 + 10,
+    y: signY + 35,
+    size: 7.2,
+    font: bold,
+    color: GOLD,
   });
-  page.drawText('CONTRATADA / PROFISSIONAL:', { x: x2 + 10, y: signY + 32, size: 7.2, font: bold, color: NAVY });
 
   if (signatureImage) {
     const maxW = halfW - 24;
@@ -1029,21 +1117,114 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     const ratio = Math.min(maxW / signatureImage.width, maxH / signatureImage.height);
     const sw = signatureImage.width * ratio;
     const sh = signatureImage.height * ratio;
-    page.drawImage(signatureImage, { x: x2 + 10, y: signY + 7, width: sw, height: sh });
+    page.drawImage(signatureImage, { x: x1 + 10, y: signY + 8, width: sw, height: sh });
   } else {
     page.drawText(cleanPdfText(contract.professionalName), {
-      x: x2 + 10,
-      y: signY + 12,
-      size: 12,
+      x: x1 + 10,
+      y: signY + 13,
+      size: 12.5,
       font: italic,
       color: NAVY,
     });
   }
 
-  page.drawLine({ start: { x: x2 + 10, y: signY + 6 }, end: { x: x2 + halfW - 10, y: signY + 6 }, thickness: 0.7, color: GRAY });
-  page.drawText(cleanPdfText(contract.professionalName), { x: x2 + 10, y: signY - 8, size: 8.5, font: bold, color: NAVY });
-  page.drawText(cleanPdfText(`CPF: ${profCpfFmt}`), { x: x2 + 10, y: signY - 20, size: 8, font: bold, color: DARK });
-  page.drawText(cleanPdfText(contract.professionalCredential), { x: x2 + 10, y: signY - 31, size: 7.4, font: regular, color: GRAY });
+  page.drawLine({
+    start: { x: x1 + 10, y: signY + 5 },
+    end: { x: x1 + halfW - 10, y: signY + 5 },
+    thickness: 0.7,
+    color: GRAY,
+  });
+  page.drawText(cleanPdfText(contract.professionalName), {
+    x: x1 + 10,
+    y: signY - 9,
+    size: 8.6,
+    font: bold,
+    color: NAVY,
+  });
+  page.drawText(cleanPdfText(`CPF: ${profCpfFmt}`), {
+    x: x1 + 10,
+    y: signY - 21,
+    size: 8,
+    font: bold,
+    color: DARK,
+  });
+  page.drawText(cleanPdfText(contract.professionalCredential), {
+    x: x1 + 10,
+    y: signY - 33,
+    size: 7.4,
+    font: regular,
+    color: GRAY,
+  });
+
+  // Bloco 2 (Direita, ao lado): Contratante / Cliente — Dados coletados na hora (Nome, CPF, Data e Horário)
+  page.drawRectangle({
+    x: x2,
+    y: signY - 52,
+    width: halfW,
+    height: 100,
+    color: rgb(0.97, 0.99, 0.982),
+    borderColor: rgb(0.74, 0.87, 0.81),
+    borderWidth: 1,
+  });
+  const cSignLabel = cleanPdfText(
+    contract.status === 'assinado'
+      ? 'CONTRATANTE (ASSINADO ELETRONICAMENTE):'
+      : 'CONTRATANTE (AGUARDANDO ASSINATURA):'
+  );
+  page.drawText(cSignLabel, {
+    x: x2 + 10,
+    y: signY + 35,
+    size: 7.2,
+    font: bold,
+    color: rgb(0.05, 0.45, 0.3),
+  });
+  const cNameItalic = cleanPdfText(contract.clientName || 'Cliente');
+  page.drawText(cNameItalic, {
+    x: x2 + 10,
+    y: signY + 13,
+    size: 11,
+    font: italic,
+    color: NAVY,
+  });
+  page.drawLine({
+    start: { x: x2 + 10, y: signY + 5 },
+    end: { x: x2 + halfW - 10, y: signY + 5 },
+    thickness: 0.7,
+    color: GRAY,
+  });
+  page.drawText(cleanPdfText(contract.clientName || 'Não informado'), {
+    x: x2 + 10,
+    y: signY - 9,
+    size: 8.4,
+    font: bold,
+    color: NAVY,
+  });
+  page.drawText(cleanPdfText(`CPF: ${cpfFmt}`), {
+    x: x2 + 10,
+    y: signY - 21,
+    size: 8,
+    font: bold,
+    color: DARK,
+  });
+  const acceptTimeText = contract.acceptedAt
+    ? `Aceite: ${formatDateBr(contract.acceptedAt)} às ${formatTimeBr(contract.acceptedAt)}`
+    : `Sessão: ${formatDateBr(contract.sessionDate)}${contract.sessionTime ? ` às ${contract.sessionTime}` : ''}`;
+  page.drawText(cleanPdfText(acceptTimeText), {
+    x: x2 + 10,
+    y: signY - 33,
+    size: 7.4,
+    font: regular,
+    color: GRAY,
+  });
+  if (contract.ipAddress) {
+    page.drawText(cleanPdfText(`IP: ${contract.ipAddress}`), {
+      x: x2 + 10,
+      y: signY - 44,
+      size: 7.1,
+      font: regular,
+      color: GRAY,
+    });
+  }
 
   const footer = cleanPdfText(`Código do Contrato: ${contract.id.toUpperCase()} • ${PROFESSIONAL_INFO.city}`);
   page.drawText(footer, {

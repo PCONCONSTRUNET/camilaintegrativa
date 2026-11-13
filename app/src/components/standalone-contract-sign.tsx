@@ -315,10 +315,62 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 whiteSpace: 'pre-wrap',
                 maxHeight: '280px',
                 overflowY: 'auto',
-                marginBottom: '20px',
+                marginBottom: '16px',
               }}
             >
               {signedContract.contractBodySnapshot}
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '12px',
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ border: '1px solid #e6ddd0', borderRadius: '12px', padding: '14px', background: '#fcf9f3' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#7a6850' }}>
+                  CONTRATADA (PROPRIETÁRIA)
+                </span>
+                <div style={{ margin: '8px 0 6px', borderBottom: '1px solid #d5cab8', paddingBottom: '4px', minHeight: '36px', display: 'flex', alignItems: 'center' }}>
+                  {signedContract.professionalSignatureData ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={signedContract.professionalSignatureData}
+                      alt={signedContract.professionalName}
+                      style={{ maxHeight: '38px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.08rem', color: '#17374d' }}>
+                      {signedContract.professionalName}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#495a67' }}>
+                  <strong>{signedContract.professionalName}</strong>
+                  <div>CPF: {signedContract.professionalCpf ? maskCpf(signedContract.professionalCpf) : '084.954.239-10'}</div>
+                  <div>{signedContract.professionalCredential}</div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #dce5ec', borderRadius: '12px', padding: '14px', background: '#f7fafc' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#5b7083' }}>
+                  CONTRATANTE (CLIENTE)
+                </span>
+                <div style={{ margin: '10px 0 6px', borderBottom: '1px solid #b8c7d4', paddingBottom: '4px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.05rem', color: '#17374d' }}>
+                  {signedContract.clientName}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#394d5c' }}>
+                  <strong>{signedContract.clientName}</strong>
+                  <div>CPF: {maskCpf(signedContract.clientCpf)}</div>
+                  {signedContract.acceptedAt && (
+                    <div style={{ color: '#146d43', marginTop: '2px' }}>
+                      Assinado em {new Date(signedContract.acceptedAt).toLocaleString('pt-BR')}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
