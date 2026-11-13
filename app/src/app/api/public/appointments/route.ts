@@ -8,6 +8,7 @@ import { sendOneSignalPush } from '@/lib/onesignal';
 import { getDatabase, IDS } from '@/lib/db';
 import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
 import { getCurrentClient } from '@/lib/auth';
+import { recordSignedContract } from '@/lib/contracts';
 import { randomUUID } from 'node:crypto';
 
 export async function POST(request: Request) {
@@ -140,7 +141,34 @@ export async function POST(request: Request) {
       }
     }
 
-    return Response.json({ appointment }, { status: 201 });
+    let signedContractId: string | null = null;
+    let signedContractToken: string | null = null;
+    try {
+      const signedContract = await recordSignedContract({
+        origin: 'agendamento',
+        appointmentId: appointment.id,
+        clientId: appointment.clientId,
+        clientName: input.name,
+        clientCpf: input.cpf,
+        clientPhone: input.phone,
+        clientEmail: input.email || null,
+        serviceName: appointment.serviceName,
+        sessionDate: input.date,
+        sessionTime: input.time,
+        modality: input.modality,
+        ipAddress: ip,
+        userAgent,
+      });
+      signedContractId = signedContract.id;
+      signedContractToken = signedContract.token;
+    } catch (contractErr) {
+      console.error('[appointments] Erro ao registrar contrato assinado:', contractErr);
+    }
+
+    return Response.json(
+      { appointment, signedContractId, signedContractToken },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof BookingConflictError) return Response.json({ error: error.message }, { status: 409 });
     return errorResponse(error);

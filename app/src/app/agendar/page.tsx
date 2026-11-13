@@ -13,6 +13,8 @@ import {
   ChevronUp,
   Clock3,
   Copy,
+  Download,
+  FileSignature,
   LoaderCircle,
   LockKeyhole,
   MapPin,
@@ -29,6 +31,7 @@ import type { GroupSession, Service } from '@/lib/domain';
 import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { ServiceAudioPlayer } from '@/components/service-audio-player';
 import { generatePixCopiaECola, getPixQrCodeImageUrl, DEFAULT_CLINIC_PIX_CONFIG, type ClinicPixConfig } from '@/lib/pix';
+import { ContractPreviewModal, type ContractTemplatePublic } from '@/components/contract-preview-modal';
 
 type Slot = { time: string; startAt: string };
 type Step = 'servico' | 'horario' | 'dados' | 'revisao' | 'sucesso';
@@ -93,6 +96,9 @@ function AgendarContent() {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro' | 'cartao' | ''>('');
   const [pixConfig, setPixConfig] = useState<ClinicPixConfig>(DEFAULT_CLINIC_PIX_CONFIG);
   const [copiedPix, setCopiedPix] = useState(false);
+  const [contractTemplate, setContractTemplate] = useState<ContractTemplatePublic | null>(null);
+  const [contractModalOpen, setContractModalOpen] = useState(false);
+  const [signedContractInfo, setSignedContractInfo] = useState<{ id: string; token: string } | null>(null);
   const [activePackage, setActivePackage] = useState<{
     id: string;
     serviceId: string | null;
@@ -126,13 +132,17 @@ function AgendarContent() {
     Promise.all([
       fetch('/api/public/services').then((r) => r.json()).catch(() => ({ services: [] })),
       fetch('/api/group-sessions').then((r) => r.json()).catch(() => ({ sessions: [] })),
+      fetch('/api/public/contracts').then((r) => r.json()).catch(() => ({ template: null })),
       fromCliente ? fetch('/api/client/portal').then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
     ])
-      .then(([servicesBody, groupBody, portalBody]) => {
+      .then(([servicesBody, groupBody, contractBody, portalBody]) => {
         const list: Service[] = servicesBody.services ?? [];
         const groups: GroupSession[] = groupBody.sessions ?? [];
         setServices(list);
         setGroupSessions(groups);
+        if (contractBody?.template) {
+          setContractTemplate(contractBody.template);
+        }
         if (servicesBody.pixConfig) {
           setPixConfig(servicesBody.pixConfig);
         }
@@ -271,6 +281,9 @@ function AgendarContent() {
     }
     setReference(body.appointment.id.slice(0, 8).toUpperCase());
     setBookingStatus(body.appointment.status === 'confirmado' ? 'confirmado' : 'solicitado');
+    if (body.signedContractId && body.signedContractToken) {
+      setSignedContractInfo({ id: body.signedContractId, token: body.signedContractToken });
+    }
     setStep('sucesso');
   }
 
@@ -301,6 +314,9 @@ function AgendarContent() {
       return;
     }
     setReference(body.reference || (body.enrollmentId ? String(body.enrollmentId).slice(0, 8).toUpperCase() : 'GRUPO'));
+    if (body.signedContractId && body.signedContractToken) {
+      setSignedContractInfo({ id: body.signedContractId, token: body.signedContractToken });
+    }
     setGroupStep('sucesso');
   }
 
@@ -387,6 +403,19 @@ function AgendarContent() {
 
               <div className="button-row booking-success-actions">
                 <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
+                {signedContractInfo && (
+                  <a
+                    href={`/api/public/contracts/${signedContractInfo.id}/pdf?token=${encodeURIComponent(
+                      signedContractInfo.token
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Download size={14} /> Baixar Contrato (PDF)
+                  </a>
+                )}
                 <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
                   Ver meu agendamento <ChevronRight size={14} />
                 </Link>
@@ -551,6 +580,19 @@ function AgendarContent() {
 
               <div className="button-row booking-success-actions">
                 <Link href="/" className="btn btn-secondary">Voltar ao início</Link>
+                {signedContractInfo && (
+                  <a
+                    href={`/api/public/contracts/${signedContractInfo.id}/pdf?token=${encodeURIComponent(
+                      signedContractInfo.token
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Download size={14} /> Baixar Contrato (PDF)
+                  </a>
+                )}
                 <Link href="/cliente?tab=agendamentos" className="btn btn-primary">
                   Ver meu agendamento <ChevronRight size={14} />
                 </Link>
@@ -1163,14 +1205,30 @@ function AgendarContent() {
                     <span>Declaro que as informações fornecidas são verdadeiras e estou ciente da abordagem terapêutica integrativa. *</span>
                   </label>
 
-                  <label className="privacy-check">
-                    <input
-                      type="checkbox"
-                      checked={form.privacyAccepted}
-                      onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
-                    />
-                    <span>Li e concordo com os Termos de Uso e Política de Privacidade para administrar minha inscrição. *</span>
-                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label className="privacy-check">
+                      <input
+                        type="checkbox"
+                        checked={form.privacyAccepted}
+                        onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
+                      />
+                      <span>
+                        Li e concordo com os <strong>Termos e Contrato de Atendimento</strong> e Política de Privacidade. *
+                      </span>
+                    </label>
+                    {contractTemplate && (
+                      <div>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setContractModalOpen(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <FileSignature size={14} /> Visualizar Contrato Preenchido
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     className="btn btn-primary btn-lg booking-next"
@@ -1565,14 +1623,30 @@ function AgendarContent() {
                     <span>Declaro que as informações fornecidas são verdadeiras e estou ciente da abordagem terapêutica integrativa. *</span>
                   </label>
 
-                  <label className="privacy-check">
-                    <input
-                      type="checkbox"
-                      checked={form.privacyAccepted}
-                      onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
-                    />
-                    <span>Li e concordo com os Termos de Uso e Política de Privacidade da clínica. *</span>
-                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label className="privacy-check">
+                      <input
+                        type="checkbox"
+                        checked={form.privacyAccepted}
+                        onChange={(event) => setForm({ ...form, privacyAccepted: event.target.checked })}
+                      />
+                      <span>
+                        Li e concordo com os <strong>Termos e Contrato de Atendimento</strong> e Política de Privacidade da clínica. *
+                      </span>
+                    </label>
+                    {contractTemplate && (
+                      <div>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setContractModalOpen(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <FileSignature size={14} /> Visualizar Contrato Preenchido
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     className="btn btn-primary btn-lg booking-next"
@@ -1587,6 +1661,40 @@ function AgendarContent() {
           )}
         </div>
       </section>
+
+      <ContractPreviewModal
+        open={contractModalOpen}
+        onClose={() => setContractModalOpen(false)}
+        template={contractTemplate}
+        variables={
+          bookingMode === 'grupo' && selectedGroup
+            ? {
+                clientName: form.name,
+                clientCpf: form.cpf,
+                clientPhone: form.phone,
+                clientEmail: form.email,
+                serviceName: `Sessão em Grupo: ${selectedGroup.title}`,
+                sessionDate: selectedGroup.date,
+                sessionTime: selectedGroup.startTime,
+                modality: selectedGroup.modality,
+              }
+            : {
+                clientName: form.name,
+                clientCpf: form.cpf,
+                clientPhone: form.phone,
+                clientEmail: form.email,
+                serviceName: service?.name || 'Atendimento Terapêutico',
+                sessionDate: date,
+                sessionTime: time,
+                modality,
+              }
+        }
+        accepted={form.privacyAccepted}
+        onAcceptAndClose={() => {
+          setForm((prev) => ({ ...prev, privacyAccepted: true }));
+          setContractModalOpen(false);
+        }}
+      />
     </main>
   );
 }

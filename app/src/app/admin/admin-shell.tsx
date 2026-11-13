@@ -27,6 +27,7 @@ import {
   Radio,
   ShieldCheck,
   Video,
+  FileSignature,
 } from 'lucide-react';
 import { AdminNotificationBell } from '@/components/admin-notification-bell';
 
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { icon: CalendarDays, label: 'Agenda', href: '/admin/agenda' },
   { icon: Users, label: 'Clientes', href: '/admin/clientes' },
   { icon: FileText, label: 'Prontuários', href: '/admin/prontuarios' },
+  { icon: FileSignature, label: 'Contratos', href: '/admin/contratos' },
   { icon: NotebookPen, label: 'Anotações', href: '/admin/anotacoes' },
   { icon: WalletCards, label: 'Financeiro', href: '/admin/financeiro' },
   { icon: Sparkles, label: 'Serviços', href: '/admin/servicos' },

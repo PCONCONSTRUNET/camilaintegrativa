@@ -5,6 +5,7 @@ import { notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admi
 import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
 import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
+import { recordSignedContract } from '@/lib/contracts';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -154,11 +155,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  let signedContractId: string | null = null;
+  let signedContractToken: string | null = null;
+  try {
+    const signedContract = await recordSignedContract({
+      origin: 'grupo',
+      appointmentId: result.enrollmentId || null,
+      clientId: result.clientId || null,
+      clientName: body.name,
+      clientCpf: cleanCpf,
+      clientPhone: body.phone,
+      clientEmail: body.email ?? null,
+      serviceName: groupServiceTitle,
+      sessionDate: result.date || '',
+      sessionTime: result.startTime || '',
+      modality: 'presencial',
+      ipAddress: ip,
+      userAgent,
+    });
+    signedContractId = signedContract.id;
+    signedContractToken = signedContract.token;
+  } catch (contractErr) {
+    console.error('[group-enroll] Erro ao registrar contrato assinado:', contractErr);
+  }
+
   return NextResponse.json(
     {
       ok: true,
       enrollmentId: result.enrollmentId,
       reference: result.enrollmentId?.slice(0, 8).toUpperCase(),
+      signedContractId,
+      signedContractToken,
     },
     { status: 201 }
   );

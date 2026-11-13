@@ -49,6 +49,15 @@ export function maskPhone(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+export function formatCpf(cpf: string | null | undefined): string {
+  const raw = cpf || '';
+  const cleaned = raw.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`;
+  }
+  return raw;
+}
+
 export function maskCpf(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length === 0) return '';
