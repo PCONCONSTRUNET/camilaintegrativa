@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     const token = typeof body.token === 'string' ? body.token.trim() : '';
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const cleanCpf = String(body.cpf ?? '').replace(/\D/g, '');
+    const birthDate = typeof body.birthDate === 'string' ? body.birthDate.trim() : '';
     const cleanPhone = String(body.phone ?? '').replace(/\D/g, '');
     const email = typeof body.email === 'string' ? body.email.trim() : '';
     const serviceName = typeof body.serviceName === 'string' ? body.serviceName.trim() : '';
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Informe um CPF válido com 11 dígitos.' }, { status: 400 });
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
+      return Response.json({ error: 'Informe sua data de nascimento.' }, { status: 400 });
+    }
+
     const { ip, userAgent } = extractClientMetadata(request);
 
     let contract;
@@ -74,6 +79,7 @@ export async function POST(request: NextRequest) {
       contract = await signPendingContractByToken(token, {
         clientName: name,
         clientCpf: cleanCpf,
+        clientBirthDate: birthDate,
         clientPhone: cleanPhone,
         clientEmail: email,
         serviceName: serviceName || existing.serviceName,
@@ -88,6 +94,7 @@ export async function POST(request: NextRequest) {
         origin: 'avulso',
         clientName: name,
         clientCpf: cleanCpf,
+        clientBirthDate: birthDate,
         clientPhone: cleanPhone,
         clientEmail: email,
         serviceName: serviceName || 'Atendimento Terapêutico',

@@ -21,7 +21,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { formatCpf, formatPhone, maskCpf, maskPhone } from '@/lib/utils';
+import { formatCpf, formatPhone, maskCpf } from '@/lib/utils';
 
 interface ContractTemplate {
   title: string;
@@ -42,6 +42,7 @@ interface ContractRecord {
   clientId: string | null;
   clientName: string;
   clientCpf: string;
+  clientBirthDate: string;
   clientPhone: string;
   clientEmail: string;
   serviceName: string;
@@ -62,6 +63,7 @@ interface ContractRecord {
 const VARIABLE_CHIPS = [
   { key: '{{NOME_CLIENTE}}', label: 'Nome do Cliente' },
   { key: '{{CPF_CLIENTE}}', label: 'CPF do Cliente' },
+  { key: '{{DATA_NASCIMENTO}}', label: 'Data de Nascimento' },
   { key: '{{TELEFONE_CLIENTE}}', label: 'WhatsApp do Cliente' },
   { key: '{{SERVICO}}', label: 'Serviço' },
   { key: '{{DATA_ATENDIMENTO}}', label: 'Data' },
@@ -98,9 +100,6 @@ export default function AdminContratosPage() {
   const [creatingLink, setCreatingLink] = useState(false);
   const [createdContractLink, setCreatedContractLink] = useState<ContractRecord | null>(null);
   const [linkForm, setLinkForm] = useState({
-    clientName: '',
-    clientCpf: '',
-    clientPhone: '',
     serviceName: 'Atendimento Terapêutico',
     sessionDate: '',
     sessionTime: '',
@@ -453,9 +452,6 @@ export default function AdminContratosPage() {
             onClick={() => {
               setCreatedContractLink(null);
               setLinkForm({
-                clientName: '',
-                clientCpf: '',
-                clientPhone: '',
                 serviceName: 'Atendimento Terapêutico',
                 sessionDate: '',
                 sessionTime: '',
@@ -1070,75 +1066,54 @@ export default function AdminContratosPage() {
 
             {!createdContractLink ? (
               <form onSubmit={handleCreateLink} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#5c6f7e' }}>
-                  Todos os campos abaixo são opcionais. Se deixar em branco, o próprio cliente preenche Nome e CPF ao abrir o link.
-                </p>
+                <div
+                  style={{
+                    background: '#f4f8fb',
+                    border: '1px solid #d5e2ec',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    fontSize: '0.84rem',
+                    color: '#203b4f',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  O próprio cliente preencherá <strong>Nome completo, CPF e Data de nascimento</strong> ao abrir o link. Os campos abaixo são apenas opcionais caso queira deixar o atendimento indicado:
+                </div>
+
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                    Nome do Cliente (opcional)
-                  </label>
-                  <input
-                    className="input"
-                    value={linkForm.clientName}
-                    onChange={(e) => setLinkForm({ ...linkForm, clientName: e.target.value })}
-                    placeholder="Ex: Maria Silva"
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                      WhatsApp (opcional)
-                    </label>
-                    <input
-                      className="input"
-                      value={linkForm.clientPhone}
-                      onChange={(e) => setLinkForm({ ...linkForm, clientPhone: maskPhone(e.target.value) })}
-                      placeholder="(48) 99999-9999"
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                      CPF (opcional)
-                    </label>
-                    <input
-                      className="input"
-                      value={linkForm.clientCpf}
-                      onChange={(e) => setLinkForm({ ...linkForm, clientCpf: maskCpf(e.target.value) })}
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                    Serviço / Atendimento
+                    Serviço / Atendimento (opcional)
                   </label>
                   <input
                     className="input"
                     value={linkForm.serviceName}
                     onChange={(e) => setLinkForm({ ...linkForm, serviceName: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                      Data
+                      Data (opcional)
                     </label>
                     <input
                       className="input"
                       type="date"
                       value={linkForm.sessionDate}
                       onChange={(e) => setLinkForm({ ...linkForm, sessionDate: e.target.value })}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
-                      Horário
+                      Horário (opcional)
                     </label>
                     <input
                       className="input"
                       value={linkForm.sessionTime}
                       onChange={(e) => setLinkForm({ ...linkForm, sessionTime: e.target.value })}
-                      placeholder="14:00"
+                      placeholder="Ex: 14:00"
+                      style={{ width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
@@ -1149,6 +1124,7 @@ export default function AdminContratosPage() {
                       className="input"
                       value={linkForm.modality}
                       onChange={(e) => setLinkForm({ ...linkForm, modality: e.target.value })}
+                      style={{ width: '100%', boxSizing: 'border-box' }}
                     >
                       <option value="presencial">Presencial</option>
                       <option value="online">Online</option>
@@ -1161,7 +1137,7 @@ export default function AdminContratosPage() {
                     Cancelar
                   </button>
                   <button type="submit" className="btn btn-primary btn-sm" disabled={creatingLink}>
-                    {creatingLink ? 'Gerando…' : 'Criar Link'}
+                    {creatingLink ? 'Gerando…' : 'Criar Link para Cliente Preencher'}
                   </button>
                 </div>
               </form>
@@ -1177,7 +1153,7 @@ export default function AdminContratosPage() {
                     color: '#146d43',
                   }}
                 >
-                  Link exclusivo criado! Assim que o cliente preencher Nome/CPF e concordar, o contrato já aparece como <strong>Assinado</strong> aqui no sistema.
+                  Link exclusivo criado! Envie no WhatsApp para o cliente preencher <strong>Nome, CPF e Data de nascimento</strong> e assinar o contrato.
                 </div>
 
                 <div
@@ -1339,6 +1315,11 @@ export default function AdminContratosPage() {
                   <div style={{ fontSize: '0.78rem', color: '#394d5c' }}>
                     <strong>{viewingContract.clientName}</strong>
                     <div>CPF: {formatCpf(viewingContract.clientCpf)}</div>
+                    {viewingContract.clientBirthDate && (
+                      <div>
+                        Nascimento: {viewingContract.clientBirthDate.split('-').reverse().join('/')}
+                      </div>
+                    )}
                     {viewingContract.acceptedAt && (
                       <div style={{ color: '#146d43', marginTop: '2px' }}>
                         Assinado em {new Date(viewingContract.acceptedAt).toLocaleString('pt-BR')}

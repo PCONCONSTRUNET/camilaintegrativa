@@ -164,6 +164,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       clientId: result.clientId || null,
       clientName: body.name,
       clientCpf: cleanCpf,
+      clientBirthDate: String(body.birthDate || ''),
       clientPhone: body.phone,
       clientEmail: body.email ?? null,
       serviceName: groupServiceTitle,

@@ -16,6 +16,7 @@ export interface ContractTemplatePublic {
 export interface ContractPreviewVariables {
   clientName?: string | null;
   clientCpf?: string | null;
+  clientBirthDate?: string | null;
   clientPhone?: string | null;
   clientEmail?: string | null;
   serviceName?: string | null;
@@ -77,6 +78,7 @@ export function renderContractPreviewText(
   const replacements: Record<string, string> = {
     '{{NOME_CLIENTE}}': vars.clientName?.trim() || '___________________________',
     '{{CPF_CLIENTE}}': formattedClientCpf,
+    '{{DATA_NASCIMENTO}}': vars.clientBirthDate ? formatDateBrClient(vars.clientBirthDate) : 'Não informado',
     '{{TELEFONE_CLIENTE}}': formattedPhone,
     '{{EMAIL_CLIENTE}}': vars.clientEmail?.trim() || 'Não informado',
     '{{SERVICO}}': vars.serviceName?.trim() || 'Atendimento Terapêutico',
@@ -352,6 +354,11 @@ export function ContractPreviewModal({
               <div style={{ fontSize: '0.78rem', color: '#394d5c', lineHeight: 1.4 }}>
                 <strong style={{ display: 'block', color: '#17374d' }}>{clientName}</strong>
                 <span>CPF: {clientCpf}</span>
+                {variables.clientBirthDate && (
+                  <span style={{ display: 'block' }}>
+                    Nascimento: {formatDateBrClient(variables.clientBirthDate)}
+                  </span>
+                )}
                 <span
                   style={{
                     display: 'inline-flex',

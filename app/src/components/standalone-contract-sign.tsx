@@ -11,7 +11,7 @@ import {
   LoaderCircle,
   ShieldCheck,
 } from 'lucide-react';
-import { maskCpf, maskPhone } from '@/lib/utils';
+import { maskCpf } from '@/lib/utils';
 import {
   ContractPreviewModal,
   type ContractTemplatePublic,
@@ -24,6 +24,7 @@ interface SignedOrPendingContract {
   origin: string;
   clientName: string;
   clientCpf: string;
+  clientBirthDate: string;
   clientPhone: string;
   clientEmail: string;
   serviceName: string;
@@ -39,27 +40,36 @@ interface SignedOrPendingContract {
   acceptedAt: string | null;
 }
 
+function formatBirthDateBr(val?: string | null) {
+  if (!val) return 'Não informado';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const [y, m, d] = val.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return val;
+}
+
 export function StandaloneContractSign({ token }: { token?: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [template, setTemplate] = useState<ContractTemplatePublic | null>(null);
+  const [presetInfo, setPresetInfo] = useState<{
+    serviceName: string;
+    sessionDate: string;
+    sessionTime: string;
+    modality: string;
+  }>({
+    serviceName: 'Atendimento Terapêutico',
+    sessionDate: '',
+    sessionTime: '',
+    modality: 'presencial',
+  });
   const [signedContract, setSignedContract] = useState<SignedOrPendingContract | null>(null);
 
+  // Somente os 3 campos solicitados para o cliente preencher ao abrir o link
   const [name, setName] = useState('');
   const [cpf, setCpf] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [serviceName, setServiceName] = useState('Atendimento Terapêutico');
-  const [sessionDate, setSessionDate] = useState(() =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date())
-  );
-  const [sessionTime, setSessionTime] = useState('');
-  const [modality, setModality] = useState<'presencial' | 'online'>('presencial');
+  const [birthDate, setBirthDate] = useState('');
   const [accepted, setAccepted] = useState(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -82,12 +92,13 @@ export function StandaloneContractSign({ token }: { token?: string }) {
           } else {
             if (c.clientName) setName(c.clientName);
             if (c.clientCpf) setCpf(maskCpf(c.clientCpf));
-            if (c.clientPhone) setPhone(maskPhone(c.clientPhone));
-            if (c.clientEmail) setEmail(c.clientEmail);
-            if (c.serviceName) setServiceName(c.serviceName);
-            if (c.sessionDate) setSessionDate(c.sessionDate);
-            if (c.sessionTime) setSessionTime(c.sessionTime);
-            if (c.modality === 'online' || c.modality === 'presencial') setModality(c.modality);
+            if (c.clientBirthDate) setBirthDate(c.clientBirthDate);
+            setPresetInfo({
+              serviceName: c.serviceName || 'Atendimento Terapêutico',
+              sessionDate: c.sessionDate || '',
+              sessionTime: c.sessionTime || '',
+              modality: c.modality || 'presencial',
+            });
           }
         }
       })
@@ -110,6 +121,10 @@ export function StandaloneContractSign({ token }: { token?: string }) {
       setSubmitError('Informe um CPF válido com 11 dígitos.');
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
+      setSubmitError('Informe sua data de nascimento.');
+      return;
+    }
     if (!accepted) {
       setSubmitError('Marque a opção de concordância com os termos do contrato antes de assinar.');
       return;
@@ -124,12 +139,11 @@ export function StandaloneContractSign({ token }: { token?: string }) {
           token: token || undefined,
           name: name.trim(),
           cpf: cleanCpf,
-          phone: phone.trim(),
-          email: email.trim(),
-          serviceName: serviceName.trim() || 'Atendimento Terapêutico',
-          sessionDate,
-          sessionTime: sessionTime.trim(),
-          modality,
+          birthDate,
+          serviceName: presetInfo.serviceName,
+          sessionDate: presetInfo.sessionDate,
+          sessionTime: presetInfo.sessionTime,
+          modality: presetInfo.modality,
           accepted,
         }),
       });
@@ -154,7 +168,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
         padding: '20px 16px 56px',
       }}
     >
-      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         <header
           style={{
             display: 'flex',
@@ -262,7 +276,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 >
                   Contrato assinado e registrado
                 </span>
-                <h1 style={{ margin: '2px 0 0', fontSize: '1.35rem', color: '#17374d' }}>
+                <h1 style={{ margin: '2px 0 0', fontSize: '1.25rem', color: '#17374d' }}>
                   {signedContract.contractTitle}
                 </h1>
               </div>
@@ -275,24 +289,30 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 borderRadius: '12px',
                 padding: '14px 16px',
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
                 gap: '10px',
                 marginBottom: '18px',
                 fontSize: '0.86rem',
               }}
             >
               <div>
-                <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>Contratante</span>
+                <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>Nome</span>
                 <strong style={{ color: '#17374d' }}>{signedContract.clientName}</strong>
               </div>
               <div>
                 <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>CPF</span>
                 <strong style={{ color: '#17374d' }}>{maskCpf(signedContract.clientCpf)}</strong>
               </div>
-              <div>
-                <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>Atendimento</span>
-                <strong style={{ color: '#17374d' }}>{signedContract.serviceName}</strong>
-              </div>
+              {signedContract.clientBirthDate && (
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>
+                    Data de Nascimento
+                  </span>
+                  <strong style={{ color: '#17374d' }}>
+                    {formatBirthDateBr(signedContract.clientBirthDate)}
+                  </strong>
+                </div>
+              )}
               <div>
                 <span style={{ display: 'block', fontSize: '0.73rem', color: '#617280' }}>Data / Assinatura</span>
                 <strong style={{ color: '#17374d' }}>
@@ -364,6 +384,9 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 <div style={{ fontSize: '0.78rem', color: '#394d5c' }}>
                   <strong>{signedContract.clientName}</strong>
                   <div>CPF: {maskCpf(signedContract.clientCpf)}</div>
+                  {signedContract.clientBirthDate && (
+                    <div>Nascimento: {formatBirthDateBr(signedContract.clientBirthDate)}</div>
+                  )}
                   {signedContract.acceptedAt && (
                     <div style={{ color: '#146d43', marginTop: '2px' }}>
                       Assinado em {new Date(signedContract.acceptedAt).toLocaleString('pt-BR')}
@@ -428,39 +451,60 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 >
                   Assinatura de Termo / Contrato
                 </span>
-                <h1 style={{ margin: '2px 0 0', fontSize: '1.3rem', color: '#17374d' }}>
-                  {template?.title || 'Contrato de Prestação de Serviços'}
+                <h1 style={{ margin: '2px 0 0', fontSize: '1.22rem', color: '#17374d' }}>
+                  {template?.title || 'Contrato de Prestação de Serviços Terapêuticos'}
                 </h1>
               </div>
             </div>
 
-            <p style={{ margin: '0 0 20px', fontSize: '0.9rem', color: '#536472', lineHeight: 1.5 }}>
-              Preencha seus dados abaixo para gerar seu contrato preenchido automaticamente. Você
-              pode visualizar o documento completo com a assinatura da clínica antes de concordar.
+            <p style={{ margin: '0 0 18px', fontSize: '0.9rem', color: '#536472', lineHeight: 1.5 }}>
+              Preencha seu <strong>nome completo</strong>, <strong>CPF</strong> e{' '}
+              <strong>data de nascimento</strong> abaixo. Você pode visualizar o contrato completo
+              antes de concordar e assinar.
             </p>
 
+            {(presetInfo.sessionDate || presetInfo.serviceName !== 'Atendimento Terapêutico') && (
+              <div
+                style={{
+                  background: '#f7fafc',
+                  border: '1px solid #dce6ee',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '0.83rem',
+                  color: '#2c4254',
+                }}
+              >
+                <strong>Atendimento vinculado:</strong> {presetInfo.serviceName}
+                {presetInfo.sessionDate ? ` · ${formatBirthDateBr(presetInfo.sessionDate)}` : ''}
+                {presetInfo.sessionTime ? ` às ${presetInfo.sessionTime}` : ''}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
+                  Nome completo *
+                </label>
+                <input
+                  className="input"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Digite seu nome completo"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
                   gap: '12px',
                 }}
               >
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    Nome completo *
-                  </label>
-                  <input
-                    className="input"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Seu nome completo"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
+                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
                     CPF *
                   </label>
                   <input
@@ -470,95 +514,21 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                     value={cpf}
                     onChange={(e) => setCpf(maskCpf(e.target.value))}
                     placeholder="000.000.000-00"
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    WhatsApp
-                  </label>
-                  <input
-                    className="input"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(maskPhone(e.target.value))}
-                    placeholder="(48) 99999-9999"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    E-mail (opcional)
-                  </label>
-                  <input
-                    className="input"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    Atendimento / Serviço
-                  </label>
-                  <input
-                    className="input"
-                    value={serviceName}
-                    onChange={(e) => setServiceName(e.target.value)}
-                    placeholder="Ex: Hipnose Clínica"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    Data do atendimento
+                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
+                    Data de nascimento *
                   </label>
                   <input
                     className="input"
                     type="date"
-                    value={sessionDate}
-                    onChange={(e) => setSessionDate(e.target.value)}
+                    required
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    Horário (opcional)
-                  </label>
-                  <input
-                    className="input"
-                    value={sessionTime}
-                    onChange={(e) => setSessionTime(e.target.value)}
-                    placeholder="Ex: 14:30"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#263a4a' }}>
-                    Modalidade
-                  </label>
-                  <select
-                    className="input"
-                    value={modality}
-                    onChange={(e) => setModality(e.target.value as 'presencial' | 'online')}
-                  >
-                    <option value="presencial">Presencial</option>
-                    <option value="online">Online</option>
-                  </select>
                 </div>
               </div>
 
@@ -579,7 +549,8 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                       Contrato de Atendimento Terapêutico
                     </strong>
                     <span style={{ fontSize: '0.78rem', color: '#61717e' }}>
-                      Já inclui os seus dados informados acima e a assinatura de {template?.professionalName || 'Camila Machado'}.
+                      Já inclui seus dados informados acima e a assinatura de{' '}
+                      {template?.professionalName || 'Camila Machado'}.
                     </span>
                   </div>
                   <button
@@ -665,12 +636,11 @@ export function StandaloneContractSign({ token }: { token?: string }) {
         variables={{
           clientName: name,
           clientCpf: cpf,
-          clientPhone: phone,
-          clientEmail: email,
-          serviceName,
-          sessionDate,
-          sessionTime,
-          modality,
+          clientBirthDate: birthDate,
+          serviceName: presetInfo.serviceName,
+          sessionDate: presetInfo.sessionDate,
+          sessionTime: presetInfo.sessionTime,
+          modality: presetInfo.modality,
         }}
         accepted={accepted}
         onAcceptAndClose={() => {

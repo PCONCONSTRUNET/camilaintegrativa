@@ -150,6 +150,7 @@ export async function POST(request: Request) {
         clientId: appointment.clientId,
         clientName: input.name,
         clientCpf: input.cpf,
+        clientBirthDate: input.birthDate || '',
         clientPhone: input.phone,
         clientEmail: input.email || null,
         serviceName: appointment.serviceName,

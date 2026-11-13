@@ -1671,6 +1671,7 @@ function AgendarContent() {
             ? {
                 clientName: form.name,
                 clientCpf: form.cpf,
+                clientBirthDate: form.birthDate,
                 clientPhone: form.phone,
                 clientEmail: form.email,
                 serviceName: `Sessão em Grupo: ${selectedGroup.title}`,
@@ -1681,6 +1682,7 @@ function AgendarContent() {
             : {
                 clientName: form.name,
                 clientCpf: form.cpf,
+                clientBirthDate: form.birthDate,
                 clientPhone: form.phone,
                 clientEmail: form.email,
                 serviceName: service?.name || 'Atendimento Terapêutico',

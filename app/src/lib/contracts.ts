@@ -30,6 +30,7 @@ export interface SignedContractRecord {
   clientId: string | null;
   clientName: string;
   clientCpf: string;
+  clientBirthDate: string;
   clientPhone: string;
   clientEmail: string;
   serviceName: string;
@@ -57,7 +58,7 @@ const LEGACY_DRAFT_BODY_PREFIX = 'Pelo presente instrumento particular de presta
 
 export const DEFAULT_CONTRACT_BODY = `CONTRATADA (PROPRIETÁRIA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos de Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, doravante denominada CONTRATADA.
 
-CONTRATANTE (CLIENTE): {{NOME_CLIENTE}}, inscrito(a) no CPF sob o nº {{CPF_CLIENTE}}, telefone {{TELEFONE_CLIENTE}}, identificado(a) e cadastrado(a) na plataforma de agendamento, cujos dados pessoais, contato, serviço ({{SERVICO}} - {{MODALIDADE}}), data ({{DATA_ATENDIMENTO}}), horário ({{HORARIO_ATENDIMENTO}}) e identificação eletrônica integram este instrumento.
+CONTRATANTE (CLIENTE): {{NOME_CLIENTE}}, inscrito(a) no CPF sob o nº {{CPF_CLIENTE}}, nascido(a) em {{DATA_NASCIMENTO}}, identificado(a) e cadastrado(a) na plataforma de agendamento, cujos dados pessoais, serviço ({{SERVICO}} - {{MODALIDADE}}), data ({{DATA_ATENDIMENTO}}), horário ({{HORARIO_ATENDIMENTO}}) e identificação eletrônica integram este instrumento.
 
 As partes celebram o presente contrato, mediante as seguintes cláusulas:
 
@@ -197,6 +198,7 @@ export async function ensureContractsTables() {
         client_id TEXT,
         client_name TEXT NOT NULL DEFAULT '',
         client_cpf TEXT NOT NULL DEFAULT '',
+        client_birth_date TEXT NOT NULL DEFAULT '',
         client_phone TEXT NOT NULL DEFAULT '',
         client_email TEXT NOT NULL DEFAULT '',
         service_name TEXT NOT NULL DEFAULT '',
@@ -215,6 +217,10 @@ export async function ensureContractsTables() {
         created_at TEXT NOT NULL
       )
     `);
+
+    await db
+      .exec(`ALTER TABLE signed_contracts ADD COLUMN client_birth_date TEXT NOT NULL DEFAULT ''`)
+      .catch(() => null);
 
     tablesInitialized = true;
   } catch (err) {
@@ -381,6 +387,7 @@ export function renderContractText(
   vars: {
     clientName?: string | null;
     clientCpf?: string | null;
+    clientBirthDate?: string | null;
     clientPhone?: string | null;
     clientEmail?: string | null;
     serviceName?: string | null;
@@ -397,6 +404,7 @@ export function renderContractText(
   const formattedClientCpf = vars.clientCpf ? formatCpf(vars.clientCpf) : 'Não informado';
   const formattedProfCpf = vars.professionalCpf ? formatCpf(vars.professionalCpf) : 'Não informado';
   const formattedPhone = vars.clientPhone ? formatPhone(vars.clientPhone) : 'Não informado';
+  const formattedBirthDate = vars.clientBirthDate ? formatDateBr(vars.clientBirthDate) : 'Não informado';
   const modalityLabel =
     vars.modality === 'online'
       ? 'Online'
@@ -407,6 +415,7 @@ export function renderContractText(
   const replacements: Record<string, string> = {
     '{{NOME_CLIENTE}}': vars.clientName?.trim() || '___________________________',
     '{{CPF_CLIENTE}}': formattedClientCpf,
+    '{{DATA_NASCIMENTO}}': formattedBirthDate,
     '{{TELEFONE_CLIENTE}}': formattedPhone,
     '{{EMAIL_CLIENTE}}': vars.clientEmail?.trim() || 'Não informado',
     '{{SERVICO}}': vars.serviceName?.trim() || 'Atendimento Terapêutico',
@@ -438,6 +447,7 @@ function mapContractRow(row: Record<string, unknown>): SignedContractRecord {
     clientId: row.client_id ? String(row.client_id) : null,
     clientName: String(row.client_name || ''),
     clientCpf: String(row.client_cpf || ''),
+    clientBirthDate: String(row.client_birth_date || ''),
     clientPhone: String(row.client_phone || ''),
     clientEmail: String(row.client_email || ''),
     serviceName: String(row.service_name || ''),
@@ -460,11 +470,13 @@ function mapContractRow(row: Record<string, unknown>): SignedContractRecord {
 async function resolveOrCreateClientForStandaloneContract(input: {
   name: string;
   cpf: string;
+  birthDate?: string;
   phone?: string;
   email?: string;
 }): Promise<string | null> {
   const db = getDatabase();
   const cleanCpf = input.cpf.replace(/\D/g, '');
+  const cleanBirthDate = (input.birthDate || '').trim();
   const cleanPhone = (input.phone || '').replace(/\D/g, '');
   const cleanEmail = (input.email || '').trim().toLowerCase();
 
@@ -478,7 +490,15 @@ async function resolveOrCreateClientForStandaloneContract(input: {
           LIMIT 1
         `)
         .get(IDS.clinic, cleanCpf)) as { id: string } | undefined;
-      if (byCpf?.id) return byCpf.id;
+      if (byCpf?.id) {
+        if (cleanBirthDate) {
+          await db
+            .prepare("UPDATE client_records SET birth_date = COALESCE(NULLIF(birth_date, ''), ?), updated_at = ? WHERE client_id = ?")
+            .run(cleanBirthDate, new Date().toISOString(), byCpf.id)
+            .catch(() => null);
+        }
+        return byCpf.id;
+      }
     }
 
     if (cleanPhone.length >= 8) {
@@ -491,13 +511,21 @@ async function resolveOrCreateClientForStandaloneContract(input: {
         `)
         .get(IDS.clinic, cleanPhone.slice(-8))) as { id: string } | undefined;
       if (byPhone?.id) {
-        if (cleanCpf.length === 11) {
+        if (cleanCpf.length === 11 || cleanBirthDate) {
           const nowRec = new Date().toISOString();
           const hasRec = await db.prepare('SELECT client_id FROM client_records WHERE client_id = ?').get(byPhone.id);
           if (hasRec) {
-            await db.prepare('UPDATE client_records SET cpf = COALESCE(NULLIF(cpf, \'\'), ?), updated_at = ? WHERE client_id = ?').run(cleanCpf, nowRec, byPhone.id).catch(() => null);
+            await db
+              .prepare(
+                "UPDATE client_records SET cpf = COALESCE(NULLIF(cpf, ''), ?), birth_date = COALESCE(NULLIF(birth_date, ''), ?), updated_at = ? WHERE client_id = ?"
+              )
+              .run(cleanCpf || null, cleanBirthDate || null, nowRec, byPhone.id)
+              .catch(() => null);
           } else {
-            await db.prepare('INSERT INTO client_records (client_id, cpf, updated_at) VALUES (?, ?, ?)').run(byPhone.id, cleanCpf, nowRec).catch(() => null);
+            await db
+              .prepare('INSERT INTO client_records (client_id, cpf, birth_date, updated_at) VALUES (?, ?, ?, ?)')
+              .run(byPhone.id, cleanCpf || null, cleanBirthDate || null, nowRec)
+              .catch(() => null);
           }
         }
         return byPhone.id;
@@ -519,10 +547,10 @@ async function resolveOrCreateClientForStandaloneContract(input: {
         'Cadastrado automaticamente ao assinar contrato avulso'
       );
 
-    if (cleanCpf.length === 11) {
+    if (cleanCpf.length === 11 || cleanBirthDate) {
       await db
-        .prepare('INSERT INTO client_records (client_id, cpf, updated_at) VALUES (?, ?, ?)')
-        .run(newClientId, cleanCpf, new Date().toISOString())
+        .prepare('INSERT INTO client_records (client_id, cpf, birth_date, updated_at) VALUES (?, ?, ?, ?)')
+        .run(newClientId, cleanCpf || null, cleanBirthDate || null, new Date().toISOString())
         .catch(() => null);
     }
 
@@ -562,6 +590,7 @@ export async function recordSignedContract(input: {
   clientId?: string | null;
   clientName: string;
   clientCpf: string;
+  clientBirthDate?: string | null;
   clientPhone?: string | null;
   clientEmail?: string | null;
   serviceName?: string | null;
@@ -578,9 +607,11 @@ export async function recordSignedContract(input: {
   const token = crypto.randomBytes(8).toString('hex');
 
   const cleanCpf = (input.clientCpf || '').replace(/\D/g, '');
+  const cleanBirthDate = (input.clientBirthDate || '').trim();
   const snapshot = renderContractText(template.body, {
     clientName: input.clientName,
     clientCpf: cleanCpf,
+    clientBirthDate: cleanBirthDate,
     clientPhone: input.clientPhone,
     clientEmail: input.clientEmail,
     serviceName: input.serviceName,
@@ -598,6 +629,7 @@ export async function recordSignedContract(input: {
     resolvedClientId = await resolveOrCreateClientForStandaloneContract({
       name: input.clientName,
       cpf: cleanCpf,
+      birthDate: cleanBirthDate,
       phone: input.clientPhone || '',
       email: input.clientEmail || '',
     });
@@ -608,12 +640,12 @@ export async function recordSignedContract(input: {
     .prepare(`
       INSERT INTO signed_contracts (
         id, clinic_id, token, origin, status, appointment_id, client_id,
-        client_name, client_cpf, client_phone, client_email,
+        client_name, client_cpf, client_birth_date, client_phone, client_email,
         service_name, session_date, session_time, modality,
         contract_title, contract_body_snapshot,
         professional_name, professional_cpf, professional_credential, professional_signature_data,
         accepted_at, ip_address, user_agent, created_at
-      ) VALUES (?, ?, ?, ?, 'assinado', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, 'assinado', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       id,
@@ -624,6 +656,7 @@ export async function recordSignedContract(input: {
       resolvedClientId,
       input.clientName.trim(),
       cleanCpf,
+      cleanBirthDate,
       (input.clientPhone || '').replace(/\D/g, ''),
       (input.clientEmail || '').trim(),
       (input.serviceName || 'Atendimento Terapêutico').trim(),
@@ -701,6 +734,7 @@ export async function signPendingContractByToken(
   input: {
     clientName: string;
     clientCpf: string;
+    clientBirthDate?: string;
     clientPhone?: string;
     clientEmail?: string;
     serviceName?: string;
@@ -723,6 +757,7 @@ export async function signPendingContractByToken(
   const template = await getContractTemplate();
   const now = new Date().toISOString();
   const cleanCpf = input.clientCpf.replace(/\D/g, '');
+  const cleanBirthDate = (input.clientBirthDate || existing.clientBirthDate || '').trim();
   const cleanPhone = (input.clientPhone || existing.clientPhone || '').replace(/\D/g, '');
   const cleanEmail = (input.clientEmail || existing.clientEmail || '').trim();
   const finalService = (input.serviceName || existing.serviceName || 'Atendimento Terapêutico').trim();
@@ -733,6 +768,7 @@ export async function signPendingContractByToken(
   const snapshot = renderContractText(template.body, {
     clientName: input.clientName,
     clientCpf: cleanCpf,
+    clientBirthDate: cleanBirthDate,
     clientPhone: cleanPhone,
     clientEmail: cleanEmail,
     serviceName: finalService,
@@ -748,6 +784,7 @@ export async function signPendingContractByToken(
   const resolvedClientId = await resolveOrCreateClientForStandaloneContract({
     name: input.clientName,
     cpf: cleanCpf,
+    birthDate: cleanBirthDate,
     phone: cleanPhone,
     email: cleanEmail,
   });
@@ -760,6 +797,7 @@ export async function signPendingContractByToken(
           client_id = ?,
           client_name = ?,
           client_cpf = ?,
+          client_birth_date = ?,
           client_phone = ?,
           client_email = ?,
           service_name = ?,
@@ -781,6 +819,7 @@ export async function signPendingContractByToken(
       resolvedClientId,
       input.clientName.trim(),
       cleanCpf,
+      cleanBirthDate,
       cleanPhone,
       cleanEmail,
       finalService,
@@ -1199,13 +1238,18 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     font: bold,
     color: NAVY,
   });
-  page.drawText(cleanPdfText(`CPF: ${cpfFmt}`), {
-    x: x2 + 10,
-    y: signY - 21,
-    size: 8,
-    font: bold,
-    color: DARK,
-  });
+  page.drawText(
+    cleanPdfText(
+      `CPF: ${cpfFmt}${contract.clientBirthDate ? ` | Nasc: ${formatDateBr(contract.clientBirthDate)}` : ''}`
+    ),
+    {
+      x: x2 + 10,
+      y: signY - 21,
+      size: 7.7,
+      font: bold,
+      color: DARK,
+    }
+  );
   const acceptTimeText = contract.acceptedAt
     ? `Aceite: ${formatDateBr(contract.acceptedAt)} às ${formatTimeBr(contract.acceptedAt)}`
     : `Sessão: ${formatDateBr(contract.sessionDate)}${contract.sessionTime ? ` às ${contract.sessionTime}` : ''}`;
