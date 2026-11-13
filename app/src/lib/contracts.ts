@@ -521,6 +521,26 @@ function mapContractRow(row: Record<string, unknown>): SignedContractRecord {
   };
 }
 
+async function findExistingClientIdByCpf(cleanCpf: string): Promise<string | null> {
+  if (cleanCpf.length !== 11) return null;
+  try {
+    const db = getDatabase();
+    const byCpf = (await db
+      .prepare(`
+        SELECT c.id FROM clients c
+        JOIN client_records cr ON cr.client_id = c.id
+        WHERE c.clinic_id = ?
+          AND REPLACE(REPLACE(REPLACE(COALESCE(cr.cpf, ''), '.', ''), '-', ''), ' ', '') = ?
+        ORDER BY CASE WHEN c.password_hash IS NOT NULL THEN 0 ELSE 1 END ASC, c.created_at ASC
+        LIMIT 1
+      `)
+      .get(IDS.clinic, cleanCpf)) as { id: string } | undefined;
+    return byCpf?.id || null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveOrCreateClientForStandaloneContract(input: {
   name: string;
   cpf: string;
@@ -536,22 +556,15 @@ async function resolveOrCreateClientForStandaloneContract(input: {
 
   try {
     if (cleanCpf.length === 11) {
-      const byCpf = (await db
-        .prepare(`
-          SELECT c.id FROM clients c
-          JOIN client_records cr ON cr.client_id = c.id
-          WHERE c.clinic_id = ? AND REPLACE(REPLACE(REPLACE(cr.cpf, '.', ''), '-', ''), ' ', '') = ?
-          LIMIT 1
-        `)
-        .get(IDS.clinic, cleanCpf)) as { id: string } | undefined;
-      if (byCpf?.id) {
+      const byCpfId = await findExistingClientIdByCpf(cleanCpf);
+      if (byCpfId) {
         if (cleanBirthDate) {
           await db
             .prepare("UPDATE client_records SET birth_date = COALESCE(NULLIF(birth_date, ''), ?), updated_at = ? WHERE client_id = ?")
-            .run(cleanBirthDate, new Date().toISOString(), byCpf.id)
+            .run(cleanBirthDate, new Date().toISOString(), byCpfId)
             .catch(() => null);
         }
-        return byCpf.id;
+        return byCpfId;
       }
     }
 
@@ -679,6 +692,9 @@ export async function recordSignedContract(input: {
   });
 
   let resolvedClientId = input.clientId || null;
+  if (!resolvedClientId && cleanCpf.length === 11) {
+    resolvedClientId = await findExistingClientIdByCpf(cleanCpf);
+  }
   if (!resolvedClientId && input.origin === 'avulso') {
     resolvedClientId = await resolveOrCreateClientForStandaloneContract({
       name: input.clientName,
@@ -949,6 +965,79 @@ export async function getContractByToken(token: string): Promise<SignedContractR
   const row = (await db
     .prepare('SELECT * FROM signed_contracts WHERE token = ? AND clinic_id = ?')
     .get(token, IDS.clinic)) as Record<string, unknown> | undefined;
+  return row ? mapContractRow(row) : null;
+}
+
+export async function listClientContracts(
+  clientId: string,
+  clientCpf?: string | null
+): Promise<SignedContractRecord[]> {
+  await ensureContractsTables();
+  const db = getDatabase();
+  const cleanCpf = (clientCpf || '').replace(/\D/g, '');
+
+  if (cleanCpf.length === 11) {
+    try {
+      await db
+        .prepare(`
+          UPDATE signed_contracts
+          SET client_id = ?
+          WHERE clinic_id = ?
+            AND status = 'assinado'
+            AND (client_id IS NULL OR client_id = '')
+            AND REPLACE(REPLACE(REPLACE(COALESCE(client_cpf, ''), '.', ''), '-', ''), ' ', '') = ?
+        `)
+        .run(clientId, IDS.clinic, cleanCpf);
+    } catch {
+      // non-blocking backfill
+    }
+  }
+
+  const rows = (await db
+    .prepare(`
+      SELECT * FROM signed_contracts
+      WHERE clinic_id = ?
+        AND status = 'assinado'
+        AND (
+          client_id = ?
+          OR (
+            LENGTH(?) = 11
+            AND REPLACE(REPLACE(REPLACE(COALESCE(client_cpf, ''), '.', ''), '-', ''), ' ', '') = ?
+          )
+        )
+      ORDER BY COALESCE(accepted_at, created_at) DESC
+    `)
+    .all(IDS.clinic, clientId, cleanCpf, cleanCpf)) as Record<string, unknown>[];
+
+  return rows.map(mapContractRow);
+}
+
+export async function getClientContractById(
+  contractId: string,
+  clientId: string,
+  clientCpf?: string | null
+): Promise<SignedContractRecord | null> {
+  await ensureContractsTables();
+  const db = getDatabase();
+  const cleanCpf = (clientCpf || '').replace(/\D/g, '');
+
+  const row = (await db
+    .prepare(`
+      SELECT * FROM signed_contracts
+      WHERE id = ?
+        AND clinic_id = ?
+        AND status = 'assinado'
+        AND (
+          client_id = ?
+          OR (
+            LENGTH(?) = 11
+            AND REPLACE(REPLACE(REPLACE(COALESCE(client_cpf, ''), '.', ''), '-', ''), ' ', '') = ?
+          )
+        )
+      LIMIT 1
+    `)
+    .get(contractId, IDS.clinic, clientId, cleanCpf, cleanCpf)) as Record<string, unknown> | undefined;
+
   return row ? mapContractRow(row) : null;
 }
 

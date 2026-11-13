@@ -27,6 +27,7 @@ import { recordAuditLog } from './audit';
 import { hashPassword, verifyPassword } from './auth';
 import { dateKeyInClinicTimeZone, localDateBounds, timeKeyInClinicTimeZone, weekdayForLocalDate, zonedDateTimeToUtc } from './time';
 import { getClinicPixConfig } from './pix-settings';
+import { listClientContracts } from './contracts';
 import type { z } from 'zod';
 import type {
   agendaSettingsPatchSchema,
@@ -4346,6 +4347,7 @@ export async function unifyClientRecordsByIdentity(
         'clinical_techniques',
         'client_referrals',
         'prontuario_access_logs',
+        'signed_contracts',
       ];
       for (const tbl of tables) {
         try {
@@ -4936,6 +4938,56 @@ export async function getClientPortalData(clientId: string) {
     goals = [];
   }
 
+  let contracts: Array<{
+    id: string;
+    token: string;
+    origin: 'agendamento' | 'grupo' | 'avulso';
+    serviceName: string;
+    sessionDate: string;
+    sessionTime: string;
+    modality: string;
+    contractTitle: string;
+    contractBodySnapshot: string;
+    professionalName: string;
+    professionalCpf: string;
+    professionalCredential: string;
+    professionalSignatureData: string;
+    clientName: string;
+    clientCpf: string;
+    clientBirthDate: string;
+    acceptedAt: string | null;
+    ipAddress: string | null;
+    createdAt: string;
+  }> = [];
+
+  try {
+    const clientCpf = recordRow?.cpf ? String(recordRow.cpf) : preRecord?.cpf || null;
+    const rawContracts = await listClientContracts(clientId, clientCpf);
+    contracts = rawContracts.map((c) => ({
+      id: c.id,
+      token: c.token,
+      origin: c.origin,
+      serviceName: c.serviceName,
+      sessionDate: c.sessionDate,
+      sessionTime: c.sessionTime,
+      modality: c.modality,
+      contractTitle: c.contractTitle,
+      contractBodySnapshot: c.contractBodySnapshot,
+      professionalName: c.professionalName,
+      professionalCpf: c.professionalCpf,
+      professionalCredential: c.professionalCredential,
+      professionalSignatureData: c.professionalSignatureData,
+      clientName: c.clientName,
+      clientCpf: c.clientCpf,
+      clientBirthDate: c.clientBirthDate,
+      acceptedAt: c.acceptedAt,
+      ipAddress: c.ipAddress,
+      createdAt: c.createdAt,
+    }));
+  } catch {
+    contracts = [];
+  }
+
   return {
     goals,
     client: {
@@ -4977,6 +5029,7 @@ export async function getClientPortalData(clientId: string) {
       return apt as AppointmentSummary;
     }),
     documents,
+    contracts,
     payments,
     packages,
     pixConfig: await getClinicPixConfig(),

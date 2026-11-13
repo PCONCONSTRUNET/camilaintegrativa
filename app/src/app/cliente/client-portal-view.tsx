@@ -41,13 +41,16 @@ import {
   PlusSquare,
   Smartphone,
   Trash2,
+  FileSignature,
+  Eye,
+  ExternalLink,
 } from 'lucide-react';
 import {
   getOneSignalPushStatus,
   requestOneSignalPushPermission,
 } from '@/components/onesignal-init';
 import type { AppointmentSummary } from '@/lib/domain';
-import { formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
+import { formatCpf, formatCurrency, maskCpf, maskPhone } from '@/lib/utils';
 import { useConfirmDialog } from '@/components/confirm-dialog';
 import { WhatsappIcon } from '@/components/whatsapp-icon';
 import {
@@ -281,6 +284,28 @@ type PackageItem = {
   pendingSession?: { id: string; sessionNumber: number | null; startAt: string } | null;
 };
 
+export type ClientSignedContractItem = {
+  id: string;
+  token: string;
+  origin: 'agendamento' | 'grupo' | 'avulso';
+  serviceName: string;
+  sessionDate: string;
+  sessionTime: string;
+  modality: string;
+  contractTitle: string;
+  contractBodySnapshot: string;
+  professionalName: string;
+  professionalCpf: string;
+  professionalCredential: string;
+  professionalSignatureData: string;
+  clientName: string;
+  clientCpf: string;
+  clientBirthDate: string;
+  acceptedAt: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+};
+
 export type PortalData = {
   client: ClientRecord;
   anamnese?: AnamneseData;
@@ -294,6 +319,7 @@ export type PortalData = {
     fileName: string | null;
     createdAt: string;
   }>;
+  contracts?: ClientSignedContractItem[];
   payments: PaymentItem[];
   packages: PackageItem[];
   pixConfig?: ClinicPixConfig;
@@ -535,11 +561,11 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
   }, [initialData]);
 
   // Active Tab (com persistência em URL ?tab= e localStorage ao dar F5)
-  const [activeTab, setActiveTabState] = useState<'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'perfil'>('inicio');
+  const [activeTab, setActiveTabState] = useState<'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'contratos' | 'perfil'>('inicio');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const validTabs = ['inicio', 'anamnese', 'objetivos', 'agendamentos', 'pagamentos', 'perfil'] as const;
+    const validTabs = ['inicio', 'anamnese', 'objetivos', 'agendamentos', 'pagamentos', 'contratos', 'perfil'] as const;
     const urlTab = new URLSearchParams(window.location.search).get('tab');
     const savedTab = window.localStorage.getItem('clinica_client_portal_tab');
     const chosen = [urlTab, savedTab].find((t): t is typeof validTabs[number] =>
@@ -550,7 +576,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
     }
   }, []);
 
-  function setActiveTab(tab: 'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'perfil') {
+  function setActiveTab(tab: 'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'contratos' | 'perfil') {
     setActiveTabState(tab);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('clinica_client_portal_tab', tab);
@@ -559,6 +585,8 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
       window.history.replaceState({}, '', url.toString());
     }
   }
+
+  const [selectedContractModal, setSelectedContractModal] = useState<ClientSignedContractItem | null>(null);
 
   // Sidebar Drawer Mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1115,8 +1143,10 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
     setPaySort('recentes');
   }
 
+  const signedContracts = data.contracts || [];
+
   const navItems: Array<{
-    id: 'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'perfil';
+    id: 'inicio' | 'anamnese' | 'objetivos' | 'agendamentos' | 'pagamentos' | 'contratos' | 'perfil';
     label: string;
     icon: typeof Sparkles;
     badge?: string | number;
@@ -1136,6 +1166,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
       icon: CreditCard,
       badge: openPayments.length > 0 ? `${openPayments.length} aberto(s)` : (data.payments?.length ?? 0),
     },
+    { id: 'contratos', label: 'Contratos', icon: FileSignature, badge: signedContracts.length || undefined },
     { id: 'perfil', label: 'Meu Perfil', icon: User },
   ];
 
@@ -2104,6 +2135,86 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
               )}
             </section>
 
+            {/* Contratos Assinados (Atalho rápido na Visão Geral) */}
+            <section className="client-card-block">
+              <div className="client-block-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileSignature size={18} color="#1a3a4a" />
+                  <h3 style={{ margin: 0 }}>Meus Contratos Assinados</h3>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="badge-count">{signedContracts.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('contratos')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#1a3a4a',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Ver todos
+                  </button>
+                </div>
+              </div>
+              {signedContracts.length === 0 ? (
+                <div className="client-docs-empty">
+                  <FileSignature size={26} className="text-muted" />
+                  <p>Seus contratos assinados eletronicamente aparecerão aqui vinculados ao seu CPF.</p>
+                </div>
+              ) : (
+                <div className="client-history-list">
+                  {signedContracts.slice(0, 2).map((ctr) => (
+                    <div key={ctr.id} className="client-history-item">
+                      <div className="history-item-left">
+                        <div className="history-doc-title">
+                          <FileSignature size={16} />
+                          <strong>{ctr.contractTitle}</strong>
+                        </div>
+                        <span className="history-date">
+                          {ctr.serviceName} • Assinado em{' '}
+                          {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(
+                            new Date(ctr.acceptedAt || ctr.createdAt)
+                          )}
+                        </span>
+                      </div>
+                      <div className="history-item-right" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span className="status-pill status-concluido">Assinado</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedContractModal(ctr)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: 0,
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            color: '#1a3a4a',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Visualizar
+                        </button>
+                        <a
+                          href={`/api/client/contracts/${ctr.id}/pdf?download=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1a3a4a', textDecoration: 'underline' }}
+                        >
+                          Baixar PDF
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             {/* Documents & Orientações */}
             <section className="client-card-block">
               <div className="client-block-header">
@@ -2131,7 +2242,7 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                       </div>
                       <div className="history-item-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span className="status-pill status-concluido">Disponível</span>
-                        {doc.documentType === 'termo_consentimento' && (
+                        {doc.documentType === 'termo_consentimento' && doc.documentTypeLabel !== 'Contrato Assinado' && (
                           <>
                             <a href="/api/client/anamnese/pdf" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1a3a4a', textDecoration: 'underline' }}>
                               Visualizar
@@ -2140,6 +2251,24 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
                               Baixar PDF
                             </a>
                           </>
+                        )}
+                        {doc.documentTypeLabel === 'Contrato Assinado' && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('contratos')}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              color: '#1a3a4a',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Ver em Contratos
+                          </button>
                         )}
                       </div>
                     </div>
@@ -3462,6 +3591,175 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
               )}
             </section>
           </div>
+        )}
+
+        {/* ================= ABA: CONTRATOS ASSINADOS ================= */}
+        {activeTab === 'contratos' && (
+          <section className="client-card-block" style={{ padding: '24px 24px' }}>
+            <div className="client-block-header" style={{ marginBottom: '18px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileSignature size={22} color="#1a3a4a" />
+                  <h3 style={{ fontSize: '1.22rem', color: '#1a3a4a', margin: 0 }}>Meus Contratos</h3>
+                </div>
+                <p style={{ fontSize: '0.84rem', color: '#64748b', marginTop: '4px', marginBottom: 0 }}>
+                  Visualize os termos completos e baixe a via oficial assinada em PDF de todos os seus contratos vinculados ao CPF.
+                </p>
+              </div>
+              <span className="badge-count">{signedContracts.length}</span>
+            </div>
+
+            {signedContracts.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '44px 20px',
+                  borderRadius: '16px',
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  color: '#64748b',
+                }}
+              >
+                <FileSignature size={34} style={{ marginBottom: '10px', opacity: 0.6, color: '#1a3a4a' }} />
+                <p style={{ margin: '0 0 6px', fontWeight: 600, color: '#1e293b', fontSize: '0.96rem' }}>
+                  Nenhum contrato assinado localizado ainda
+                </p>
+                <p style={{ margin: 0, fontSize: '0.84rem', maxWidth: '420px', marginInline: 'auto', lineHeight: 1.5 }}>
+                  Quando você assinar um contrato ao agendar ou por link enviado pela clínica usando seu CPF, ele ficará salvo aqui para visualização e download em PDF.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {signedContracts.map((ctr) => {
+                  const originLabel =
+                    ctr.origin === 'avulso'
+                      ? 'Avulso / WhatsApp'
+                      : ctr.origin === 'grupo'
+                        ? 'Sessão em Grupo'
+                        : 'Agendamento Online';
+                  const sessionDateBr =
+                    ctr.sessionDate && /^\d{4}-\d{2}-\d{2}$/.test(ctr.sessionDate)
+                      ? ctr.sessionDate.split('-').reverse().join('/')
+                      : ctr.sessionDate || '';
+                  const acceptedBr = new Intl.DateTimeFormat('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                    timeZone: 'America/Sao_Paulo',
+                  }).format(new Date(ctr.acceptedAt || ctr.createdAt));
+
+                  return (
+                    <article
+                      key={ctr.id}
+                      style={{
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '16px',
+                        padding: '18px 20px',
+                        background: '#ffffff',
+                        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 280px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '0.98rem', color: '#1a3a4a' }}>
+                            {ctr.contractTitle}
+                          </strong>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '2px 9px',
+                              borderRadius: '999px',
+                              background: '#dcfce7',
+                              color: '#15803d',
+                            }}
+                          >
+                            Assinado
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '2px 9px',
+                              borderRadius: '999px',
+                              background: '#f1f5f9',
+                              color: '#475569',
+                            }}
+                          >
+                            {originLabel}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.84rem', color: '#475569', display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
+                          <span>
+                            <strong>Serviço:</strong> {ctr.serviceName}
+                          </span>
+                          {sessionDateBr && (
+                            <span>
+                              <strong>Data da Sessão:</strong> {sessionDateBr}
+                              {ctr.sessionTime ? ` às ${ctr.sessionTime}` : ''}
+                            </span>
+                          )}
+                          <span>
+                            <strong>Modalidade:</strong> {ctr.modality === 'online' ? 'Online' : 'Presencial'}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                          Assinado eletronicamente em <strong>{acceptedBr}</strong> • CPF: {formatCpf(ctr.clientCpf)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedContractModal(ctr)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '9px 15px',
+                            borderRadius: '50px',
+                            border: '1.5px solid #cbd5e1',
+                            background: '#ffffff',
+                            color: '#1a3a4a',
+                            fontSize: '0.83rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Eye size={15} /> Visualizar
+                        </button>
+                        <a
+                          href={`/api/client/contracts/${ctr.id}/pdf?download=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '9px 16px',
+                            borderRadius: '50px',
+                            background: '#1a3a4a',
+                            color: '#ffffff',
+                            fontSize: '0.83rem',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <Download size={15} /> Baixar PDF
+                        </a>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         {/* ================= ABA 4: MEU PERFIL (EDITAR DADOS) ================= */}
@@ -5886,6 +6184,237 @@ export default function ClientPortalView({ initialData }: { initialData: PortalD
             >
               Entendi, vou adicionar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL VISUALIZAR CONTRATO ASSINADO ================= */}
+      {selectedContractModal && (
+        <div
+          onClick={() => setSelectedContractModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(13, 30, 44, 0.58)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '760px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 24px 60px rgba(13, 30, 44, 0.28)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#15803d',
+                    background: '#dcfce7',
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                    display: 'inline-block',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Contrato Assinado Eletronicamente
+                </span>
+                <h3 style={{ margin: 0, fontSize: '1.12rem', color: '#1a3a4a' }}>
+                  {selectedContractModal.contractTitle}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedContractModal(null)}
+                style={{
+                  border: 'none',
+                  background: '#f1f5f9',
+                  borderRadius: '50%',
+                  width: '34px',
+                  height: '34px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  color: '#475569',
+                  flexShrink: 0,
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '8px 16px',
+                fontSize: '0.82rem',
+                color: '#334155',
+              }}
+            >
+              <div>
+                <strong>Contratante:</strong> {selectedContractModal.clientName}
+              </div>
+              <div>
+                <strong>CPF:</strong> {formatCpf(selectedContractModal.clientCpf)}
+              </div>
+              {selectedContractModal.clientBirthDate && (
+                <div>
+                  <strong>Nascimento:</strong>{' '}
+                  {/^\d{4}-\d{2}-\d{2}$/.test(selectedContractModal.clientBirthDate)
+                    ? selectedContractModal.clientBirthDate.split('-').reverse().join('/')
+                    : selectedContractModal.clientBirthDate}
+                </div>
+              )}
+              <div>
+                <strong>Serviço:</strong> {selectedContractModal.serviceName}
+              </div>
+              <div>
+                <strong>Assinado em:</strong>{' '}
+                {new Intl.DateTimeFormat('pt-BR', {
+                  dateStyle: 'short',
+                  timeStyle: 'short',
+                  timeZone: 'America/Sao_Paulo',
+                }).format(new Date(selectedContractModal.acceptedAt || selectedContractModal.createdAt))}
+              </div>
+              <div>
+                <strong>Contratada:</strong> {selectedContractModal.professionalName} ({selectedContractModal.professionalCredential})
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: '#fdfcf9',
+                border: '1px solid #e6dfd1',
+                borderRadius: '12px',
+                padding: '18px 20px',
+                whiteSpace: 'pre-wrap',
+                fontSize: '0.86rem',
+                lineHeight: 1.65,
+                color: '#1e293b',
+                maxHeight: '44vh',
+                overflowY: 'auto',
+              }}
+            >
+              {selectedContractModal.contractBodySnapshot}
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              <div
+                style={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  background: '#ffffff',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Assinatura Contratante
+                </div>
+                <div style={{ fontSize: '0.96rem', fontWeight: 700, color: '#1a3a4a', marginTop: '4px' }}>
+                  {selectedContractModal.clientName}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+                  CPF: {formatCpf(selectedContractModal.clientCpf)}
+                </div>
+              </div>
+              <div
+                style={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  background: '#ffffff',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Assinatura Contratada
+                </div>
+                {selectedContractModal.professionalSignatureData?.startsWith('data:image/') && (
+                  <div style={{ marginTop: '6px' }}>
+                    <img
+                      src={selectedContractModal.professionalSignatureData}
+                      alt={`Assinatura ${selectedContractModal.professionalName}`}
+                      style={{ maxHeight: '42px', width: 'auto', objectFit: 'contain' }}
+                    />
+                  </div>
+                )}
+                <div style={{ fontSize: '0.96rem', fontWeight: 700, color: '#1a3a4a', marginTop: '4px' }}>
+                  {selectedContractModal.professionalName}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+                  CPF: {formatCpf(selectedContractModal.professionalCpf)} • {selectedContractModal.professionalCredential}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+              <a
+                href={`/api/client/contracts/${selectedContractModal.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  borderRadius: '50px',
+                  border: '1.5px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#1a3a4a',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink size={15} /> Abrir PDF
+              </a>
+              <a
+                href={`/api/client/contracts/${selectedContractModal.id}/pdf?download=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 18px',
+                  borderRadius: '50px',
+                  background: '#1a3a4a',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                <Download size={15} /> Baixar PDF Assinado
+              </a>
+            </div>
           </div>
         </div>
       )}
