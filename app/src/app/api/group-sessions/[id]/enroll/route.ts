@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enrollInGroupSession } from '@/lib/repository';
 import { dispatchWhatsappReminder } from '@/lib/whatsapp-reminders';
-import { notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admin-push-alerts';
+import { notifyAdminContractSigned, notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admin-push-alerts';
 import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
 import { recordAuditLog, extractClientMetadata } from '@/lib/audit';
@@ -176,6 +176,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     signedContractId = signedContract.id;
     signedContractToken = signedContract.token;
+    await notifyAdminContractSigned({
+      contractId: signedContract.id,
+      clientName: signedContract.clientName,
+      contractTitle: signedContract.contractTitle,
+      origin: signedContract.origin,
+      serviceName: signedContract.serviceName,
+      sessionDate: signedContract.sessionDate,
+      sessionTime: signedContract.sessionTime,
+    }).catch(() => null);
   } catch (contractErr) {
     console.error('[group-enroll] Erro ao registrar contrato assinado:', contractErr);
   }

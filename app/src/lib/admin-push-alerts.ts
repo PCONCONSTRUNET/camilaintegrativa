@@ -499,3 +499,83 @@ export async function runScheduledAdminAlertsScan(): Promise<{
   return { checkedUpcoming, alertedUpcoming, checkedOverdue, alertedOverdue };
 }
 
+// ==============================================================================
+// 7. CONTRATO ASSINADO PELO CLIENTE
+// ==============================================================================
+export async function notifyAdminContractSigned(params: {
+  contractId: string;
+  clientName: string;
+  contractTitle?: string | null;
+  origin: 'agendamento' | 'avulso' | 'grupo';
+  serviceName?: string | null;
+  sessionDate?: string | null;
+  sessionTime?: string | null;
+}) {
+  const dedupKey = `signed_contract_${params.contractId}`;
+  if (await isAlertAlreadySent(dedupKey)) return;
+
+  const cfg = await getPushConfig('admin_contract_signed');
+  if (!cfg.enabled) return;
+
+  const originLabel =
+    params.origin === 'avulso'
+      ? 'Link Avulso / WhatsApp'
+      : params.origin === 'grupo'
+        ? 'Sessão em Grupo'
+        : 'Agendamento Online';
+
+  const serviceLabel = params.serviceName?.trim() || 'Atendimento Terapêutico';
+  const dateFormatted =
+    params.sessionDate && /^\d{4}-\d{2}-\d{2}$/.test(params.sessionDate)
+      ? params.sessionDate.split('-').reverse().join('/')
+      : params.sessionDate
+        ? formatDatePtBr(params.sessionDate)
+        : '';
+  const timeFormatted = params.sessionTime?.trim() || '';
+
+  let detailSession = '';
+  if (serviceLabel && dateFormatted && timeFormatted) {
+    detailSession = ` — ${serviceLabel} em ${dateFormatted} às ${timeFormatted}`;
+  } else if (serviceLabel && dateFormatted) {
+    detailSession = ` — ${serviceLabel} em ${dateFormatted}`;
+  } else if (serviceLabel) {
+    detailSession = ` — ${serviceLabel}`;
+  }
+
+  const contractTitle = params.contractTitle?.trim() || 'Contrato de Prestação de Serviços';
+
+  const title = renderPushTemplate(cfg.title, {
+    paciente: params.clientName,
+    contrato: contractTitle,
+    origem: originLabel,
+    servico: serviceLabel,
+    data: dateFormatted,
+    horario: timeFormatted,
+    detalhe_sessao: detailSession,
+  });
+
+  const message = renderPushTemplate(cfg.message, {
+    paciente: params.clientName,
+    contrato: contractTitle,
+    origem: originLabel,
+    servico: serviceLabel,
+    data: dateFormatted,
+    horario: timeFormatted,
+    detalhe_sessao: detailSession,
+  });
+
+  await sendOneSignalPush({
+    title,
+    message,
+    url: '/admin/contratos',
+    target: { type: 'admins' },
+    data: {
+      type: 'contract_signed',
+      contractId: params.contractId,
+      origin: params.origin,
+    },
+  }).catch(() => null);
+
+  await markAlertAsSent(dedupKey, 'contract_signed', params.contractId);
+}
+

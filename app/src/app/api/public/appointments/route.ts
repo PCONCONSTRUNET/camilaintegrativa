@@ -2,7 +2,7 @@ import { bookingSchema } from '@/lib/validation';
 import { BookingConflictError, createPublicBooking } from '@/lib/repository';
 import { errorResponse } from '@/lib/http';
 import { triggerAppointmentBookedReminder } from '@/lib/whatsapp-reminders';
-import { notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admin-push-alerts';
+import { notifyAdminContractSigned, notifyAdminNewAppointment, notifyAdminPendingPayment } from '@/lib/admin-push-alerts';
 import { getPushConfig, renderPushTemplate } from '@/lib/push-configs';
 import { sendOneSignalPush } from '@/lib/onesignal';
 import { getDatabase, IDS } from '@/lib/db';
@@ -162,6 +162,15 @@ export async function POST(request: Request) {
       });
       signedContractId = signedContract.id;
       signedContractToken = signedContract.token;
+      await notifyAdminContractSigned({
+        contractId: signedContract.id,
+        clientName: signedContract.clientName,
+        contractTitle: signedContract.contractTitle,
+        origin: signedContract.origin,
+        serviceName: signedContract.serviceName,
+        sessionDate: signedContract.sessionDate,
+        sessionTime: signedContract.sessionTime,
+      }).catch(() => null);
     } catch (contractErr) {
       console.error('[appointments] Erro ao registrar contrato assinado:', contractErr);
     }

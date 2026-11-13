@@ -6,6 +6,7 @@ import {
   signPendingContractByToken,
 } from '@/lib/contracts';
 import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
+import { notifyAdminContractSigned } from '@/lib/admin-push-alerts';
 import { errorResponse } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
@@ -129,6 +130,16 @@ export async function POST(request: NextRequest) {
         sessionDate: contract.sessionDate,
         sessionTime: contract.sessionTime,
       },
+    }).catch(() => null);
+
+    await notifyAdminContractSigned({
+      contractId: contract.id,
+      clientName: contract.clientName,
+      contractTitle: contract.contractTitle,
+      origin: contract.origin,
+      serviceName: contract.serviceName,
+      sessionDate: contract.sessionDate,
+      sessionTime: contract.sessionTime,
     }).catch(() => null);
 
     return Response.json({ contract }, { status: 201 });

@@ -95,6 +95,19 @@ export const DEFAULT_PUSH_RULES: Record<string, Omit<PushRuleConfig, 'updatedAt'
     enabled: true,
     variables: ['{paciente}', '{data}', '{horario}', '{cancelado_por}', '{motivo}'],
   },
+  admin_contract_signed: {
+    key: 'admin_contract_signed',
+    category: 'admin',
+    label: 'Contrato Assinado pelo Cliente',
+    description: 'Envia um push para a administração assim que um cliente assinar o contrato pelo agendamento ou por link do WhatsApp.',
+    triggerEvent: 'Quando um contrato é assinado eletronicamente',
+    defaultTitle: '✍️ Contrato Assinado: {paciente}',
+    defaultMessage: '{paciente} assinou o contrato ({origem}){detalhe_sessao}.',
+    title: '✍️ Contrato Assinado: {paciente}',
+    message: '{paciente} assinou o contrato ({origem}){detalhe_sessao}.',
+    enabled: true,
+    variables: ['{paciente}', '{contrato}', '{origem}', '{servico}', '{data}', '{horario}', '{detalhe_sessao}'],
+  },
 
   // ================= CLIENT RULES =================
   client_welcome_push: {
