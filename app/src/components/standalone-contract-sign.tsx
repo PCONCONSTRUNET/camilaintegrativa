@@ -1,18 +1,17 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   Check,
   Download,
+  FileText,
   LoaderCircle,
-  Maximize2,
 } from 'lucide-react';
 import { maskCpf } from '@/lib/utils';
 import {
   ContractPreviewModal,
-  renderContractPreviewText,
   type ContractTemplatePublic,
 } from '@/components/contract-preview-modal';
 
@@ -106,19 +105,6 @@ export function StandaloneContractSign({ token }: { token?: string }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const liveRenderedText = useMemo(() => {
-    if (!template) return '';
-    return renderContractPreviewText(template, {
-      clientName: name,
-      clientCpf: cpf,
-      clientBirthDate: birthDate,
-      serviceName: presetInfo.serviceName,
-      sessionDate: presetInfo.sessionDate,
-      sessionTime: presetInfo.sessionTime,
-      modality: presetInfo.modality,
-    });
-  }, [template, name, cpf, birthDate, presetInfo]);
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError('');
@@ -172,7 +158,6 @@ export function StandaloneContractSign({ token }: { token?: string }) {
   }
 
   const profName = template?.professionalName || 'Camila Machado';
-  const profCpf = template?.professionalCpf ? maskCpf(template.professionalCpf) : '084.954.239-10';
   const profCred = template?.professionalCredential || 'CRT-SBHP/SC 805';
 
   const inputStyle = {
@@ -206,7 +191,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
         color: '#1e293b',
       }}
     >
-      <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+      <div style={{ maxWidth: signedContract ? '740px' : '560px', margin: '0 auto' }}>
         {/* Cabeçalho institucional limpo */}
         <header
           style={{
@@ -557,303 +542,116 @@ export function StandaloneContractSign({ token }: { token?: string }) {
             </div>
           </article>
         ) : (
-          /* ===================== FORMULÁRIO FORMAL DE CONTRATAÇÃO ===================== */
+          /* ===================== FORMULÁRIO RÁPIDO E FORMAL ===================== */
           <article
             style={{
               background: '#ffffff',
               border: '1px solid #d2d7dd',
               borderTop: '4px solid #163042',
               borderRadius: '4px',
-              padding: '32px 28px',
-              boxShadow: '0 2px 14px rgba(15, 23, 42, 0.05)',
+              padding: '28px 26px',
+              boxShadow: '0 2px 12px rgba(15, 23, 42, 0.05)',
             }}
           >
-            {/* Cabeçalho do documento */}
-            <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '18px', marginBottom: '22px' }}>
-              <div
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.09em',
-                  textTransform: 'uppercase',
-                  color: '#8a6b32',
-                  marginBottom: '6px',
-                }}
-              >
-                Instrumento Particular de Prestação de Serviços
-              </div>
+            <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '20px' }}>
               <h1
                 style={{
-                  margin: '0 0 8px',
+                  margin: '0 0 6px',
                   fontFamily: 'Georgia, "Times New Roman", serif',
-                  fontSize: '1.42rem',
+                  fontSize: '1.28rem',
                   fontWeight: 600,
-                  lineHeight: 1.32,
+                  lineHeight: 1.35,
                   color: '#0f172a',
                 }}
               >
                 {template?.title ||
                   'Contrato de Prestação de Serviços Terapêuticos, Agendamento, Cancelamento e Reembolso'}
               </h1>
-              <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: 1.55 }}>
-                Leia atentamente as cláusulas contratuais abaixo e preencha seus dados de identificação para
-                formalizar o aceite eletrônico deste termo.
+              <p style={{ margin: 0, fontSize: '0.86rem', color: '#475569', lineHeight: 1.5 }}>
+                {profName} ({profCred}). Preencha seus dados abaixo para confirmar e assinar.
               </p>
-            </div>
-
-            {/* Quadro das Partes Contratantes */}
-            <div
-              style={{
-                border: '1px solid #dce1e7',
-                borderRadius: '4px',
-                background: '#f8fafc',
-                padding: '14px 18px',
-                marginBottom: '22px',
-                fontSize: '0.84rem',
-                color: '#334155',
-                lineHeight: 1.6,
-              }}
-            >
-              <div>
-                <strong style={{ color: '#0f172a' }}>CONTRATADA:</strong> {profName} — CPF nº {profCpf} —
-                Registro Profissional {profCred}.
-              </div>
-              <div style={{ marginTop: '4px' }}>
-                <strong style={{ color: '#0f172a' }}>CONTRATANTE:</strong>{' '}
-                {name.trim() ? name.trim() : 'A identificar abaixo'}
-                {cpf.trim() ? ` · CPF nº ${cpf}` : ''}
-                {birthDate ? ` · Nascimento ${formatBirthDateBr(birthDate)}` : ''}
-              </div>
               {(presetInfo.sessionDate || presetInfo.serviceName !== 'Atendimento Terapêutico') && (
-                <div style={{ marginTop: '4px' }}>
-                  <strong style={{ color: '#0f172a' }}>ATENDIMENTO VINCULADO:</strong> {presetInfo.serviceName}
+                <div
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '0.82rem',
+                    color: '#334155',
+                  }}
+                >
+                  <strong>Atendimento:</strong> {presetInfo.serviceName}
                   {presetInfo.sessionDate ? ` · ${formatBirthDateBr(presetInfo.sessionDate)}` : ''}
                   {presetInfo.sessionTime ? ` às ${presetInfo.sessionTime}` : ''}
                 </div>
               )}
             </div>
 
-            {/* Leitura do Contrato Integral diretamente na folha */}
-            <div style={{ marginBottom: '24px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={labelStyle}>Nome completo *</label>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Digite seu nome completo"
+                  style={inputStyle}
+                />
+              </div>
+
               <div
                 style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))',
+                  gap: '14px',
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>CPF *</label>
+                  <input
+                    required
+                    inputMode="numeric"
+                    value={cpf}
+                    onChange={(e) => setCpf(maskCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Data de nascimento *</label>
+                  <input
+                    type="date"
+                    required
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  border: '1px solid #cbd5e1',
+                  borderLeft: '3px solid #163042',
+                  borderRadius: '4px',
+                  background: '#f8fafc',
+                  padding: '13px 14px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
+                  flexDirection: 'column',
                   gap: '10px',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#334155',
-                  }}
-                >
-                  1. Texto Integral das Cláusulas Contratuais
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewOpen(true)}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '4px',
-                    padding: '4px 10px',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    color: '#163042',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                >
-                  <Maximize2 size={12} /> Ampliar leitura
-                </button>
-              </div>
-              <div
-                style={{
-                  border: '1px solid #d5dae0',
-                  borderRadius: '4px',
-                  background: '#fcfcfb',
-                  padding: '18px 20px',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                  fontSize: '0.88rem',
-                  lineHeight: 1.68,
-                  color: '#1e293b',
-                  whiteSpace: 'pre-wrap',
-                  maxHeight: '260px',
-                  overflowY: 'auto',
-                }}
-              >
-                {liveRenderedText || 'Carregando texto do contrato...'}
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              <div>
-                <div
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#334155',
-                    marginBottom: '12px',
-                    paddingBottom: '6px',
-                    borderBottom: '1px solid #e2e8f0',
-                  }}
-                >
-                  2. Identificação do Contratante
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div>
-                    <label style={labelStyle}>Nome completo *</label>
-                    <input
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Nome completo conforme documento oficial"
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                      gap: '14px',
-                    }}
-                  >
-                    <div>
-                      <label style={labelStyle}>CPF *</label>
-                      <input
-                        required
-                        inputMode="numeric"
-                        value={cpf}
-                        onChange={(e) => setCpf(maskCpf(e.target.value))}
-                        placeholder="000.000.000-00"
-                        style={inputStyle}
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Data de nascimento *</label>
-                      <input
-                        type="date"
-                        required
-                        value={birthDate}
-                        onChange={(e) => setBirthDate(e.target.value)}
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco de Assinatura e Aceite Formal */}
-              <div>
-                <div
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: '#334155',
-                    marginBottom: '12px',
-                    paddingBottom: '6px',
-                    borderBottom: '1px solid #e2e8f0',
-                  }}
-                >
-                  3. Aceite Eletrônico e Assinaturas
-                </div>
-
-                {/* Prévia formal das duas assinaturas */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '12px',
-                    marginBottom: '14px',
-                  }}
-                >
-                  <div style={{ border: '1px solid #dce1e7', borderRadius: '4px', padding: '12px 14px', background: '#fafaf9' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                      Contratada
-                    </div>
-                    <div
-                      style={{
-                        margin: '8px 0 6px',
-                        borderBottom: '1px solid #94a3b8',
-                        paddingBottom: '4px',
-                        minHeight: '34px',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {template?.professionalSignatureData ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={template.professionalSignatureData}
-                          alt={profName}
-                          style={{ maxHeight: '34px', objectFit: 'contain' }}
-                        />
-                      ) : (
-                        <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.02rem', color: '#0f172a' }}>
-                          {profName}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '0.76rem', color: '#475569' }}>
-                      {profName} · CPF {profCpf} · {profCred}
-                    </div>
-                  </div>
-
-                  <div style={{ border: '1px solid #dce1e7', borderRadius: '4px', padding: '12px 14px', background: '#fafaf9' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                      Contratante
-                    </div>
-                    <div
-                      style={{
-                        margin: '8px 0 6px',
-                        borderBottom: '1px solid #94a3b8',
-                        paddingBottom: '4px',
-                        minHeight: '34px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontFamily: 'Georgia, serif',
-                        fontStyle: 'italic',
-                        fontSize: '1.02rem',
-                        color: name.trim() ? '#0f172a' : '#94a3b8',
-                      }}
-                    >
-                      {name.trim() || 'Preencha seu nome completo'}
-                    </div>
-                    <div style={{ fontSize: '0.76rem', color: '#475569' }}>
-                      {cpf.trim() ? `CPF ${cpf}` : 'CPF a informar'}
-                      {birthDate ? ` · Nasc. ${formatBirthDateBr(birthDate)}` : ''}
-                    </div>
-                  </div>
-                </div>
-
                 <label
                   style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: '10px',
-                    padding: '14px 16px',
-                    border: '1px solid #cbd5e1',
-                    borderLeft: '3px solid #163042',
-                    borderRadius: '4px',
-                    background: '#f8fafc',
                     cursor: 'pointer',
                     fontSize: '0.88rem',
                     color: '#1e293b',
-                    lineHeight: 1.5,
+                    lineHeight: 1.45,
                   }}
                 >
                   <input
@@ -863,10 +661,31 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                     style={{ marginTop: '3px', width: '16px', height: '16px', accentColor: '#163042', flexShrink: 0 }}
                   />
                   <span>
-                    Declaro ter lido integralmente e <strong>concordo com os termos e cláusulas</strong> do presente
-                    Contrato de Prestação de Serviços Terapêuticos, confirmando como verdadeiros os dados acima informados. *
+                    Li e <strong>concordo com os termos do contrato</strong>, declarando verdadeiros os dados informados acima. *
                   </span>
                 </label>
+
+                <div style={{ paddingLeft: '26px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: '#163042',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <FileText size={13} /> Visualizar contrato completo
+                  </button>
+                </div>
               </div>
 
               {submitError && (
@@ -885,47 +704,33 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                 </div>
               )}
 
-              <div
+              <button
+                type="submit"
+                disabled={submitting || !accepted}
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
+                  width: '100%',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                  paddingTop: '8px',
-                  borderTop: '1px solid #e2e8f0',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '13px 20px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  background: !accepted || submitting ? '#94a3b8' : '#163042',
+                  color: '#ffffff',
+                  fontSize: '0.92rem',
+                  fontWeight: 600,
+                  cursor: !accepted || submitting ? 'not-allowed' : 'pointer',
                 }}
               >
-                <span style={{ fontSize: '0.76rem', color: '#64748b' }}>
-                  Aceite eletrônico registrado com data, hora e protocolo de integridade.
-                </span>
-                <button
-                  type="submit"
-                  disabled={submitting || !accepted}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 24px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    background: !accepted || submitting ? '#94a3b8' : '#163042',
-                    color: '#ffffff',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    cursor: !accepted || submitting ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {submitting ? (
-                    <>
-                      <LoaderCircle className="spin" size={16} /> Registrando assinatura…
-                    </>
-                  ) : (
-                    'Confirmar e Assinar Contrato'
-                  )}
-                </button>
-              </div>
+                {submitting ? (
+                  <>
+                    <LoaderCircle className="spin" size={16} /> Registrando assinatura…
+                  </>
+                ) : (
+                  'Assinar Contrato'
+                )}
+              </button>
             </form>
           </article>
         )}
