@@ -51,122 +51,174 @@ export interface SignedContractRecord {
 
 export const DEFAULT_PROFESSIONAL_CPF = '08495423910';
 
+export const CONTRACT_DOCUMENT_VERSION = 'v2.1';
+
 export const DEFAULT_CONTRACT_TITLE =
-  'Contrato de Prestação de Serviços Terapêuticos e Política de Agendamento, Cancelamento e Reembolso';
+  'Contrato de Prestação de Serviços Terapêuticos, Agendamento, Cancelamento e Reembolso';
 
 const LEGACY_DRAFT_BODY_PREFIX = 'Pelo presente instrumento particular de prestação de serviços terapêuticos:';
+const LEGACY_17_CLAUSE_PREFIX = 'CONTRATADA (PROPRIETÁRIA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos de Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, doravante denominada CONTRATADA.';
 
-export const DEFAULT_CONTRACT_BODY = `CONTRATADA (PROPRIETÁRIA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos de Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, doravante denominada CONTRATADA.
+export const DEFAULT_CONTRACT_BODY = `CONTRATADA: {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos sob a denominação Camila Machado — Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, com endereço profissional em {{CIDADE}}, doravante denominada CONTRATADA.
 
-CONTRATANTE (CLIENTE): {{NOME_CLIENTE}}, inscrito(a) no CPF sob o nº {{CPF_CLIENTE}}, nascido(a) em {{DATA_NASCIMENTO}}, identificado(a) e cadastrado(a) na plataforma de agendamento, cujos dados pessoais, serviço ({{SERVICO}} - {{MODALIDADE}}), data ({{DATA_ATENDIMENTO}}), horário ({{HORARIO_ATENDIMENTO}}) e identificação eletrônica integram este instrumento.
+CONTRATANTE: {{NOME_CLIENTE}}, CPF nº {{CPF_CLIENTE}}, data de nascimento {{DATA_NASCIMENTO}}, pessoa física devidamente identificada no sistema de agendamento para o atendimento {{SERVICO}} ({{MODALIDADE}}) em {{DATA_ATENDIMENTO}} às {{HORARIO_ATENDIMENTO}}, doravante denominada CONTRATANTE.
 
-As partes celebram o presente contrato, mediante as seguintes cláusulas:
+As partes celebram o presente Contrato de Prestação de Serviços Terapêuticos, regido pelo Código Civil Brasileiro, Código de Defesa do Consumidor, Lei Geral de Proteção de Dados Pessoais e demais disposições legais aplicáveis.
 
 CLÁUSULA 1ª — DO OBJETO
-1.1. O presente contrato regulamenta a contratação, o agendamento, o pagamento, a realização, o cancelamento e o reagendamento de sessões e serviços terapêuticos oferecidos pela CONTRATADA.
-1.2. O serviço específico ({{SERVICO}}), a modalidade ({{MODALIDADE}}), a duração, o valor, a data ({{DATA_ATENDIMENTO}}) e o horário ({{HORARIO_ATENDIMENTO}}) constam no comprovativo de agendamento/atendimento, que integra este contrato.
-1.3. Os atendimentos possuem natureza terapêutica, observados os limites da formação, habilitação e atuação profissional da CONTRATADA, não substituindo diagnóstico ou tratamento médico ou psicológico quando necessários.
+1.1. O presente contrato estabelece as condições para contratação, pagamento, agendamento, reagendamento, cancelamento, reembolso e realização dos serviços terapêuticos disponibilizados pela CONTRATADA.
+1.2. O atendimento contratado será individualmente identificado no comprovante de agendamento, incluindo serviço escolhido ({{SERVICO}}), valor, duração estimada, modalidade presencial ou online ({{MODALIDADE}}), data ({{DATA_ATENDIMENTO}}) e horário ({{HORARIO_ATENDIMENTO}}).
+1.3. Os atendimentos serão realizados conforme a formação, qualificação e os limites legais de atuação da CONTRATADA.
+1.4. Os serviços não constituem promessa de cura ou garantia de resultado terapêutico específico, nem substituem atendimento médico ou psicológico quando necessário.
 
-CLÁUSULA 2ª — DA RESERVA DE HORÁRIO
-2.1. O agendamento representa a reserva de um horário individual destinado ao CONTRATANTE.
-2.2. A reserva impede, durante o período contratado, a disponibilização do mesmo horário a outros clientes.
-2.3. O CONTRATANTE reconhece que cancelamentos tardios e ausências podem causar prejuízos operacionais à CONTRATADA.
-2.4. O agendamento será confirmado após o cumprimento das condições de pagamento previamente informadas.
+CLÁUSULA 2ª — DA CONTRATAÇÃO E DO ACEITE
+2.1. A contratação poderá ocorrer presencialmente, por telefone, WhatsApp, site ou plataforma eletrônica.
+2.2. O CONTRATANTE deverá receber informações claras sobre o serviço, preço, duração, condições de pagamento e políticas de cancelamento antes de confirmar a contratação.
+2.3. O aceite eletrônico deverá ocorrer mediante manifestação expressa e voluntária do CONTRATANTE.
+2.4. A assinatura eletrônica não altera, por si só, a natureza presencial ou à distância da contratação.
+2.5. O comprovante de agendamento e a versão do contrato aceita eletronicamente integrarão este instrumento.
 
-CLÁUSULA 3ª — DOS PAGAMENTOS
-3.1. O valor do serviço será informado antes da confirmação da contratação.
-3.2. O pagamento poderá ocorrer pelos meios disponibilizados pela CONTRATADA.
-3.3. O CONTRATANTE deverá verificar o serviço, o preço, a data, o horário e as condições de cancelamento antes de confirmar a reserva.
-3.4. Eventuais taxas adicionais deverão ser informadas previamente, não sendo permitidas cobranças ocultas.
+CLÁUSULA 3ª — DOS PAGAMENTOS E DA RESERVA DE HORÁRIO
+3.1. Os valores serão informados previamente ao CONTRATANTE.
+3.2. O pagamento poderá ser antecipado, integral ou parcial, conforme as condições apresentadas no momento da contratação.
+3.3. O agendamento confirmado representa a reserva de horário específico na agenda da CONTRATADA.
+3.4. O CONTRATANTE reconhece que a reserva pode impedir a disponibilização do mesmo horário para outros clientes.
+3.5. Eventuais taxas adicionais deverão ser previamente informadas, não sendo admitidas cobranças ocultas.
 
-CLÁUSULA 4ª — DO CANCELAMENTO COM ANTECEDÊNCIA MÍNIMA DE 72 HORAS
-4.1. O CONTRATANTE poderá solicitar o cancelamento do atendimento com antecedência igual ou superior a 72 (setenta e duas) horas em relação ao horário agendado.
-4.2. Nos cancelamentos voluntários realizados dentro desse prazo, fora das hipóteses de reembolso integral legalmente obrigatório, poderá ser retida uma taxa compensatória de 17% (dezassete por cento) do valor da sessão cancelada, desde que previamente informada, proporcional aos custos administrativos e de reserva efetivamente justificáveis e não considerada abusiva.
-4.3. Quando a retenção for aplicável, o valor restante, correspondente a 83%, será restituído ao CONTRATANTE.
-4.4. A retenção não será aplicada nos casos de exercício válido do direito legal de arrependimento, falha imputável à CONTRATADA ou outras hipóteses em que a legislação determine restituição integral.
+CLÁUSULA 4ª — DO DIREITO LEGAL DE ARREPENDIMENTO
+4.1. Nas contratações realizadas fora do estabelecimento comercial, inclusive pela internet, telefone ou WhatsApp, será respeitado o direito de arrependimento estabelecido no artigo 49 do Código de Defesa do Consumidor.
+4.2. O prazo legal será de 7 (sete) dias, observadas as regras legais de contagem a partir da assinatura ou do recebimento do serviço, conforme aplicável.
+4.3. O exercício válido desse direito assegurará a restituição integral dos valores pagos, sem desconto de multa ou taxa administrativa.
+4.4. A política contratual de cancelamento não poderá restringir o exercício de direitos legalmente obrigatórios.
+4.5. Nas contratações concluídas presencialmente no estabelecimento, não haverá direito automático de arrependimento com fundamento exclusivo no artigo 49, permanecendo assegurados os demais direitos do consumidor.
+4.6. Situações envolvendo serviços já iniciados ou prestados durante o prazo de arrependimento serão avaliadas conforme a legislação aplicável, sem renúncia antecipada de direitos.
 
-CLÁUSULA 5ª — DO CANCELAMENTO COM MENOS DE 72 HORAS
-5.1. Cancelamentos solicitados com antecedência inferior a 72 horas serão considerados tardios.
-5.2. Nesses casos, a CONTRATADA poderá reter valor proporcional aos prejuízos comprováveis decorrentes da reserva não aproveitada, respeitados a boa-fé, o equilíbrio contratual e os direitos do consumidor.
-5.3. A retenção não poderá representar penalidade manifestamente excessiva ou perda integral automática de valores quando tal medida for abusiva ou contrária à legislação.
-5.4. A CONTRATADA deverá considerar a possibilidade de preenchimento do horário por outro cliente e eventuais circunstâncias justificadas antes de definir qualquer retenção.
+CLÁUSULA 5ª — DO CANCELAMENTO COM ANTECEDÊNCIA IGUAL OU SUPERIOR A 48 HORAS
+5.1. Fora das hipóteses de restituição integral obrigatória, o CONTRATANTE poderá solicitar o cancelamento voluntário da sessão com antecedência igual ou superior a 48 (quarenta e oito) horas do horário agendado.
+5.2. Nessa hipótese, poderá ser aplicada multa contratual compensatória de até 12% (doze por cento) do valor da sessão cancelada.
+5.3. A multa deverá ser previamente informada, proporcional à finalidade contratual e compatível com a legislação de proteção ao consumidor.
+5.4. Quando juridicamente aplicável a retenção integral de 12%, o CONTRATANTE receberá reembolso de 88% do valor pago pela sessão cancelada.
+5.5. A penalidade poderá ser reduzida ou afastada quando exigido pelas circunstâncias do caso e pela legislação.
 
-CLÁUSULA 6ª — DO REAGENDAMENTO
-6.1. O CONTRATANTE poderá solicitar reagendamento sem penalidade, desde que o pedido seja realizado com antecedência mínima de 72 horas, sujeito à disponibilidade da agenda.
-6.2. Solicitações de reagendamento com menos de 72 horas serão analisadas conforme a disponibilidade e as circunstâncias apresentadas.
-6.3. A CONTRATADA poderá oferecer nova data como alternativa ao cancelamento, sem afastar direitos legais de restituição.
-6.4. A confirmação do novo horário será registada eletronicamente.
+CLÁUSULA 6ª — DO CANCELAMENTO COM MENOS DE 48 HORAS
+6.1. O cancelamento voluntário solicitado com antecedência inferior a 48 (quarenta e oito) horas será considerado cancelamento tardio.
+6.2. Considerando a reserva do horário e a dificuldade de disponibilizá-lo a terceiros, poderá ser aplicada multa contratual compensatória de até 19% (dezenove por cento) do valor da sessão cancelada.
+6.3. A penalidade dependerá de sua admissibilidade jurídica, proporcionalidade e das circunstâncias concretas do cancelamento.
+6.4. Quando juridicamente aplicável a retenção integral de 19%, o CONTRATANTE receberá reembolso de 81% do valor pago pela sessão cancelada.
+6.5. A multa de 19% substituirá a multa de 12%, sendo expressamente proibida a cumulação das duas penalidades sobre o mesmo cancelamento.
+6.6. A CONTRATADA considerará circunstâncias excepcionais justificadas e os limites legais antes da aplicação da retenção.
+6.7. O cancelamento tardio não implicará perda automática do valor integral pago.
 
-CLÁUSULA 7ª — DAS FALTAS E ATRASOS
-7.1. O não comparecimento sem comunicação prévia será considerado ausência injustificada.
-7.2. A ausência injustificada poderá resultar na cobrança de compensação proporcional aos prejuízos efetivos da reserva, observadas as limitações legais.
-7.3. Atrasos do CONTRATANTE poderão reduzir o tempo disponível para o atendimento, desde que essa condição tenha sido previamente informada.
-7.4. Atrasos ou impossibilidade de atendimento causados pela CONTRATADA darão direito à solução adequada, incluindo reagendamento sem custos ou restituição cabível.
+CLÁUSULA 7ª — DA PROPORCIONALIDADE DAS MULTAS
+7.1. As multas previstas neste contrato possuem finalidade compensatória e não poderão representar vantagem manifestamente excessiva para a CONTRATADA.
+7.2. Os percentuais de 12% e 19% constituem limites contratuais propostos, sujeitos à legislação aplicável e à possibilidade de revisão judicial.
+7.3. As penalidades não poderão ser aplicadas nas hipóteses em que a legislação determine restituição integral.
+7.4. A CONTRATADA deverá observar os princípios da boa-fé, razoabilidade e equilíbrio contratual.
+7.5. Não será permitida cobrança duplicada pelo mesmo fato.
 
-CLÁUSULA 8ª — DOS PACOTES DE SESSÕES
-8.1. Quando forem contratados pacotes, o preço total, a quantidade de sessões, as condições de utilização e eventual prazo de validade deverão ser informados previamente.
-8.2. Em caso de desistência, serão consideradas as sessões efetivamente realizadas e os valores referentes aos serviços ainda não prestados.
-8.3. Eventuais retenções deverão ser proporcionais, justificáveis e compatíveis com a legislação consumerista.
-8.4. Não haverá perda automática de todo o valor pago por sessões não utilizadas.
+CLÁUSULA 8ª — DO REAGENDAMENTO
+8.1. O CONTRATANTE poderá solicitar reagendamento sem cobrança adicional quando comunicar a CONTRATADA com antecedência mínima de 72 (setenta e duas) horas do início da sessão.
+8.2. A definição de novo horário ficará sujeita à disponibilidade da agenda.
+8.3. Pedidos realizados com antecedência inferior a 72 horas serão analisados individualmente, podendo ser oferecidas alternativas conforme a disponibilidade da CONTRATADA.
+8.4. Eventual cobrança relacionada a reagendamento tardio deverá ser previamente informada, proporcional e juridicamente admissível.
+8.5. O reagendamento não poderá ser imposto como substituição obrigatória a reembolso legalmente devido.
 
-CLÁUSULA 9ª — DO DIREITO DE ARREPENDIMENTO
-9.1. Nas contratações realizadas fora do estabelecimento comercial, inclusive por meios digitais, será respeitado o direito de arrependimento previsto no artigo 49 do Código de Defesa do Consumidor, quando aplicável.
-9.2. O exercício regular desse direito dentro do prazo legal de sete dias assegurará a restituição integral dos valores pagos, conforme a legislação.
-9.3. Nenhuma cláusula deste instrumento poderá limitar direitos obrigatórios assegurados ao consumidor.
+CLÁUSULA 9ª — DO NÃO COMPARECIMENTO
+9.1. O não comparecimento do CONTRATANTE no horário reservado, sem comunicação prévia, será registrado como ausência.
+9.2. A ausência injustificada poderá ser tratada como cancelamento tardio para fins de análise de compensação contratual, respeitado o limite proposto de 19% e os demais requisitos legais.
+9.3. Não haverá retenção integral automática do pagamento exclusivamente em razão da ausência.
+9.4. Circunstâncias excepcionais, caso fortuito ou força maior serão avaliados individualmente.
 
-CLÁUSULA 10ª — DAS SITUAÇÕES EXCEPCIONAIS
-10.1. Situações de emergência médica, caso fortuito, força maior ou outros acontecimentos relevantes serão analisadas individualmente.
-10.2. A CONTRATADA poderá solicitar documentação razoavelmente necessária para avaliar a situação, respeitando a privacidade do CONTRATANTE.
-10.3. As partes buscarão solução equilibrada, privilegiando o reagendamento quando adequado e voluntariamente aceite.
+CLÁUSULA 10ª — DOS ATRASOS
+10.1. O CONTRATANTE deverá comparecer ou acessar o atendimento online no horário estabelecido.
+10.2. Eventuais atrasos poderão reduzir o período disponível da sessão, sem obrigação de prorrogação automática além do horário reservado.
+10.3. Atrasos ou impossibilidades de atendimento imputáveis à CONTRATADA deverão ser solucionados sem penalização do CONTRATANTE.
+10.4. Quando a prestação do serviço se tornar inviável, serão avaliadas as alternativas legalmente cabíveis, incluindo reagendamento e restituição.
 
-CLÁUSULA 11ª — DAS OBRIGAÇÕES DA CONTRATADA
-11.1. Prestar os serviços contratados com diligência, respeito, ética e observância dos limites profissionais aplicáveis.
-11.2. Informar previamente preços, condições de pagamento, duração e regras de agendamento.
-11.3. Preservar o sigilo das informações obtidas durante os atendimentos, ressalvadas as hipóteses legais.
-11.4. Informar alterações de agenda com antecedência razoável, sempre que possível.
-11.5. Não prometer resultados terapêuticos específicos ou garantidos.
+CLÁUSULA 11ª — DOS PACOTES DE ATENDIMENTO
+11.1. A contratação de pacotes deverá identificar o número de sessões, preço total, valor correspondente a cada atendimento e condições de utilização.
+11.2. Em caso de cancelamento do pacote, serão considerados os serviços efetivamente prestados e os valores relativos às sessões ainda não realizadas.
+11.3. As multas contratuais serão calculadas, quando juridicamente cabíveis, sobre o valor correspondente às sessões efetivamente afetadas pelo cancelamento, evitando cobranças duplicadas.
+11.4. Não haverá perda automática de todos os valores pagos por sessões não realizadas.
+11.5. Os direitos legais de arrependimento e restituição serão preservados.
 
-CLÁUSULA 12ª — DAS OBRIGAÇÕES DO CONTRATANTE
-12.1. Fornecer informações verdadeiras e atualizadas necessárias à prestação do serviço.
-12.2. Respeitar os horários e comunicar impossibilidades de comparecimento.
-12.3. Efetuar os pagamentos acordados.
-12.4. Respeitar as orientações de segurança e os limites da prestação terapêutica.
-12.5. Comunicar circunstâncias relevantes que possam interferir na realização segura do atendimento.
+CLÁUSULA 12ª — DOS CANCELAMENTOS PELA CONTRATADA
+12.1. Caso a CONTRATADA não possa realizar o atendimento, deverá informar o CONTRATANTE com antecedência razoável, sempre que possível.
+12.2. O CONTRATANTE poderá optar por reagendamento sem cobrança adicional ou restituição dos valores correspondentes ao serviço não prestado, conforme a legislação.
+12.3. Não será aplicada multa ao CONTRATANTE em razão de cancelamento imputável à CONTRATADA.
+12.4. Permanecem preservados os demais direitos legalmente assegurados ao consumidor.
 
-CLÁUSULA 13ª — DA PRIVACIDADE E PROTEÇÃO DE DADOS
-13.1. Os dados pessoais serão tratados para identificação, agendamento, prestação dos serviços, pagamentos, cumprimento de obrigações legais e exercício regular de direitos, conforme a Lei Geral de Proteção de Dados Pessoais.
-13.2. Informações relativas à saúde ou ao histórico terapêutico serão tratadas como dados pessoais sensíveis, com medidas de proteção adequadas.
-13.3. O acesso aos dados será limitado a pessoas autorizadas e aos prestadores necessários à operação, observadas as exigências legais.
-13.4. O CONTRATANTE poderá exercer os direitos previstos na LGPD por meio do canal de atendimento informado pela CONTRATADA.
-13.5. O tratamento de dados deverá ser detalhado em aviso de privacidade disponibilizado ao CONTRATANTE.
+CLÁUSULA 13ª — DAS OBRIGAÇÕES DA CONTRATADA
+13.1. Prestar os serviços contratados com diligência, responsabilidade, boa-fé e observância dos limites profissionais aplicáveis.
+13.2. Informar previamente as características dos atendimentos e as condições de contratação.
+13.3. Preservar o sigilo das informações obtidas durante os atendimentos, ressalvadas as hipóteses legais.
+13.4. Não prometer resultados terapêuticos específicos ou garantidos.
+13.5. Respeitar os direitos dos consumidores, inclusive quanto à informação, segurança e qualidade dos serviços.
+13.6. Manter canal adequado para solicitações de cancelamento, reagendamento e esclarecimento de dúvidas.
 
-CLÁUSULA 14ª — DO ACEITE E ASSINATURA ELETRÔNICA
-14.1. O CONTRATANTE terá acesso integral ao contrato antes de manifestar a sua concordância.
-14.2. O aceite será realizado por ação afirmativa no sistema, mediante marcação de caixa de concordância e confirmação eletrônica.
-14.3. A plataforma poderá registar data, horário, identificador do documento, versão contratual, identificação do utilizador e outros elementos técnicos necessários à comprovação da manifestação de vontade, respeitada a LGPD.
-14.4. O documento aceite será disponibilizado ao CONTRATANTE em formato que permita a sua conservação e consulta.
-14.5. A assinatura da CONTRATADA poderá ser previamente aposta por mecanismo eletrônico autorizado. A assinatura do CONTRATANTE deverá corresponder a uma manifestação efetiva de vontade, não podendo ser presumida ou inserida automaticamente sem autorização.
-14.6. As partes reconhecem os meios eletrônicos admitidos pela legislação brasileira para comprovação da autoria, integridade e concordância contratual.
+CLÁUSULA 14ª — DAS OBRIGAÇÕES DO CONTRATANTE
+14.1. Fornecer informações verdadeiras e atualizadas necessárias à prestação dos serviços.
+14.2. Respeitar os horários e as condições de atendimento.
+14.3. Comunicar pedidos de cancelamento ou reagendamento pelos canais disponibilizados.
+14.4. Efetuar os pagamentos conforme as condições previamente aceitas.
+14.5. Informar circunstâncias relevantes à realização segura do atendimento.
+14.6. Respeitar as orientações pertinentes à prestação dos serviços, preservada sua liberdade de escolha.
 
-CLÁUSULA 15ª — DA RESPONSABILIDADE E DOS RESULTADOS
-15.1. A CONTRATADA compromete-se a empregar os cuidados e técnicas compatíveis com os serviços efetivamente oferecidos e com a sua habilitação.
-15.2. O CONTRATANTE reconhece que respostas e resultados individuais podem variar.
-15.3. A ausência de resultado subjetivamente esperado não caracteriza, por si só, falha na prestação do serviço.
-15.4. Permanecem integralmente preservadas as responsabilidades legais da CONTRATADA por eventuais defeitos na prestação do serviço.
+CLÁUSULA 15ª — DA PRIVACIDADE E PROTEÇÃO DE DADOS PESSOAIS
+15.1. Os dados pessoais serão tratados para finalidades legítimas relacionadas à contratação, identificação, agendamento, realização dos atendimentos, pagamentos, cumprimento de obrigações legais e exercício regular de direitos, observadas as bases legais aplicáveis.
+15.2. Informações referentes à saúde e ao histórico terapêutico serão protegidas conforme sua natureza sensível e as disposições da Lei Geral de Proteção de Dados Pessoais.
+15.3. O acesso às informações será limitado a pessoas autorizadas e aos prestadores de serviços necessários, observadas as obrigações legais de proteção dos dados.
+15.4. O CONTRATANTE poderá exercer os direitos previstos na LGPD por meio do canal de privacidade disponibilizado pela CONTRATADA.
+15.5. As informações completas sobre o tratamento de dados deverão constar de aviso de privacidade acessível ao CONTRATANTE.
 
-CLÁUSULA 16ª — DA RESOLUÇÃO DE CONFLITOS
-16.1. Eventuais divergências deverão, preferencialmente, ser submetidas inicialmente a tentativa de solução amigável.
-16.2. Permanecem assegurados os meios administrativos e judiciais de defesa dos direitos de ambas as partes.
-16.3. Será respeitada a competência judicial estabelecida pela legislação aplicável, especialmente as normas de proteção do consumidor.
+CLÁUSULA 16ª — DOS REEMBOLSOS
+16.1. As solicitações de reembolso deverão ser realizadas pelos canais oficiais disponibilizados pela CONTRATADA.
+16.2. O pedido deverá identificar a contratação e permitir a verificação da data, do horário e do motivo do cancelamento.
+16.3. Os valores devidos serão restituídos pelo meio de pagamento original sempre que possível, respeitados os prazos e procedimentos legalmente aplicáveis.
+16.4. Quando houver direito legal de arrependimento, serão observadas as regras de restituição integral e imediata previstas na legislação, inclusive quanto à comunicação necessária ao intermediador de pagamento.
+16.5. O CONTRATANTE receberá confirmação do recebimento da solicitação e informações sobre o procedimento de restituição.
+16.6. Nenhuma taxa contratual prevalecerá sobre hipótese legal de restituição integral.
 
-CLÁUSULA 17ª — DAS DISPOSIÇÕES FINAIS
-17.1. Este contrato será disponibilizado antes da conclusão do agendamento.
-17.2. Qualquer alteração contratual deverá ser comunicada previamente, não produzindo efeitos retroativos prejudiciais ao CONTRATANTE.
-17.3. A eventual invalidade de uma cláusula não comprometerá automaticamente as demais disposições juridicamente independentes.
-17.4. Os comprovativos de agendamento, pagamento, cancelamento, reagendamento e aceite eletrônico integrarão os registos da contratação.
-17.5. As partes declaram ter tido oportunidade de ler e compreender as condições antes da assinatura.
+CLÁUSULA 17ª — DAS SITUAÇÕES EXCEPCIONAIS
+17.1. Emergências médicas, caso fortuito, força maior ou outras circunstâncias relevantes serão analisadas individualmente.
+17.2. A CONTRATADA poderá solicitar documentação razoavelmente necessária à análise, respeitando a privacidade e a proteção dos dados pessoais.
+17.3. As partes buscarão solução proporcional e equilibrada, privilegiando o reagendamento quando adequado e voluntariamente aceito.
+17.4. Nenhuma disposição desta cláusula poderá afastar direitos legalmente assegurados.
 
-Documento sujeito a validação eletrônica pela plataforma de agendamento. Aceite registrado em {{DATA_ASSINATURA}} às {{HORA_ASSINATURA}}.`;
+CLÁUSULA 18ª — DA ASSINATURA ELETRÔNICA
+18.1. O presente contrato poderá ser celebrado por meio eletrônico, mediante manifestação expressa das partes.
+18.2. O CONTRATANTE deverá ter acesso integral ao conteúdo antes de confirmar sua concordância.
+18.3. A plataforma poderá registrar, conforme sua implementação técnica:
+- Identificação do CONTRATANTE;
+- Data e hora do aceite;
+- Identificador único do contrato;
+- Versão integral do documento;
+- Método utilizado para autenticação;
+- Registro da manifestação de concordância;
+- Elementos técnicos de integridade e auditoria.
+18.4. A assinatura da CONTRATADA poderá ser aplicada eletronicamente mediante autorização válida e mecanismo adequado.
+18.5. A assinatura do CONTRATANTE deverá corresponder a uma manifestação efetiva de vontade, não podendo ser presumida ou gerada sem sua autorização.
+18.6. Uma cópia integral do documento assinado deverá ser disponibilizada ao CONTRATANTE.
+
+CLÁUSULA 19ª — DA RESPONSABILIDADE E DOS RESULTADOS
+19.1. A CONTRATADA compromete-se a utilizar métodos compatíveis com os serviços efetivamente oferecidos e com sua qualificação profissional.
+19.2. O CONTRATANTE reconhece que as respostas individuais aos atendimentos podem variar.
+19.3. A ausência de resultado subjetivamente esperado não caracteriza, isoladamente, falha na prestação do serviço.
+19.4. Permanecem preservadas as responsabilidades legais da CONTRATADA por eventuais defeitos ou irregularidades na prestação dos serviços.
+
+CLÁUSULA 20ª — DA RESOLUÇÃO DE CONFLITOS
+20.1. As partes procurarão solucionar eventuais divergências inicialmente por meio de comunicação direta e de boa-fé.
+20.2. A tentativa de solução amigável não impedirá o acesso aos órgãos de defesa do consumidor ou ao Poder Judiciário.
+20.3. Será respeitada a competência judicial estabelecida pela legislação aplicável, especialmente as normas de proteção do consumidor.
+
+CLÁUSULA 21ª — DAS DISPOSIÇÕES FINAIS
+21.1. O presente contrato será disponibilizado antes da confirmação da contratação.
+21.2. Alterações relevantes das condições contratuais deverão ser comunicadas previamente e submetidas à aceitação quando necessário.
+21.3. Alterações posteriores não prejudicarão retroativamente direitos adquiridos pelo CONTRATANTE.
+21.4. A eventual invalidade de determinada cláusula não prejudicará automaticamente as demais disposições juridicamente independentes.
+21.5. Os comprovantes de agendamento, pagamento, cancelamento, reagendamento e aceite eletrônico integrarão os registros da contratação.
+21.6. O presente instrumento produzirá efeitos a partir da aceitação válida pelas partes.
+21.7. Nenhuma disposição deste contrato constituirá renúncia antecipada aos direitos assegurados pela legislação brasileira.`;
 
 let tablesInitialized = false;
 
@@ -262,7 +314,9 @@ export async function getContractTemplate(): Promise<ClinicContractTemplate> {
       };
     }
 
-    const isLegacyDraft = row.body?.trim().startsWith(LEGACY_DRAFT_BODY_PREFIX);
+    const isLegacyDraft =
+      row.body?.trim().startsWith(LEGACY_DRAFT_BODY_PREFIX) ||
+      row.body?.trim().startsWith(LEGACY_17_CLAUSE_PREFIX);
 
     return {
       title: isLegacyDraft ? DEFAULT_CONTRACT_TITLE : row.title || DEFAULT_CONTRACT_TITLE,
@@ -1111,11 +1165,26 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     y -= isHeading ? 14 : 12.8;
   }
 
-  // Garante espaço para o bloco de assinaturas lado a lado (Proprietária à esquerda, Cliente ao lado)
-  if (y < 185) {
+  // Garante espaço para o bloco de assinaturas lado a lado + bloco de integridade e auditoria
+  if (y < 235) {
     page = pdf.addPage([W, H]);
     y = drawPageHeader(page, false);
   }
+
+  const refIso = contract.acceptedAt || contract.createdAt || new Date().toISOString();
+  const integrityHash = crypto
+    .createHash('sha256')
+    .update(
+      [
+        contract.id,
+        CONTRACT_DOCUMENT_VERSION,
+        contract.contractTitle,
+        contract.contractBodySnapshot,
+        contract.clientCpf,
+        refIso,
+      ].join('|')
+    )
+    .digest('hex');
 
   const sectionLabel = 'ASSINATURAS ELETRÔNICAS';
   page.drawText(sectionLabel, {
@@ -1127,12 +1196,12 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
   });
   y -= 24;
 
-  const signY = Math.max(96, y - 54);
+  const signY = Math.max(152, y - 54);
   const halfW = (contentWidth - 20) / 2;
   const x1 = M;
   const x2 = M + halfW + 20;
 
-  // Bloco 1 (Esquerda): Proprietária / Contratada — Assinatura padrão da Camila + Nome + CPF
+  // Bloco 1 (Esquerda): Proprietária / Contratada — Assinatura padrão da Camila + Nome + CPF + Data/Hora
   page.drawRectangle({
     x: x1,
     y: signY - 52,
@@ -1142,10 +1211,10 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     borderColor: rgb(0.84, 0.79, 0.7),
     borderWidth: 1,
   });
-  page.drawText('CONTRATADA (PROPRIETÁRIA):', {
+  page.drawText('CONTRATADA — PRESTADORA DOS SERVIÇOS:', {
     x: x1 + 10,
     y: signY + 35,
-    size: 7.2,
+    size: 7.1,
     font: bold,
     color: GOLD,
   });
@@ -1180,22 +1249,25 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     font: bold,
     color: NAVY,
   });
-  page.drawText(cleanPdfText(`CPF: ${profCpfFmt}`), {
+  page.drawText(cleanPdfText(`CPF: ${profCpfFmt}  |  ${contract.professionalCredential}`), {
     x: x1 + 10,
     y: signY - 21,
-    size: 8,
+    size: 7.7,
     font: bold,
     color: DARK,
   });
-  page.drawText(cleanPdfText(contract.professionalCredential), {
-    x: x1 + 10,
-    y: signY - 33,
-    size: 7.4,
-    font: regular,
-    color: GRAY,
-  });
+  page.drawText(
+    cleanPdfText(`Data e hora: ${formatDateBr(refIso)} às ${formatTimeBr(refIso)}`),
+    {
+      x: x1 + 10,
+      y: signY - 33,
+      size: 7.4,
+      font: regular,
+      color: GRAY,
+    }
+  );
 
-  // Bloco 2 (Direita, ao lado): Contratante / Cliente — Dados coletados na hora (Nome, CPF, Data e Horário)
+  // Bloco 2 (Direita, ao lado): Contratante / Cliente — Dados coletados na hora (Nome, CPF, Nascimento, Data e Horário)
   page.drawRectangle({
     x: x2,
     y: signY - 52,
@@ -1207,13 +1279,13 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
   });
   const cSignLabel = cleanPdfText(
     contract.status === 'assinado'
-      ? 'CONTRATANTE (ASSINADO ELETRONICAMENTE):'
-      : 'CONTRATANTE (AGUARDANDO ASSINATURA):'
+      ? 'CONTRATANTE — CLIENTE (ASSINADO):'
+      : 'CONTRATANTE — CLIENTE (PENDENTE):'
   );
   page.drawText(cSignLabel, {
     x: x2 + 10,
     y: signY + 35,
-    size: 7.2,
+    size: 7.1,
     font: bold,
     color: rgb(0.05, 0.45, 0.3),
   });
@@ -1240,7 +1312,7 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
   });
   page.drawText(
     cleanPdfText(
-      `CPF: ${cpfFmt}${contract.clientBirthDate ? ` | Nasc: ${formatDateBr(contract.clientBirthDate)}` : ''}`
+      `CPF: ${cpfFmt}${contract.clientBirthDate ? `  |  Nasc: ${formatDateBr(contract.clientBirthDate)}` : ''}`
     ),
     {
       x: x2 + 10,
@@ -1251,7 +1323,7 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
     }
   );
   const acceptTimeText = contract.acceptedAt
-    ? `Aceite: ${formatDateBr(contract.acceptedAt)} às ${formatTimeBr(contract.acceptedAt)}`
+    ? `Data e hora: ${formatDateBr(contract.acceptedAt)} às ${formatTimeBr(contract.acceptedAt)}`
     : `Sessão: ${formatDateBr(contract.sessionDate)}${contract.sessionTime ? ` às ${contract.sessionTime}` : ''}`;
   page.drawText(cleanPdfText(acceptTimeText), {
     x: x2 + 10,
@@ -1269,6 +1341,59 @@ export async function buildSignedContractPdf(contract: SignedContractRecord): Pr
       color: GRAY,
     });
   }
+
+  // Bloco de Validação, Versão e Integridade do Documento
+  const auditBoxY = signY - 120;
+  page.drawRectangle({
+    x: M,
+    y: auditBoxY,
+    width: contentWidth,
+    height: 58,
+    color: rgb(0.975, 0.98, 0.99),
+    borderColor: rgb(0.84, 0.87, 0.91),
+    borderWidth: 0.8,
+  });
+  page.drawText(
+    cleanPdfText(
+      `Identificação do contrato: ${contract.id.toUpperCase()}   |   Versão do documento: ${CONTRACT_DOCUMENT_VERSION}`
+    ),
+    {
+      x: M + 10,
+      y: auditBoxY + 43,
+      size: 7.5,
+      font: bold,
+      color: NAVY,
+    }
+  );
+  page.drawText(
+    cleanPdfText(`Local e data: ${PROFESSIONAL_INFO.city}, ${formatDateBr(refIso)} às ${formatTimeBr(refIso)}`),
+    {
+      x: M + 10,
+      y: auditBoxY + 31,
+      size: 7.4,
+      font: regular,
+      color: DARK,
+    }
+  );
+  page.drawText(cleanPdfText(`Registro de integridade (SHA-256): ${integrityHash}`), {
+    x: M + 10,
+    y: auditBoxY + 19,
+    size: 6.7,
+    font: regular,
+    color: GRAY,
+  });
+  page.drawText(
+    cleanPdfText(
+      'Documento formalizado eletronicamente, sujeito aos mecanismos de autenticação e integridade disponibilizados pela plataforma.'
+    ),
+    {
+      x: M + 10,
+      y: auditBoxY + 7,
+      size: 6.8,
+      font: italic,
+      color: GRAY,
+    }
+  );
 
   const footer = cleanPdfText(`Código do Contrato: ${contract.id.toUpperCase()} • ${PROFESSIONAL_INFO.city}`);
   page.drawText(footer, {
