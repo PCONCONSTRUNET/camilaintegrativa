@@ -53,8 +53,7 @@ export const DEFAULT_PROFESSIONAL_CPF = '08495423910';
 
 export const CONTRACT_DOCUMENT_VERSION = 'v2.1';
 
-export const DEFAULT_CONTRACT_TITLE =
-  'Contrato de Prestação de Serviços Terapêuticos, Agendamento, Cancelamento e Reembolso';
+export const DEFAULT_CONTRACT_TITLE = 'Contrato de Prestação de Serviços';
 
 const LEGACY_DRAFT_BODY_PREFIX = 'Pelo presente instrumento particular de prestação de serviços terapêuticos:';
 const LEGACY_17_CLAUSE_PREFIX = 'CONTRATADA (PROPRIETÁRIA): {{NOME_PROFISSIONAL}}, CPF nº {{CPF_PROFISSIONAL}}, responsável pelos atendimentos de Hipnose Clínica Multidimensional Integrativa, registro profissional informado {{REGISTRO_PROFISSIONAL}}, doravante denominada CONTRATADA.';
@@ -317,9 +316,11 @@ export async function getContractTemplate(): Promise<ClinicContractTemplate> {
     const isLegacyDraft =
       row.body?.trim().startsWith(LEGACY_DRAFT_BODY_PREFIX) ||
       row.body?.trim().startsWith(LEGACY_17_CLAUSE_PREFIX);
+    const isLegacyTitle =
+      !row.title?.trim() || row.title.includes('Cancelamento e Reembolso');
 
     return {
-      title: isLegacyDraft ? DEFAULT_CONTRACT_TITLE : row.title || DEFAULT_CONTRACT_TITLE,
+      title: isLegacyDraft || isLegacyTitle ? DEFAULT_CONTRACT_TITLE : row.title,
       body: !row.body?.trim() || isLegacyDraft ? DEFAULT_CONTRACT_BODY : row.body,
       professionalName: row.professional_name || PROFESSIONAL_INFO.name,
       professionalCpf: row.professional_cpf?.trim() ? row.professional_cpf : DEFAULT_PROFESSIONAL_CPF,

@@ -564,8 +564,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                   color: '#0f172a',
                 }}
               >
-                {template?.title ||
-                  'Contrato de Prestação de Serviços Terapêuticos, Agendamento, Cancelamento e Reembolso'}
+                {template?.title || 'Contrato de Prestação de Serviços'}
               </h1>
               <p style={{ margin: 0, fontSize: '0.86rem', color: '#475569', lineHeight: 1.5 }}>
                 {profName} ({profCred}). Preencha seus dados abaixo para confirmar e assinar.
