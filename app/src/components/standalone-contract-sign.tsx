@@ -487,7 +487,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                   Nome completo *
                 </label>
                 <input
-                  className="input"
+                  className="form-input"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -508,7 +508,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                     CPF *
                   </label>
                   <input
-                    className="input"
+                    className="form-input"
                     required
                     inputMode="numeric"
                     value={cpf}
@@ -522,7 +522,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
                     Data de nascimento *
                   </label>
                   <input
-                    className="input"
+                    className="form-input"
                     type="date"
                     required
                     value={birthDate}

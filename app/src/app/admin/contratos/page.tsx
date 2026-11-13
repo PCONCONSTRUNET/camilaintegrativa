@@ -576,7 +576,7 @@ export default function AdminContratosPage() {
                 style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#7a8a97' }}
               />
               <input
-                className="input"
+                className="form-input"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nome, CPF, telefone ou serviço…"
@@ -584,7 +584,7 @@ export default function AdminContratosPage() {
               />
             </div>
             <select
-              className="input"
+              className="form-select"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={{ width: 'auto', minWidth: '150px' }}
@@ -594,7 +594,7 @@ export default function AdminContratosPage() {
               <option value="pendente">Pendentes</option>
             </select>
             <select
-              className="input"
+              className="form-select"
               value={originFilter}
               onChange={(e) => setOriginFilter(e.target.value)}
               style={{ width: 'auto', minWidth: '165px' }}
@@ -777,12 +777,12 @@ export default function AdminContratosPage() {
               gap: '12px',
             }}
           >
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '5px', color: '#17374d' }}>
                 Título do Contrato
               </label>
               <input
-                className="input"
+                className="form-input"
                 value={tplTitle}
                 onChange={(e) => setTplTitle(e.target.value)}
                 required
@@ -793,7 +793,7 @@ export default function AdminContratosPage() {
                 Nome da Profissional (Contratada)
               </label>
               <input
-                className="input"
+                className="form-input"
                 value={tplProfName}
                 onChange={(e) => setTplProfName(e.target.value)}
                 required
@@ -804,7 +804,7 @@ export default function AdminContratosPage() {
                 CPF da Camila (Contratada)
               </label>
               <input
-                className="input"
+                className="form-input"
                 value={tplProfCpf}
                 onChange={(e) => setTplProfCpf(maskCpf(e.target.value))}
                 placeholder="000.000.000-00"
@@ -815,7 +815,7 @@ export default function AdminContratosPage() {
                 Registro / Credencial
               </label>
               <input
-                className="input"
+                className="form-input"
                 value={tplProfCred}
                 onChange={(e) => setTplProfCred(e.target.value)}
               />
@@ -849,11 +849,11 @@ export default function AdminContratosPage() {
             </div>
             <textarea
               ref={textareaRef}
-              className="input"
-              rows={13}
+              className="form-textarea"
+              rows={15}
               value={tplBody}
               onChange={(e) => setTplBody(e.target.value)}
-              style={{ fontFamily: 'inherit', lineHeight: 1.55, minHeight: '260px' }}
+              style={{ fontFamily: 'inherit', lineHeight: 1.55, minHeight: '320px' }}
               required
             />
           </div>
@@ -1085,10 +1085,9 @@ export default function AdminContratosPage() {
                     Serviço / Atendimento (opcional)
                   </label>
                   <input
-                    className="input"
+                    className="form-input"
                     value={linkForm.serviceName}
                     onChange={(e) => setLinkForm({ ...linkForm, serviceName: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
@@ -1097,11 +1096,10 @@ export default function AdminContratosPage() {
                       Data (opcional)
                     </label>
                     <input
-                      className="input"
+                      className="form-input"
                       type="date"
                       value={linkForm.sessionDate}
                       onChange={(e) => setLinkForm({ ...linkForm, sessionDate: e.target.value })}
-                      style={{ width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
@@ -1109,11 +1107,10 @@ export default function AdminContratosPage() {
                       Horário (opcional)
                     </label>
                     <input
-                      className="input"
+                      className="form-input"
                       value={linkForm.sessionTime}
                       onChange={(e) => setLinkForm({ ...linkForm, sessionTime: e.target.value })}
                       placeholder="Ex: 14:00"
-                      style={{ width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
@@ -1121,10 +1118,9 @@ export default function AdminContratosPage() {
                       Modalidade
                     </label>
                     <select
-                      className="input"
+                      className="form-select"
                       value={linkForm.modality}
                       onChange={(e) => setLinkForm({ ...linkForm, modality: e.target.value })}
-                      style={{ width: '100%', boxSizing: 'border-box' }}
                     >
                       <option value="presencial">Presencial</option>
                       <option value="online">Online</option>
