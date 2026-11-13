@@ -145,7 +145,7 @@ export default function AdminContratosPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/contracts');
+      const res = await fetch('/api/admin/contracts', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao carregar contratos.');
       applyLoadedData(data);
@@ -158,7 +158,7 @@ export default function AdminContratosPage() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/admin/contracts')
+    fetch('/api/admin/contracts', { cache: 'no-store' })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Falha ao carregar contratos.');
@@ -170,8 +170,44 @@ export default function AdminContratosPage() {
       .finally(() => {
         if (active) setLoading(false);
       });
+
+    // Sincronização automática sem F5 (PC e celular: polling leve + retorno da aba/WhatsApp)
+    let refreshing = false;
+    const refreshSilently = () => {
+      if (!active || refreshing) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      refreshing = true;
+      fetch('/api/admin/contracts', { cache: 'no-store' })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          return (await res.json()) as { contracts?: ContractRecord[] };
+        })
+        .then((data) => {
+          if (!active || !data?.contracts) return;
+          const nextList = data.contracts;
+          setContracts(nextList);
+          setCreatedContractLink((prev) =>
+            prev ? nextList.find((item) => item.id === prev.id) ?? prev : null
+          );
+        })
+        .catch(() => null)
+        .finally(() => {
+          refreshing = false;
+        });
+    };
+
+    const intervalId = window.setInterval(refreshSilently, 4000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshSilently();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshSilently);
+
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshSilently);
     };
   }, [applyLoadedData, showFeedback]);
 
@@ -1139,18 +1175,34 @@ export default function AdminContratosPage() {
               </form>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div
-                  style={{
-                    background: '#f2fbf6',
-                    border: '1px solid #bce8cf',
-                    borderRadius: '12px',
-                    padding: '12px 14px',
-                    fontSize: '0.88rem',
-                    color: '#146d43',
-                  }}
-                >
-                  Link exclusivo criado! Envie no WhatsApp para o cliente preencher <strong>Nome, CPF e Data de nascimento</strong> e assinar o contrato.
-                </div>
+                {createdContractLink.status === 'assinado' ? (
+                  <div
+                    style={{
+                      background: '#edf9f2',
+                      border: '1px solid #9bdcb8',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      fontSize: '0.88rem',
+                      color: '#146d43',
+                    }}
+                  >
+                    <strong>Contrato assinado por {createdContractLink.clientName || 'cliente'}!</strong>{' '}
+                    O status foi atualizado automaticamente em tempo real.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      background: '#f2fbf6',
+                      border: '1px solid #bce8cf',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      fontSize: '0.88rem',
+                      color: '#146d43',
+                    }}
+                  >
+                    Link exclusivo criado! Envie no WhatsApp para o cliente preencher <strong>Nome, CPF e Data de nascimento</strong> e assinar o contrato.
+                  </div>
+                )}
 
                 <div
                   style={{
@@ -1168,25 +1220,39 @@ export default function AdminContratosPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() =>
-                      copyText(buildContractLink(createdContractLink.token), 'modal-link', 'Link copiado!')
-                    }
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <Copy size={14} /> Copiar Link
-                  </button>
-                  <a
-                    href={buildWhatsappUrl(createdContractLink)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#128c7e' }}
-                  >
-                    <MessageCircle size={14} /> Enviar no WhatsApp
-                  </a>
+                  {createdContractLink.status === 'assinado' ? (
+                    <a
+                      href={`/api/admin/contracts/${createdContractLink.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                    >
+                      <Download size={14} /> Baixar PDF
+                    </a>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() =>
+                          copyText(buildContractLink(createdContractLink.token), 'modal-link', 'Link copiado!')
+                        }
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      >
+                        <Copy size={14} /> Copiar Link
+                      </button>
+                      <a
+                        href={buildWhatsappUrl(createdContractLink)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#128c7e' }}
+                      >
+                        <MessageCircle size={14} /> Enviar no WhatsApp
+                      </a>
+                    </>
+                  )}
                   <a
                     href={`/contrato/${createdContractLink.token}`}
                     target="_blank"
@@ -1194,7 +1260,7 @@ export default function AdminContratosPage() {
                     className="btn btn-outline btn-sm"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                   >
-                    <ExternalLink size={14} /> Testar Página
+                    <ExternalLink size={14} /> {createdContractLink.status === 'assinado' ? 'Abrir Página' : 'Testar Página'}
                   </a>
                 </div>
               </div>

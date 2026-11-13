@@ -9,6 +9,8 @@ import {
 } from '@/lib/contracts';
 import { errorResponse } from '@/lib/http';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   if (!(await getCurrentUser())) {
     return Response.json({ error: 'Não autorizado.' }, { status: 401 });
@@ -25,7 +27,10 @@ export async function GET(request: NextRequest) {
       getContractTemplate(),
     ]);
 
-    return Response.json({ contracts, template });
+    return Response.json(
+      { contracts, template },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+    );
   } catch (error) {
     return errorResponse(error);
   }

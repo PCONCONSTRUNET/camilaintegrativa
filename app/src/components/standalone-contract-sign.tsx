@@ -78,7 +78,7 @@ export function StandaloneContractSign({ token }: { token?: string }) {
 
   useEffect(() => {
     const query = token ? `?token=${encodeURIComponent(token)}` : '';
-    fetch(`/api/public/contracts${query}`)
+    fetch(`/api/public/contracts${query}`, { cache: 'no-store' })
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) {

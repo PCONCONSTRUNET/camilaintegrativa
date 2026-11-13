@@ -8,24 +8,28 @@ import {
 import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
 import { errorResponse } from '@/lib/http';
 
+export const dynamic = 'force-dynamic';
+
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, no-cache, must-revalidate' };
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get('token')?.trim() || '';
     const template = await getContractTemplate();
 
     if (!token) {
-      return Response.json({ template, contract: null });
+      return Response.json({ template, contract: null }, { headers: NO_STORE_HEADERS });
     }
 
     const contract = await getContractByToken(token);
     if (!contract) {
       return Response.json(
         { error: 'Link de contrato não encontrado ou removido.', template, contract: null },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
-    return Response.json({ template, contract });
+    return Response.json({ template, contract }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     return errorResponse(error);
   }
