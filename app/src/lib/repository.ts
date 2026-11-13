@@ -1047,6 +1047,76 @@ async function ensureClientsOptionalSchema(database: Database) {
   clientsOptionalSchemaEnsured = true;
 }
 
+function mapClientSummaryRow(item: Record<string, unknown>, todaySimpleStr: string): ClientSummary {
+  const overdueBalanceCents = Number(item.overdue_balance_cents ?? 0);
+  const overdueInvoicesCount = Number(item.overdue_invoices_count ?? 0);
+  const oldestOverdueDate = item.oldest_overdue_due_at ? String(item.oldest_overdue_due_at) : null;
+  const nextDueDate = item.next_due_at ? String(item.next_due_at) : null;
+  const pendingInvoicesCount = Number(item.pending_invoices_count ?? 0);
+  const isInadimplente = overdueBalanceCents > 0;
+
+  const daysOverdue = (() => {
+    if (!oldestOverdueDate) return 0;
+    const dOld = new Date(`${oldestOverdueDate}T12:00:00-03:00`);
+    const dNow = new Date(`${todaySimpleStr}T12:00:00-03:00`);
+    const diffMs = dNow.getTime() - dOld.getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  })();
+
+  return {
+    id: String(item.id),
+    name: String(item.name || 'Cliente sem nome'),
+    phone: item.phone ? String(item.phone) : '',
+    email: item.email ? String(item.email) : null,
+    status: item.status as ClientSummary['status'],
+    createdAt: String(item.created_at),
+    nextAppointmentAt: item.next_appointment_at ? String(item.next_appointment_at) : null,
+    completedAppointments: Number(item.completed_appointments ?? 0),
+    activePackagesCount: Number(item.active_packages_count ?? 0),
+    activePackagesRemainingSessions: Number(item.active_packages_remaining_sessions ?? 0),
+    cpf: item.cpf ? String(item.cpf) : null,
+    rg: item.rg ? String(item.rg) : null,
+    birthDate: item.birth_date ? String(item.birth_date) : null,
+    gender: item.gender ? String(item.gender) : null,
+    occupation: item.occupation ? String(item.occupation) : null,
+    administrativeNotes: item.administrative_notes ? String(item.administrative_notes) : null,
+    emergencyContactName: item.emergency_contact_name ? String(item.emergency_contact_name) : null,
+    emergencyContactPhone: item.emergency_contact_phone ? String(item.emergency_contact_phone) : null,
+    emergencyContactRelationship: item.emergency_contact_relationship ? String(item.emergency_contact_relationship) : null,
+    hasAnamnese: Boolean(item.has_anamnese),
+    openBalanceCents: Number(item.open_balance_cents ?? 0),
+    totalPaidCents: Number(item.total_paid_cents ?? 0),
+    isInadimplente,
+    overdueBalanceCents,
+    overdueInvoicesCount,
+    oldestOverdueDate,
+    daysOverdue,
+    nextDueDate,
+    pendingInvoicesCount,
+  };
+}
+
+export interface ClientListStats {
+  total: number;
+  ativos: number;
+  pendentes: number;
+  inativos: number;
+  comPacote: number;
+  sessoesEmHaver: number;
+  anamneseOk: number;
+  comSaldoAberto: number;
+  totalSaldoAbertoCents: number;
+  inadimplentes: number;
+  totalInadimplenteCents: number;
+}
+
+export interface PaginatedClientsResult {
+  clients: ClientSummary[];
+  totalFiltered: number;
+  hasMore: boolean;
+  stats: ClientListStats;
+}
+
 export async function listClients(search = '', status = 'todos'): Promise<ClientSummary[]> {
   const database = getDatabase();
   await ensureClientsOptionalSchema(database);
@@ -1109,55 +1179,7 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
     digitsTerm,
     sqlStatus,
     sqlStatus
-  )).map((row) => {
-    const item = row as Record<string, unknown>;
-    const overdueBalanceCents = Number(item.overdue_balance_cents ?? 0);
-    const overdueInvoicesCount = Number(item.overdue_invoices_count ?? 0);
-    const oldestOverdueDate = item.oldest_overdue_due_at ? String(item.oldest_overdue_due_at) : null;
-    const nextDueDate = item.next_due_at ? String(item.next_due_at) : null;
-    const pendingInvoicesCount = Number(item.pending_invoices_count ?? 0);
-    const isInadimplente = overdueBalanceCents > 0;
-
-    const daysOverdue = (() => {
-      if (!oldestOverdueDate) return 0;
-      const dOld = new Date(`${oldestOverdueDate}T12:00:00-03:00`);
-      const dNow = new Date(`${todaySimpleStr}T12:00:00-03:00`);
-      const diffMs = dNow.getTime() - dOld.getTime();
-      return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    })();
-
-    return {
-      id: String(item.id),
-      name: String(item.name || 'Cliente sem nome'),
-      phone: item.phone ? String(item.phone) : '',
-      email: item.email ? String(item.email) : null,
-      status: item.status as ClientSummary['status'],
-      createdAt: String(item.created_at),
-      nextAppointmentAt: item.next_appointment_at ? String(item.next_appointment_at) : null,
-      completedAppointments: Number(item.completed_appointments ?? 0),
-      activePackagesCount: Number(item.active_packages_count ?? 0),
-      activePackagesRemainingSessions: Number(item.active_packages_remaining_sessions ?? 0),
-      cpf: item.cpf ? String(item.cpf) : null,
-      rg: item.rg ? String(item.rg) : null,
-      birthDate: item.birth_date ? String(item.birth_date) : null,
-      gender: item.gender ? String(item.gender) : null,
-      occupation: item.occupation ? String(item.occupation) : null,
-      administrativeNotes: item.administrative_notes ? String(item.administrative_notes) : null,
-      emergencyContactName: item.emergency_contact_name ? String(item.emergency_contact_name) : null,
-      emergencyContactPhone: item.emergency_contact_phone ? String(item.emergency_contact_phone) : null,
-      emergencyContactRelationship: item.emergency_contact_relationship ? String(item.emergency_contact_relationship) : null,
-      hasAnamnese: Boolean(item.has_anamnese),
-      openBalanceCents: Number(item.open_balance_cents ?? 0),
-      totalPaidCents: Number(item.total_paid_cents ?? 0),
-      isInadimplente,
-      overdueBalanceCents,
-      overdueInvoicesCount,
-      oldestOverdueDate,
-      daysOverdue,
-      nextDueDate,
-      pendingInvoicesCount,
-    };
-  });
+  )).map((row) => mapClientSummaryRow(row as Record<string, unknown>, todaySimpleStr));
 
   if (status === 'inadimplente') {
     return rows.filter((c) => c.isInadimplente);
@@ -1166,6 +1188,203 @@ export async function listClients(search = '', status = 'todos'): Promise<Client
     return rows.filter((c) => !c.isInadimplente);
   }
   return rows;
+}
+
+export async function listClientsPaginated(options: {
+  search?: string;
+  filter?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedClientsResult> {
+  const database = getDatabase();
+  await ensureClientsOptionalSchema(database);
+
+  const cleanSearch = (options.search ?? '').trim();
+  const filter = options.filter || 'todos';
+  const limit = options.limit !== undefined ? options.limit : 20;
+  const offset = Math.max(0, options.offset ?? 0);
+
+  const term = `%${cleanSearch}%`;
+  const cleanDigits = cleanSearch.replace(/\D/g, '');
+  const digitsTerm = cleanDigits ? `%${cleanDigits}%` : term;
+  const todaySimpleStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+
+  // 1. Estatísticas globais da clínica (KPIs e contadores das abas)
+  const statsRow = (await database.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN c.status = 'ativo' THEN 1 ELSE 0 END) AS ativos,
+      SUM(CASE WHEN c.status = 'pendente' THEN 1 ELSE 0 END) AS pendentes,
+      SUM(CASE WHEN c.status = 'inativo' THEN 1 ELSE 0 END) AS inativos,
+      SUM(CASE WHEN EXISTS (SELECT 1 FROM client_packages cp WHERE cp.client_id = c.id AND cp.status = 'ativo') THEN 1 ELSE 0 END) AS com_pacote,
+      COALESCE((
+        SELECT SUM(cp.total_sessions - cp.used_sessions)
+        FROM client_packages cp
+        INNER JOIN clients c2 ON c2.id = cp.client_id
+        WHERE c2.clinic_id = ?
+          AND COALESCE(c2.administrative_notes, '') != '__AGENDA_AVULSO__'
+          AND cp.status = 'ativo'
+      ), 0) AS sessoes_em_haver,
+      SUM(CASE WHEN EXISTS (
+        SELECT 1 FROM client_records cr
+        WHERE cr.client_id = c.id
+          AND (cr.consent_agreed = 1 OR COALESCE(cr.chief_complaint, '') != '' OR COALESCE(cr.cpf, '') != '')
+      ) THEN 1 ELSE 0 END) AS anamnese_ok,
+      SUM(CASE WHEN COALESCE((
+        SELECT SUM(p.remaining_amount_cents)
+        FROM client_payments p
+        WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado'
+      ), 0) > 0 THEN 1 ELSE 0 END) AS com_saldo_aberto,
+      COALESCE((
+        SELECT SUM(p.remaining_amount_cents)
+        FROM client_payments p
+        INNER JOIN clients c2 ON c2.id = p.client_id
+        WHERE c2.clinic_id = ?
+          AND COALESCE(c2.administrative_notes, '') != '__AGENDA_AVULSO__'
+          AND p.entry_type = 'entrada'
+          AND p.status != 'cancelado'
+      ), 0) AS total_saldo_aberto_cents,
+      SUM(CASE WHEN COALESCE((
+        SELECT SUM(p.remaining_amount_cents)
+        FROM client_payments p
+        WHERE p.client_id = c.id
+          AND p.entry_type = 'entrada'
+          AND p.status NOT IN ('cancelado', 'pago')
+          AND p.remaining_amount_cents > 0
+          AND p.due_at IS NOT NULL
+          AND SUBSTR(p.due_at, 1, 10) < ?
+      ), 0) > 0 THEN 1 ELSE 0 END) AS inadimplentes,
+      COALESCE((
+        SELECT SUM(p.remaining_amount_cents)
+        FROM client_payments p
+        INNER JOIN clients c2 ON c2.id = p.client_id
+        WHERE c2.clinic_id = ?
+          AND COALESCE(c2.administrative_notes, '') != '__AGENDA_AVULSO__'
+          AND p.entry_type = 'entrada'
+          AND p.status NOT IN ('cancelado', 'pago')
+          AND p.remaining_amount_cents > 0
+          AND p.due_at IS NOT NULL
+          AND SUBSTR(p.due_at, 1, 10) < ?
+      ), 0) AS total_inadimplente_cents
+    FROM clients c
+    WHERE c.clinic_id = ?
+      AND COALESCE(c.administrative_notes, '') != '__AGENDA_AVULSO__'
+  `).get(IDS.clinic, IDS.clinic, todaySimpleStr, IDS.clinic, todaySimpleStr, IDS.clinic)) as Record<string, unknown> | undefined;
+
+  const stats: ClientListStats = {
+    total: Number(statsRow?.total ?? 0),
+    ativos: Number(statsRow?.ativos ?? 0),
+    pendentes: Number(statsRow?.pendentes ?? 0),
+    inativos: Number(statsRow?.inativos ?? 0),
+    comPacote: Number(statsRow?.com_pacote ?? 0),
+    sessoesEmHaver: Number(statsRow?.sessoes_em_haver ?? 0),
+    anamneseOk: Number(statsRow?.anamnese_ok ?? 0),
+    comSaldoAberto: Number(statsRow?.com_saldo_aberto ?? 0),
+    totalSaldoAbertoCents: Number(statsRow?.total_saldo_aberto_cents ?? 0),
+    inadimplentes: Number(statsRow?.inadimplentes ?? 0),
+    totalInadimplenteCents: Number(statsRow?.total_inadimplente_cents ?? 0),
+  };
+
+  // 2. Condição de busca e filtro rápido aplicada diretamente no banco
+  const lowerTerm = `%${cleanSearch.toLowerCase()}%`;
+  let filterSql = '';
+  const filterParams: unknown[] = [];
+
+  if (filter === 'ativo' || filter === 'pendente' || filter === 'inativo') {
+    filterSql = 'AND c.status = ?';
+    filterParams.push(filter);
+  } else if (filter === 'pacote') {
+    filterSql = `AND EXISTS (SELECT 1 FROM client_packages cp WHERE cp.client_id = c.id AND cp.status = 'ativo')`;
+  } else if (filter === 'saldo') {
+    filterSql = `AND COALESCE((SELECT SUM(p.remaining_amount_cents) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado'), 0) > 0`;
+  } else if (filter === 'inadimplente') {
+    filterSql = `AND COALESCE((SELECT SUM(p.remaining_amount_cents) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?), 0) > 0`;
+    filterParams.push(todaySimpleStr);
+  } else if (filter === 'em_dia') {
+    filterSql = `AND COALESCE((SELECT SUM(p.remaining_amount_cents) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?), 0) = 0`;
+    filterParams.push(todaySimpleStr);
+  }
+
+  const searchSql = cleanSearch
+    ? `AND (
+        LOWER(c.name) LIKE ?
+        OR COALESCE(c.phone, '') LIKE ?
+        OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(c.phone, ''), ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE ?
+        OR LOWER(COALESCE(c.email, '')) LIKE ?
+        OR COALESCE(cr_search.cpf, '') LIKE ?
+        OR REPLACE(REPLACE(REPLACE(COALESCE(cr_search.cpf, ''), '.', ''), '-', ''), ' ', '') LIKE ?
+      )`
+    : '';
+  const searchParams = cleanSearch
+    ? [lowerTerm, term, digitsTerm, lowerTerm, term, digitsTerm]
+    : [];
+
+  const whereClause = `
+    c.clinic_id = ?
+    AND COALESCE(c.administrative_notes, '') != '__AGENDA_AVULSO__'
+    ${searchSql}
+    ${filterSql}
+  `;
+
+  const whereParams: unknown[] = [IDS.clinic, ...searchParams, ...filterParams];
+
+  const countRow = (await database.prepare(`
+    SELECT COUNT(DISTINCT c.id) AS total
+    FROM clients c
+    LEFT JOIN client_records cr_search ON cr_search.client_id = c.id
+    WHERE ${whereClause}
+  `).get(...whereParams)) as { total?: number } | undefined;
+
+  const totalFiltered = Number(countRow?.total ?? 0);
+
+  const limitSql = limit > 0 ? 'LIMIT ? OFFSET ?' : '';
+  const dataParams = [
+    new Date().toISOString(),
+    todaySimpleStr,
+    todaySimpleStr,
+    todaySimpleStr,
+    todaySimpleStr,
+    ...whereParams,
+    ...(limit > 0 ? [limit, offset] : []),
+  ];
+
+  const rows = (await database.prepare(`
+    SELECT c.id, c.name, c.phone, c.email, c.status, c.administrative_notes, c.created_at,
+      MIN(CASE WHEN a.start_at >= ? AND a.status NOT IN ('cancelado', 'nao_compareceu') THEN a.start_at END) AS next_appointment_at,
+      SUM(CASE WHEN a.status = 'concluido' THEN 1 ELSE 0 END) AS completed_appointments,
+      (SELECT COUNT(*) FROM client_packages cp WHERE cp.client_id = c.id AND cp.status = 'ativo') AS active_packages_count,
+      (SELECT COALESCE(SUM(cp.total_sessions - cp.used_sessions), 0) FROM client_packages cp WHERE cp.client_id = c.id AND cp.status = 'ativo') AS active_packages_remaining_sessions,
+      (SELECT cr.cpf FROM client_records cr WHERE cr.client_id = c.id) AS cpf,
+      (SELECT cr.rg FROM client_records cr WHERE cr.client_id = c.id) AS rg,
+      (SELECT cr.birth_date FROM client_records cr WHERE cr.client_id = c.id) AS birth_date,
+      (SELECT cr.gender FROM client_records cr WHERE cr.client_id = c.id) AS gender,
+      (SELECT cr.occupation FROM client_records cr WHERE cr.client_id = c.id) AS occupation,
+      (SELECT cr.emergency_contact_name FROM client_records cr WHERE cr.client_id = c.id) AS emergency_contact_name,
+      (SELECT cr.emergency_contact_phone FROM client_records cr WHERE cr.client_id = c.id) AS emergency_contact_phone,
+      (SELECT cr.emergency_contact_relationship FROM client_records cr WHERE cr.client_id = c.id) AS emergency_contact_relationship,
+      (SELECT CASE WHEN cr.consent_agreed = 1 OR COALESCE(cr.chief_complaint, '') != '' OR COALESCE(cr.cpf, '') != '' THEN 1 ELSE 0 END FROM client_records cr WHERE cr.client_id = c.id) AS has_anamnese,
+      (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado') AS open_balance_cents,
+      (SELECT COALESCE(SUM(p.paid_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status != 'cancelado') AS total_paid_cents,
+      (SELECT COALESCE(SUM(p.remaining_amount_cents), 0) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS overdue_balance_cents,
+      (SELECT COUNT(*) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS overdue_invoices_count,
+      (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) < ?) AS oldest_overdue_due_at,
+      (SELECT MIN(SUBSTR(p.due_at, 1, 10)) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0 AND p.due_at IS NOT NULL AND SUBSTR(p.due_at, 1, 10) >= ?) AS next_due_at,
+      (SELECT COUNT(*) FROM client_payments p WHERE p.client_id = c.id AND p.entry_type = 'entrada' AND p.status NOT IN ('cancelado', 'pago') AND p.remaining_amount_cents > 0) AS pending_invoices_count
+    FROM clients c
+    LEFT JOIN appointments a ON a.client_id = c.id
+    LEFT JOIN client_records cr_search ON cr_search.client_id = c.id
+    WHERE ${whereClause}
+    GROUP BY c.id
+    ORDER BY c.name COLLATE NOCASE
+    ${limitSql}
+  `).all(...dataParams)).map((row) => mapClientSummaryRow(row as Record<string, unknown>, todaySimpleStr));
+
+  return {
+    clients: rows,
+    totalFiltered,
+    hasMore: limit > 0 && offset + rows.length < totalFiltered,
+    stats,
+  };
 }
 
 export async function updateClient(clientId: string, input: ClientInput) {

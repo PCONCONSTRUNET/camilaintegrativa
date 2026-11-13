@@ -1,14 +1,32 @@
 import { getCurrentUser } from '@/lib/auth';
-import { createClient, listClients } from '@/lib/repository';
+import { createClient, listClients, listClientsPaginated } from '@/lib/repository';
 import { clientSchema } from '@/lib/validation';
 import { errorResponse } from '@/lib/http';
 import { extractClientMetadata, recordAuditLog } from '@/lib/audit';
 import { IDS } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   if (!(await getCurrentUser())) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
   const url = new URL(request.url);
-  return Response.json({ clients: await listClients(url.searchParams.get('search') ?? '', url.searchParams.get('status') ?? 'todos') });
+  const search = url.searchParams.get('search') ?? '';
+  const status = url.searchParams.get('status') ?? 'todos';
+
+  if (url.searchParams.get('paginated') === '1' || url.searchParams.has('limit')) {
+    const rawLimit = url.searchParams.get('limit');
+    const parsedLimit = rawLimit === 'all' || rawLimit === '0' ? 0 : Math.max(1, Number(rawLimit || 20) || 20);
+    const parsedOffset = Math.max(0, Number(url.searchParams.get('offset') || 0) || 0);
+    const result = await listClientsPaginated({
+      search,
+      filter: status,
+      limit: parsedLimit,
+      offset: parsedOffset,
+    });
+    return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  return Response.json({ clients: await listClients(search, status) });
 }
 
 export async function POST(request: Request) {

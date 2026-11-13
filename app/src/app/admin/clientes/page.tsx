@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   CalendarDays,
@@ -122,21 +122,63 @@ function getClientInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-let cachedClients: ClientSummary[] | null = null;
+const PAGE_SIZE = 20;
+
+type ClientListStats = {
+  total: number;
+  ativos: number;
+  pendentes: number;
+  inativos: number;
+  comPacote: number;
+  sessoesEmHaver: number;
+  anamneseOk: number;
+  comSaldoAberto: number;
+  totalSaldoAbertoCents: number;
+  inadimplentes: number;
+  totalInadimplenteCents: number;
+};
+
+const EMPTY_STATS: ClientListStats = {
+  total: 0,
+  ativos: 0,
+  pendentes: 0,
+  inativos: 0,
+  comPacote: 0,
+  sessoesEmHaver: 0,
+  anamneseOk: 0,
+  comSaldoAberto: 0,
+  totalSaldoAbertoCents: 0,
+  inadimplentes: 0,
+  totalInadimplenteCents: 0,
+};
+
+type ClientsPageCache = {
+  clients: ClientSummary[];
+  totalFiltered: number;
+  hasMore: boolean;
+  stats: ClientListStats;
+};
 
 export default function ClientesPage() {
-  const [clients, setClients] = useState<ClientSummary[]>(() =>
-    getInstantCache<ClientSummary[]>('admin_clients', [])
-  );
+  const initialCache = typeof window !== 'undefined'
+    ? getInstantCache<ClientsPageCache | null>('admin_clients_v2', null)
+    : null;
+
+  const [clients, setClients] = useState<ClientSummary[]>(() => initialCache?.clients ?? []);
+  const [stats, setStats] = useState<ClientListStats>(() => initialCache?.stats ?? EMPTY_STATS);
+  const [totalFiltered, setTotalFiltered] = useState<number>(() => initialCache?.totalFiltered ?? 0);
+  const [hasMore, setHasMore] = useState<boolean>(() => initialCache?.hasMore ?? false);
+  const [showAllMode, setShowAllMode] = useState(false);
+
   const [search, setSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('todos');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    const cached = getInstantCache<ClientSummary[]>('admin_clients', []);
-    return cached.length === 0;
-  });
+  const [loading, setLoading] = useState<boolean>(() => !initialCache || initialCache.clients.length === 0);
+  const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const isFirstFetchRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -184,53 +226,180 @@ export default function ClientesPage() {
     }
   }
 
+  const fetchClientsPage = useCallback(
+    async (opts: {
+      searchTerm: string;
+      filter: QuickFilter;
+      offset: number;
+      limit: number;
+      append?: boolean;
+      signal?: AbortSignal;
+    }) => {
+      const qs = new URLSearchParams({
+        paginated: '1',
+        limit: String(opts.limit),
+        offset: String(opts.offset),
+        status: opts.filter,
+        search: opts.searchTerm,
+      });
+
+      const response = await fetch(`/api/admin/clients?${qs.toString()}`, {
+        cache: 'no-store',
+        signal: opts.signal,
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? 'Não foi possível carregar os clientes.');
+      }
+
+      const nextList: ClientSummary[] = body.clients ?? [];
+      const nextTotalFiltered = Number(body.totalFiltered ?? nextList.length);
+      const nextHasMore = Boolean(body.hasMore);
+      const nextStats: ClientListStats = body.stats ?? EMPTY_STATS;
+
+      setStats(nextStats);
+      setTotalFiltered(nextTotalFiltered);
+      setHasMore(nextHasMore);
+
+      if (opts.append) {
+        setClients((prev) => {
+          const seen = new Set(prev.map((c) => c.id));
+          const merged = [...prev];
+          for (const item of nextList) {
+            if (!seen.has(item.id)) merged.push(item);
+          }
+          return merged;
+        });
+      } else {
+        setClients(nextList);
+        if (!opts.searchTerm.trim() && opts.filter === 'todos' && opts.offset === 0) {
+          setInstantCache<ClientsPageCache>('admin_clients_v2', {
+            clients: nextList.slice(0, PAGE_SIZE),
+            totalFiltered: nextTotalFiltered,
+            hasMore: nextTotalFiltered > PAGE_SIZE,
+            stats: nextStats,
+          });
+        }
+      }
+    },
+    []
+  );
+
   const load = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/clients?status=todos', { cache: 'no-store' });
-      const body = await response.json();
+      const limitToUse = showAllMode ? 0 : Math.max(PAGE_SIZE, clients.length || PAGE_SIZE);
+      await fetchClientsPage({
+        searchTerm: search,
+        filter: quickFilter,
+        offset: 0,
+        limit: limitToUse,
+        append: false,
+      });
       setLoading(false);
-      if (!response.ok) return setError(body.error ?? 'Não foi possível carregar os clientes.');
-      const list: ClientSummary[] = body.clients ?? [];
-      setInstantCache('admin_clients', list);
-      setClients(list);
     } catch {
       setLoading(false);
       setError('Erro de conexão ao carregar clientes.');
     }
-  }, []);
+  }, [fetchClientsPage, search, quickFilter, showAllMode, clients.length]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const controller = new AbortController();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = controller;
 
-  // Estatísticas para os KPIs do topo
-  const stats = useMemo(() => {
-    const total = clients.length;
-    const ativos = clients.filter((c) => c.status === 'ativo').length;
-    const pendentes = clients.filter((c) => c.status === 'pendente').length;
-    const inativos = clients.filter((c) => c.status === 'inativo').length;
-    const comPacote = clients.filter((c) => (c.activePackagesCount ?? 0) > 0).length;
-    const sessoesEmHaver = clients.reduce((acc, c) => acc + (c.activePackagesRemainingSessions ?? 0), 0);
-    const anamneseOk = clients.filter((c) => c.hasAnamnese).length;
-    const comSaldoAberto = clients.filter((c) => (c.openBalanceCents ?? 0) > 0).length;
-    const totalSaldoAbertoCents = clients.reduce((acc, c) => acc + (c.openBalanceCents ?? 0), 0);
-    const inadimplentes = clients.filter((c) => Boolean(c.isInadimplente)).length;
-    const totalInadimplenteCents = clients.reduce((acc, c) => acc + (c.overdueBalanceCents ?? 0), 0);
-
-    return {
-      total,
-      ativos,
-      pendentes,
-      inativos,
-      comPacote,
-      sessoesEmHaver,
-      anamneseOk,
-      comSaldoAberto,
-      totalSaldoAbertoCents,
-      inadimplentes,
-      totalInadimplenteCents,
+    const runQuery = async () => {
+      try {
+        setSearching(true);
+        setShowAllMode(false);
+        await fetchClientsPage({
+          searchTerm: search,
+          filter: quickFilter,
+          offset: 0,
+          limit: PAGE_SIZE,
+          append: false,
+          signal: controller.signal,
+        });
+        setLoading(false);
+        setSearching(false);
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+        setLoading(false);
+        setSearching(false);
+        setError(err instanceof Error ? err.message : 'Erro de conexão ao carregar clientes.');
+      }
     };
-  }, [clients]);
+
+    if (isFirstFetchRef.current) {
+      isFirstFetchRef.current = false;
+      void runQuery();
+      return () => controller.abort();
+    }
+
+    const delayMs = search.trim() ? 260 : 0;
+    const timer = setTimeout(() => {
+      void runQuery();
+    }, delayMs);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, quickFilter, fetchClientsPage]);
+
+  async function handleLoadMore(step = PAGE_SIZE) {
+    setLoadingMore(true);
+    try {
+      await fetchClientsPage({
+        searchTerm: search,
+        filter: quickFilter,
+        offset: clients.length,
+        limit: step,
+        append: true,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar mais clientes.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function handleLoadAll() {
+    setLoadingMore(true);
+    try {
+      setShowAllMode(true);
+      await fetchClientsPage({
+        searchTerm: search,
+        filter: quickFilter,
+        offset: 0,
+        limit: 0,
+        append: false,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar todos os clientes.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function handleResetTo20() {
+    setLoadingMore(true);
+    try {
+      setShowAllMode(false);
+      await fetchClientsPage({
+        searchTerm: search,
+        filter: quickFilter,
+        offset: 0,
+        limit: PAGE_SIZE,
+        append: false,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar listagem.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   function buildWaChargeUrl(client: ClientSummary) {
     const clientFirstName = (client.name || 'Cliente').split(' ')[0];
@@ -249,39 +418,8 @@ export default function ClientesPage() {
     return `https://wa.me/${phoneFull}?text=${encodeURIComponent(waText)}`;
   }
 
-  // Lista filtrada por busca + filtro rápido (suporta CPF com ou sem pontuação)
-  const filteredClients = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const qDigits = q.replace(/\D/g, '');
-    return clients.filter((c) => {
-      if (quickFilter === 'ativo' && c.status !== 'ativo') return false;
-      if (quickFilter === 'pendente' && c.status !== 'pendente') return false;
-      if (quickFilter === 'inativo' && c.status !== 'inativo') return false;
-      if (quickFilter === 'pacote' && !(c.activePackagesCount && c.activePackagesCount > 0)) return false;
-      if (quickFilter === 'saldo' && !(c.openBalanceCents && c.openBalanceCents > 0)) return false;
-      if (quickFilter === 'inadimplente' && !c.isInadimplente) return false;
-
-      if (!q) return true;
-      const matchName = c.name.toLowerCase().includes(q);
-      const phoneRaw = (c.phone || '').toLowerCase();
-      const phoneDigits = phoneRaw.replace(/\D/g, '');
-      const matchPhone =
-        phoneRaw.includes(q) ||
-        formatPhone(c.phone).toLowerCase().includes(q) ||
-        (qDigits.length > 0 && phoneDigits.includes(qDigits));
-      const matchEmail = (c.email || '').toLowerCase().includes(q);
-
-      const cpfRaw = (c.cpf || '').toLowerCase();
-      const cpfFormatted = c.cpf ? maskCpf(c.cpf).toLowerCase() : '';
-      const cpfDigits = cpfRaw.replace(/\D/g, '');
-      const matchCpf =
-        cpfRaw.includes(q) ||
-        cpfFormatted.includes(q) ||
-        (qDigits.length > 0 && cpfDigits.includes(qDigits));
-
-      return matchName || matchPhone || matchEmail || matchCpf;
-    });
-  }, [clients, search, quickFilter]);
+  // A filtragem por busca e status acontece direto no banco de dados (via listClientsPaginated)
+  const filteredClients = clients;
 
   function handleOpenCreate() {
     setEditingClient(null);
@@ -796,7 +934,7 @@ export default function ClientesPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome, WhatsApp, CPF ou e-mail..."
+            placeholder="Buscar no banco por nome, WhatsApp, CPF ou e-mail..."
             style={{
               border: 'none',
               background: 'transparent',
@@ -806,6 +944,11 @@ export default function ClientesPage() {
               color: '#0f172a',
             }}
           />
+          {searching && (
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              Buscando...
+            </span>
+          )}
           {search && (
             <button
               type="button"
@@ -1839,6 +1982,67 @@ export default function ClientesPage() {
               </article>
             );
           })}
+        </div>
+      )}
+
+      {/* Barra de Paginação: 20 em 20 ou Todos */}
+      {filteredClients.length > 0 && (
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '0.85rem 1.15rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
+          }}
+        >
+          <span style={{ fontSize: '0.84rem', color: '#475569', fontWeight: 600 }}>
+            Exibindo <strong style={{ color: '#0f172a' }}>{filteredClients.length}</strong> de{' '}
+            <strong style={{ color: '#0f172a' }}>{totalFiltered}</strong> cliente(s)
+            {search.trim() ? ' encontrado(s) no banco' : ''}
+          </span>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.55rem' }}>
+            {hasMore && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={loadingMore}
+                  onClick={() => handleLoadMore(PAGE_SIZE)}
+                  style={{ borderRadius: '999px', padding: '0.48rem 1rem', fontWeight: 700 }}
+                >
+                  {loadingMore ? 'Carregando...' : `Carregar mais ${Math.min(PAGE_SIZE, totalFiltered - filteredClients.length)}`}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={loadingMore}
+                  onClick={handleLoadAll}
+                  style={{ borderRadius: '999px', padding: '0.48rem 1rem', fontWeight: 700 }}
+                >
+                  Mostrar todos ({totalFiltered})
+                </button>
+              </>
+            )}
+
+            {!hasMore && filteredClients.length > PAGE_SIZE && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={loadingMore}
+                onClick={handleResetTo20}
+                style={{ borderRadius: '999px', padding: '0.45rem 0.95rem', fontWeight: 600 }}
+              >
+                Voltar para 20 primeiros
+              </button>
+            )}
+          </div>
         </div>
       )}
 
