@@ -3300,14 +3300,13 @@ export default function AdminSessoesGrupoPage() {
                     <th style={{ padding: '8px 10px' }}>WhatsApp</th>
                     <th style={{ padding: '8px 10px' }}>E-mail</th>
                     <th style={{ padding: '8px 10px' }}>Nascimento</th>
-                    <th style={{ padding: '8px 10px' }}>Pagto</th>
-                    <th style={{ padding: '8px 10px', borderRadius: '0 6px 0 0', width: '150px' }}>Rubrica / Assinatura</th>
+                    <th style={{ padding: '8px 10px', borderRadius: '0 6px 0 0' }}>Pagto</th>
                   </tr>
                 </thead>
                 <tbody>
                   {enrollments.filter((e) => e.status !== 'cancelado').length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                         Nenhum participante inscrito nesta sessão até o momento.
                       </td>
                     </tr>
@@ -3347,9 +3346,6 @@ export default function AdminSessoesGrupoPage() {
                               : enr.paymentStatus === 'gratuito'
                               ? 'ISENTO'
                               : `PENDENTE (${(enr.paymentMethod || 'PIX').toUpperCase()})`}
-                          </td>
-                          <td style={{ padding: '8px 10px' }}>
-                            <div style={{ borderBottom: '1px dotted #94a3b8', height: '18px', width: '100%' }} />
                           </td>
                         </tr>
                       ))

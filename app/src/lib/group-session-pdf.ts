@@ -241,15 +241,14 @@ export async function buildGroupSessionAttendancePdf(input: BuildGroupSessionPdf
 
   // Definicao de Colunas da Tabela
   // Largura Total: 523.28
-  // Colunas: # (22) | Nome (140) | CPF (74) | WhatsApp (74) | Nascimento (50) | Pagto (40) | Assinatura / Presenca (123)
+  // Colunas: # (24) | Nome (195) | CPF (85) | WhatsApp (85) | Nascimento (62) | Pagto (72.28)
   const COL_W = {
-    idx: 22,
-    name: 140,
-    cpf: 74,
-    phone: 74,
-    birth: 50,
-    payment: 40,
-    signature: 123.28,
+    idx: 24,
+    name: 195,
+    cpf: 85,
+    phone: 85,
+    birth: 62,
+    payment: 72.28,
   };
 
   const drawTableHeader = (p: PDFPage, currentY: number) => {
@@ -287,10 +286,6 @@ export async function buildGroupSessionAttendancePdf(input: BuildGroupSessionPdf
 
     // Pagto
     p.drawText('PAGTO', { x: xCursor, y: thY, size: 8, font: fontBold, color: rgb(1, 1, 1) });
-    xCursor += COL_W.payment;
-
-    // Assinatura
-    p.drawText('ASSINATURA DE PRESENCA', { x: xCursor, y: thY, size: 8, font: fontBold, color: rgb(1, 1, 1) });
 
     return currentY - thH;
   };
@@ -350,7 +345,7 @@ export async function buildGroupSessionAttendancePdf(input: BuildGroupSessionPdf
 
       // Nome
       const nameClean = clean(enr.clientName);
-      const nameTrunc = nameClean.length > 25 ? nameClean.slice(0, 24) + '...' : nameClean;
+      const nameTrunc = nameClean.length > 35 ? nameClean.slice(0, 34) + '...' : nameClean;
       page.drawText(nameTrunc, { x: rx, y: textY, size: 8.5, font: fontBold, color: DARK });
       rx += COL_W.name;
 
@@ -382,18 +377,9 @@ export async function buildGroupSessionAttendancePdf(input: BuildGroupSessionPdf
       page.drawText(clean(payLabel), {
         x: rx,
         y: textY,
-        size: 7,
+        size: 7.5,
         font: fontBold,
         color: enr.paymentStatus === 'pago' ? GREEN : enr.paymentStatus === 'pendente' ? GOLD : NAVY,
-      });
-      rx += COL_W.payment;
-
-      // Linha de Assinatura (pontilhada / fina)
-      page.drawLine({
-        start: { x: rx + 4, y: textY - 2 },
-        end: { x: rx + COL_W.signature - 8, y: textY - 2 },
-        thickness: 0.5,
-        color: rgb(0.7, 0.75, 0.8),
       });
 
       y -= ROW_H;
