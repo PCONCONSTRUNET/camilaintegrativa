@@ -187,7 +187,6 @@ export default function AdminSessoesGrupoPage() {
   const [quickPayMethod, setQuickPayMethod] = useState<'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'transferencia'>('pix');
   const [quickPaySaving, setQuickPaySaving] = useState(false);
   const [copiedList, setCopiedList] = useState(false);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
   const { confirmDialog, alertDialog, dialogNode } = useConfirmDialog();
 
   const loadSessions = useCallback(async () => {
@@ -1079,8 +1078,20 @@ export default function AdminSessoesGrupoPage() {
             grid-template-columns: 1fr;
           }
         }
+        .grp-print-only {
+          display: none;
+        }
+        @media print {
+          .grp-screen-shell {
+            display: none !important;
+          }
+          .grp-print-only {
+            display: block !important;
+          }
+        }
       `}</style>
 
+      <div className="grp-screen-shell no-print">
       {/* ── TOPO DA PÁGINA COMPACTO (MESMO MODELO DE SERVIÇOS) ── */}
       <div className="grp-page-header">
         <div>
@@ -2389,7 +2400,7 @@ export default function AdminSessoesGrupoPage() {
 
                 <button
                   type="button"
-                  onClick={() => setPrintModalOpen(true)}
+                  onClick={() => window.print()}
                   className="btn btn-secondary btn-sm"
                   style={{
                     borderRadius: '999px',
@@ -2404,7 +2415,7 @@ export default function AdminSessoesGrupoPage() {
                     gap: '5px',
                     cursor: 'pointer',
                   }}
-                  title="Visualizar documento oficial no formato A4 e imprimir ou salvar em PDF"
+                  title="Abrir caixa de impressão do sistema para imprimir em A4 ou salvar PDF"
                 >
                   <Printer size={14} /> Imprimir / A4
                 </button>
@@ -3069,129 +3080,23 @@ export default function AdminSessoesGrupoPage() {
         </div>
       )}
 
-      {/* Modal de Visualização & Impressão A4 da Lista de Presença */}
-      {printModalOpen && participantsSession && (
+      {/* Documento A4 oculto na tela (usado diretamente pelo modal de impressão do navegador via window.print) */}
+      </div>
+      {participantsSession && (
         <div
           id="group-session-print-modal-backdrop"
-          onClick={() => setPrintModalOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.72)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 2000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '20px 14px',
-            overflowY: 'auto',
-          }}
+          className="grp-print-only"
         >
-          {/* Barra Superior de Ações (Oculta na Impressão) */}
-          <div
-            className="no-print"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              maxWidth: '850px',
-              background: '#0f172a',
-              color: '#ffffff',
-              borderRadius: '16px',
-              padding: '14px 20px',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
-            }}
-          >
-            <div>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block' }}>
-                Visualização Oficial para Impressão & PDF (A4)
-              </span>
-              <strong style={{ fontSize: '0.96rem', color: '#ffffff' }}>
-                Lista de Presença — {participantsSession.title}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                style={{
-                  background: 'linear-gradient(135deg, #15803d 0%, #16a34a 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '999px',
-                  padding: '9px 18px',
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)',
-                }}
-              >
-                <Printer size={15} /> Imprimir / Salvar como PDF
-              </button>
-
-              <a
-                href={`/api/admin/group-sessions/${participantsSession.id}/pdf`}
-                download
-                style={{
-                  background: 'rgba(255, 255, 255, 0.12)',
-                  color: '#ffffff',
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                  borderRadius: '999px',
-                  padding: '9px 16px',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <FileDown size={15} /> Baixar Arquivo PDF (.pdf)
-              </a>
-
-              <button
-                type="button"
-                onClick={() => setPrintModalOpen(false)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '34px',
-                  height: '34px',
-                  display: 'grid',
-                  placeItems: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
           {/* Folha Oficial A4 */}
           <div
             id="printable-group-attendance"
-            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
               maxWidth: '850px',
               background: '#ffffff',
-              borderRadius: '12px',
-              boxShadow: '0 16px 45px rgba(0,0,0,0.25)',
-              padding: '36px 40px',
+              padding: '12px 16px',
               color: '#0f172a',
               fontFamily: 'system-ui, -apple-system, sans-serif',
-              marginBottom: '40px',
             }}
           >
             {/* Cabeçalho Oficial */}

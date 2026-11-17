@@ -5603,7 +5603,9 @@ a:hover { color: var(--color-primary-hover); }
   .sidebar-backdrop,
   .agenda-admin-menu-trigger,
   .modal-layer,
-  .page-alert {
+  .page-alert,
+  .no-print,
+  .grp-screen-shell {
     display: none !important;
   }
 
