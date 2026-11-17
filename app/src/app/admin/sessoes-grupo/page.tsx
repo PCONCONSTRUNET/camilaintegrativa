@@ -804,7 +804,7 @@ export default function AdminSessoesGrupoPage() {
           }}
         >
           <CheckCircle2 size={13} color="#16a34a" />
-          <span>Pago · {formatCurrency((enr.paidAmountCents || price) / 100)}</span>
+          <span>Pago · {formatCurrency(enr.paidAmountCents || price)}</span>
           <span style={{ fontSize: '0.68rem', opacity: 0.85 }}>({methodLabel})</span>
         </span>
       );
@@ -848,7 +848,7 @@ export default function AdminSessoesGrupoPage() {
         }}
       >
         <Clock size={13} color="#d97706" />
-        <span>Pendente · {formatCurrency((enr.remainingAmountCents || price) / 100)}</span>
+        <span>Pendente · {formatCurrency(enr.remainingAmountCents || price)}</span>
         <span style={{ fontSize: '0.68rem', opacity: 0.85 }}>({methodLabel})</span>
       </span>
     );
@@ -2326,16 +2326,16 @@ export default function AdminSessoesGrupoPage() {
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Total Previsto</span>
                 <strong style={{ display: 'block', fontSize: '1.05rem', color: '#0369a1' }}>
-                  {formatCurrency(participantsFinancialSummary.totalRevenueCents / 100)}
+                  {formatCurrency(participantsFinancialSummary.totalRevenueCents)}
                 </strong>
                 <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                  {participantsSession.priceCents ? `base ${formatCurrency(participantsSession.priceCents / 100)}/vaga` : 'sessão gratuita'}
+                  {participantsSession.priceCents ? `base ${formatCurrency(participantsSession.priceCents)}/vaga` : 'sessão gratuita'}
                 </span>
               </div>
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#166534', fontWeight: 800, textTransform: 'uppercase' }}>Total Recebido</span>
                 <strong style={{ display: 'block', fontSize: '1.05rem', color: '#15803d' }}>
-                  {formatCurrency(participantsFinancialSummary.totalPaidCents / 100)}
+                  {formatCurrency(participantsFinancialSummary.totalPaidCents)}
                 </strong>
                 <span style={{ fontSize: '0.72rem', color: '#166534', fontWeight: 700 }}>
                   ✓ {participantsFinancialSummary.paidCount} pago{participantsFinancialSummary.paidCount === 1 ? '' : 's'}
@@ -2344,7 +2344,7 @@ export default function AdminSessoesGrupoPage() {
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: 800, textTransform: 'uppercase' }}>A Receber (Pendente)</span>
                 <strong style={{ display: 'block', fontSize: '1.05rem', color: '#d97706' }}>
-                  {formatCurrency(participantsFinancialSummary.totalPendingCents / 100)}
+                  {formatCurrency(participantsFinancialSummary.totalPendingCents)}
                 </strong>
                 <span style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700 }}>
                   ⏳ {participantsFinancialSummary.pendingCount} pendente{participantsFinancialSummary.pendingCount === 1 ? '' : 's'}
@@ -3016,7 +3016,7 @@ export default function AdminSessoesGrupoPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.84rem' }}>
                 <span style={{ color: '#64748b' }}>Valor da vaga:</span>
                 <strong style={{ color: '#0f172a' }}>
-                  {formatCurrency((quickPayEnrollment.priceCents || participantsSession?.priceCents || 0) / 100)}
+                  {formatCurrency(quickPayEnrollment.priceCents || participantsSession?.priceCents || 0)}
                 </strong>
               </div>
               <div>
