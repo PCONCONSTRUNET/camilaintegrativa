@@ -545,7 +545,14 @@ export default function AdminDashboard() {
           )}
 
           {filteredAgenda.length > 0 ? (
-            <div className="appointment-list">
+            <div
+              className="appointment-list"
+              style={{
+                maxHeight: '420px',
+                overflowY: 'auto',
+                paddingRight: '4px',
+              }}
+            >
               {filteredAgenda.map((appointment) => (
                 <article
                   className="appointment-row"
@@ -667,7 +674,16 @@ export default function AdminDashboard() {
 
           {/* Lista de saldos em aberto / parciais */}
           {fin.openPayments.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                maxHeight: '350px',
+                overflowY: 'auto',
+                paddingRight: '4px',
+              }}
+            >
               {fin.openPayments.map((pay) => (
                 <article
                   key={pay.id}
