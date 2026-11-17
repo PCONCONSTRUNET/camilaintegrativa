@@ -5803,6 +5803,45 @@ export async function cancelGroupEnrollment(enrollmentId: string): Promise<void>
   }
 }
 
+export async function deleteGroupEnrollment(
+  enrollmentId: string
+): Promise<{ ok: boolean; wasActive: boolean; clientName?: string }> {
+  await ensureGroupSessionTables();
+  const database = getDatabase();
+  const row = (await database.prepare(
+    `SELECT id, status, payment_id, client_name FROM group_session_enrollments WHERE id = ?`
+  ).get(enrollmentId)) as
+    | { id: string; status?: string | null; payment_id?: string | null; client_name?: string | null }
+    | undefined;
+
+  if (!row) {
+    return { ok: false, wasActive: false };
+  }
+
+  if (row.payment_id) {
+    try {
+      await database.prepare(
+        `DELETE FROM payment_transactions WHERE payment_id = ? AND EXISTS (
+          SELECT 1 FROM client_payments cp WHERE cp.id = ? AND cp.status IN ('pendente', 'cancelado')
+        )`
+      ).run(row.payment_id, row.payment_id);
+      await database.prepare(
+        `DELETE FROM client_payments WHERE id = ? AND status IN ('pendente', 'cancelado')`
+      ).run(row.payment_id);
+    } catch {
+      // ignore if payment is already settled or has other dependencies
+    }
+  }
+
+  await database.prepare(`DELETE FROM group_session_enrollments WHERE id = ?`).run(enrollmentId);
+
+  return {
+    ok: true,
+    wasActive: row.status !== 'cancelado',
+    clientName: row.client_name ?? undefined,
+  };
+}
+
 export async function updateGroupEnrollmentPayment(
   enrollmentId: string,
   input: {

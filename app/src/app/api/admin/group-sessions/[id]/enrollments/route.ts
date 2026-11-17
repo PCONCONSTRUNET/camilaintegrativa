@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import {
   listGroupSessionEnrollments,
   cancelGroupEnrollment,
+  deleteGroupEnrollment,
   enrollInGroupSession,
   updateGroupEnrollmentPayment,
 } from '@/lib/repository';
@@ -131,9 +132,37 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   const body = await req.json();
   if (!body.enrollmentId) return NextResponse.json({ error: 'enrollmentId é obrigatório' }, { status: 400 });
-  await cancelGroupEnrollment(body.enrollmentId);
 
   const { ip, userAgent } = extractClientMetadata(req);
+
+  if (body.permanent === true) {
+    const deleted = await deleteGroupEnrollment(body.enrollmentId);
+    if (!deleted.ok) {
+      return NextResponse.json({ error: 'Inscrição não encontrada.' }, { status: 404 });
+    }
+    await recordAuditLog({
+      clinicId: IDS.clinic,
+      actorType: 'admin',
+      actorId: user.userId,
+      actorName: user.name,
+      category: 'agendamento',
+      action: 'exclusao_inscricao_sessao_grupo',
+      title: 'Exclusão de Participante em Sessão em Grupo',
+      description: `Participante "${deleted.clientName || body.enrollmentId}" excluído(a) definitivamente da sessão ${id}.`,
+      severity: 'info',
+      ipAddress: ip,
+      userAgent,
+      details: {
+        groupSessionId: id,
+        enrollmentId: body.enrollmentId,
+      },
+    }).catch(() => null);
+
+    return NextResponse.json({ ok: true, deleted: true });
+  }
+
+  await cancelGroupEnrollment(body.enrollmentId);
+
   await recordAuditLog({
     clinicId: IDS.clinic,
     actorType: 'admin',

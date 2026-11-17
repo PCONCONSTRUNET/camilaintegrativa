@@ -674,6 +674,37 @@ export default function AdminSessoesGrupoPage() {
     }
   }
 
+  async function handleDeleteEnrollment(enrollmentId: string, clientName: string, wasCancelled: boolean) {
+    if (!participantsSession) return;
+    const { confirmed } = await confirmDialog({
+      title: 'Excluir participante definitivamente',
+      description: 'Esta ação remove o registro deste participante da sessão em grupo de forma permanente.',
+      highlightText: `${clientName} — ${participantsSession.title}`,
+      confirmLabel: 'Sim, excluir',
+      cancelLabel: 'Voltar',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/admin/group-sessions/${participantsSession.id}/enrollments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enrollmentId, permanent: true }),
+      });
+      if (res.ok) {
+        await loadEnrollments(participantsSession.id);
+        await loadSessions();
+        if (!wasCancelled) {
+          setParticipantsSession((prev) =>
+            prev ? { ...prev, currentParticipants: Math.max(0, prev.currentParticipants - 1) } : null
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   function handleCopyParticipantList() {
     if (!participantsSession) return;
     const activeList = enrollments.filter((e) => e.status !== 'cancelado');
@@ -2964,6 +2995,27 @@ export default function AdminSessoesGrupoPage() {
                             </button>
                           </>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEnrollment(enr.id, enr.clientName, isCancelled)}
+                          title="Excluir participante permanentemente da lista"
+                          style={{
+                            padding: '5px 9px',
+                            borderRadius: '999px',
+                            border: '1px solid #fecaca',
+                            background: '#ffffff',
+                            color: '#b91c1c',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Trash2 size={12} /> Excluir
+                        </button>
                       </div>
                     </div>
                   );
