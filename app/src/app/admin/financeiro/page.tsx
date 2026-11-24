@@ -1,6 +1,6 @@
 'use client';
 
-import { CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -318,6 +318,115 @@ function formatDateOnly(val: string | null) {
   }
 }
 
+type PaymentStatusFilterKey = 'todos' | 'pago' | 'pendente' | 'parcial' | 'vencido' | 'parcelado' | 'cancelado';
+
+function normalizeSearchText(val: string | null | undefined): string {
+  return (val || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function startsWithLetter(name: string): boolean {
+  return /^\p{L}/u.test(name.trim());
+}
+
+function compareClientNamesForPicker(aName: string, bName: string): number {
+  const aTrim = aName.trim();
+  const bTrim = bName.trim();
+  const aIsLetter = startsWithLetter(aTrim);
+  const bIsLetter = startsWithLetter(bTrim);
+  if (aIsLetter !== bIsLetter) return aIsLetter ? -1 : 1;
+  return aTrim.localeCompare(bTrim, 'pt-BR', { sensitivity: 'base' });
+}
+
+function matchesClientQuery(c: ClientOption, rawQuery: string): boolean {
+  const q = normalizeSearchText(rawQuery);
+  if (!q) return true;
+  const qDigits = q.replace(/\D/g, '');
+  const nameMatch = normalizeSearchText(c.name).includes(q);
+  const emailMatch = normalizeSearchText(c.email).includes(q);
+  const phoneMatch =
+    normalizeSearchText(c.phone).includes(q) ||
+    (qDigits.length >= 2 && (c.phone || '').replace(/\D/g, '').includes(qDigits));
+  const cpfMatch =
+    normalizeSearchText(c.cpf).includes(q) ||
+    (qDigits.length >= 2 && (c.cpf || '').replace(/\D/g, '').includes(qDigits));
+  const rgMatch =
+    normalizeSearchText(c.rg).includes(q) ||
+    (qDigits.length >= 2 && (c.rg || '').replace(/\D/g, '').includes(qDigits));
+  return nameMatch || emailMatch || phoneMatch || cpfMatch || rgMatch;
+}
+
+function matchesPaymentStatusFilter(p: Payment, filter: PaymentStatusFilterKey): boolean {
+  if (filter === 'todos') return true;
+  if (filter === 'pago') return p.status === 'pago';
+  if (filter === 'pendente') return p.status === 'pendente';
+  if (filter === 'parcial') return p.status === 'parcial';
+  if (filter === 'vencido') return p.isOverdue;
+  if (filter === 'parcelado') return p.chargeType === 'parcelado' || p.status === 'parcelado';
+  if (filter === 'cancelado') return p.status === 'cancelado';
+  return true;
+}
+
+function renderPaymentStatusBadge(p: Payment, bordered = false): ReactNode {
+  const pillStyle = (bg: string, color: string, borderColor: string): CSSProperties => ({
+    background: bg,
+    color,
+    border: bordered ? `1px solid ${borderColor}` : 'none',
+    borderRadius: '50px',
+    padding: '3px 10px',
+    fontSize: '0.72rem',
+    fontWeight: bordered ? 800 : 700,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    whiteSpace: 'nowrap',
+  });
+
+  if (p.status === 'cancelado') {
+    return (
+      <span style={pillStyle('#f1f5f9', '#475569', '#cbd5e1')}>
+        <X size={12} /> Cancelado
+      </span>
+    );
+  }
+  if (p.status === 'pago') {
+    return (
+      <span style={pillStyle('#d1fae5', '#065f46', '#6ee7b7')}>
+        <CheckCircle2 size={12} /> Pago
+      </span>
+    );
+  }
+  if (p.status === 'parcial') {
+    return (
+      <span style={pillStyle(p.isOverdue ? '#fee2e2' : '#fef3c7', p.isOverdue ? '#991b1b' : '#92400e', p.isOverdue ? '#fca5a5' : '#fcd34d')}>
+        <Clock size={12} /> {p.isOverdue ? 'Parcial (Vencido)' : 'Parcial'}
+      </span>
+    );
+  }
+  if (p.isOverdue) {
+    return (
+      <span style={pillStyle('#fee2e2', '#991b1b', '#fca5a5')}>
+        <AlertCircle size={12} /> Vencido
+      </span>
+    );
+  }
+  if (p.status === 'parcelado') {
+    return (
+      <span style={pillStyle('#f3e8ff', '#7e22ce', '#d8b4fe')}>
+        <Layers size={12} /> Parcelado
+      </span>
+    );
+  }
+  return (
+    <span style={pillStyle('#e0f2fe', '#0369a1', '#7dd3fc')}>
+      <Clock size={12} /> Pendente
+    </span>
+  );
+}
+
 // Helpers para pontuação automática de moeda (R$)
 function parseMoneyInput(val: string): number {
   if (!val || !val.trim()) return 0;
@@ -402,6 +511,25 @@ function getAreaPath(pts: { x: number; y: number }[], baseY: number) {
   return `${curve} L ${last.x.toFixed(1)},${baseY} L ${first.x.toFixed(1)},${baseY} Z`;
 }
 
+const DEFAULT_DRE: DreSummary = {
+  receitaBrutaCents: 0,
+  deducoesDescontosCents: 0,
+  receitaLiquidaCents: 0,
+  receitaRealizadaCaixaCents: 0,
+  custosVariaveisCents: 0,
+  lucroBrutoCents: 0,
+  margemBrutaPct: 0,
+  despesasOperacionaisCents: 0,
+  totalDespesasCents: 0,
+  totalDespesasPagasCents: 0,
+  lucroLiquidoCents: 0,
+  margemLiquidaPct: 0,
+  saldoLiquidoCaixaCents: 0,
+  totalAReceberCents: 0,
+  totalAPagarCents: 0,
+  totalVencidoCents: 0,
+};
+
 type FinMainTab = 'dashboard' | 'dre' | 'pagamentos' | 'lancamentos';
 const VALID_FIN_TABS: FinMainTab[] = ['dashboard', 'dre', 'pagamentos', 'lancamentos'];
 
@@ -415,6 +543,11 @@ export default function AdminFinanceiroPage() {
     return 'dashboard';
   });
   const [paymentsClientFilter, setPaymentsClientFilter] = useState('');
+  const [paymentsClientQuery, setPaymentsClientQuery] = useState('');
+  const [paymentsClientOpen, setPaymentsClientOpen] = useState(false);
+  const [paymentsStatusFilter, setPaymentsStatusFilter] = useState<PaymentStatusFilterKey>('todos');
+  const paymentsClientBoxRef = useRef<HTMLDivElement | null>(null);
+  const modalClientBoxRef = useRef<HTMLDivElement | null>(null);
 
   const setActiveMainTab = useCallback((nextTab: FinMainTab) => {
     setActiveMainTabState(nextTab);
@@ -472,28 +605,9 @@ export default function AdminFinanceiroPage() {
     periodInfo: { period: string; fromDate?: string; toDate?: string };
   };
 
-  const defaultDre: DreSummary = {
-    receitaBrutaCents: 0,
-    deducoesDescontosCents: 0,
-    receitaLiquidaCents: 0,
-    receitaRealizadaCaixaCents: 0,
-    custosVariaveisCents: 0,
-    lucroBrutoCents: 0,
-    margemBrutaPct: 0,
-    despesasOperacionaisCents: 0,
-    totalDespesasCents: 0,
-    totalDespesasPagasCents: 0,
-    lucroLiquidoCents: 0,
-    margemLiquidaPct: 0,
-    saldoLiquidoCaixaCents: 0,
-    totalAReceberCents: 0,
-    totalAPagarCents: 0,
-    totalVencidoCents: 0,
-  };
-
   const initialFinCache = getInstantCache<FinancialCachePayload | null>('admin_financial_data', null);
   const [payments, setPayments] = useState<Payment[]>(() => initialFinCache?.payments ?? []);
-  const [dre, setDre] = useState<DreSummary>(() => initialFinCache?.dre ?? defaultDre);
+  const [dre, setDre] = useState<DreSummary>(() => initialFinCache?.dre ?? DEFAULT_DRE);
   const [servicesHighlight, setServicesHighlight] = useState<ServiceHighlight[]>(() => initialFinCache?.servicesHighlight ?? []);
   const [expensesByCategory, setExpensesByCategory] = useState<ExpenseCategoryItem[]>(() => initialFinCache?.expensesByCategory ?? []);
   const [methodBreakdown, setMethodBreakdown] = useState<MethodBreakdown[]>(() => initialFinCache?.methodBreakdown ?? []);
@@ -574,6 +688,20 @@ export default function AdminFinanceiroPage() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [customCategoriesEntrada, setCustomCategoriesEntrada] = useState<Record<string, string>>({});
   const [customCategoriesSaida, setCustomCategoriesSaida] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (paymentsClientBoxRef.current && target && !paymentsClientBoxRef.current.contains(target)) {
+        setPaymentsClientOpen(false);
+      }
+      if (modalClientBoxRef.current && target && !modalClientBoxRef.current.contains(target)) {
+        setClientOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Form State: Baixa
   const [payAmountStr, setPayAmountStr] = useState('');
@@ -667,18 +795,68 @@ export default function AdminFinanceiroPage() {
   }, [formEntryType, allCategoriesEntrada, allCategoriesSaida, categoryQuery, formCategory]);
 
   const filteredClientOptions = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    if (!q) return clients;
-    const qDigits = q.replace(/\D/g, '');
-    return clients.filter((c) => {
-      const nameMatch = (c.name || '').toLowerCase().includes(q);
-      const emailMatch = (c.email || '').toLowerCase().includes(q);
-      const phoneMatch = (c.phone || '').toLowerCase().includes(q) || (qDigits.length >= 2 && (c.phone || '').replace(/\D/g, '').includes(qDigits));
-      const cpfMatch = (c.cpf || '').toLowerCase().includes(q) || (qDigits.length >= 2 && (c.cpf || '').replace(/\D/g, '').includes(qDigits));
-      const rgMatch = (c.rg || '').toLowerCase().includes(q) || (qDigits.length >= 2 && (c.rg || '').replace(/\D/g, '').includes(qDigits));
-      return nameMatch || emailMatch || phoneMatch || cpfMatch || rgMatch;
+    const selectedCli = formClientId ? clients.find((c) => c.id === formClientId) : null;
+    const isExactSelected =
+      selectedCli && normalizeSearchText(selectedCli.name) === normalizeSearchText(clientQuery);
+    const q = isExactSelected ? '' : normalizeSearchText(clientQuery);
+    const matches = q ? clients.filter((c) => matchesClientQuery(c, q)) : [...clients];
+    return matches.sort((a, b) => {
+      if (q) {
+        const aStarts = normalizeSearchText(a.name).startsWith(q);
+        const bStarts = normalizeSearchText(b.name).startsWith(q);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+      }
+      return compareClientNamesForPicker(a.name, b.name);
     });
-  }, [clients, clientQuery]);
+  }, [clients, clientQuery, formClientId]);
+
+  const paymentsClientCounts = useMemo(() => {
+    const map = new Map<string, { total: number; open: number }>();
+    for (const p of payments) {
+      if (p.entryType !== 'entrada' || !p.clientId) continue;
+      const entry = map.get(p.clientId) || { total: 0, open: 0 };
+      entry.total += 1;
+      if (p.remainingAmountCents > 0 && p.status !== 'cancelado') entry.open += 1;
+      map.set(p.clientId, entry);
+    }
+    return map;
+  }, [payments]);
+
+  const allPaymentClients = useMemo(() => {
+    const byId = new Map<string, ClientOption>();
+    for (const c of clients) byId.set(c.id, c);
+    for (const p of payments) {
+      if (p.entryType === 'entrada' && p.clientId && !byId.has(p.clientId)) {
+        byId.set(p.clientId, {
+          id: p.clientId,
+          name: p.clientName || 'Cliente',
+          phone: p.clientPhone || '',
+          email: p.clientEmail || null,
+        });
+      }
+    }
+    return Array.from(byId.values());
+  }, [clients, payments]);
+
+  const filteredPaymentsClientOptions = useMemo(() => {
+    const selectedCli = paymentsClientFilter ? allPaymentClients.find((c) => c.id === paymentsClientFilter) : null;
+    const isExactSelected =
+      selectedCli && normalizeSearchText(selectedCli.name) === normalizeSearchText(paymentsClientQuery);
+    const q = isExactSelected ? '' : normalizeSearchText(paymentsClientQuery);
+    const matches = q ? allPaymentClients.filter((c) => matchesClientQuery(c, q)) : [...allPaymentClients];
+    return matches.sort((a, b) => {
+      if (q) {
+        const aStarts = normalizeSearchText(a.name).startsWith(q);
+        const bStarts = normalizeSearchText(b.name).startsWith(q);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+      } else {
+        const aHasPay = (paymentsClientCounts.get(a.id)?.total ?? 0) > 0;
+        const bHasPay = (paymentsClientCounts.get(b.id)?.total ?? 0) > 0;
+        if (aHasPay !== bHasPay) return aHasPay ? -1 : 1;
+      }
+      return compareClientNamesForPicker(a.name, b.name);
+    });
+  }, [allPaymentClients, paymentsClientFilter, paymentsClientQuery, paymentsClientCounts]);
 
   const filteredServiceOptions = useMemo(() => {
     const q = serviceQuery.trim().toLowerCase();
@@ -695,23 +873,15 @@ export default function AdminFinanceiroPage() {
         if (customFrom) params.set('from', customFrom);
         if (customTo) params.set('to', customTo);
       }
-      if (search) params.set('search', search);
-      if (entryTypeFilter !== 'todos') params.set('entryType', entryTypeFilter);
-      if (categoryFilter !== 'todos') params.set('category', categoryFilter);
-      if (statusFilter !== 'todos' && statusFilter !== 'parcelado') params.set('status', statusFilter);
-      if (methodFilter !== 'todos') params.set('method', methodFilter);
 
       const res = await fetch(`/api/admin/payments?${params.toString()}`);
       if (!res.ok) throw new Error('Erro ao carregar dados');
       const data = await res.json();
 
-      let paymentList: Payment[] = data.payments || [];
-      if (statusFilter === 'parcelado') {
-        paymentList = paymentList.filter((p) => p.chargeType === 'parcelado' || (p.totalInstallments && p.totalInstallments > 1));
-      }
+      const paymentList: Payment[] = data.payments || [];
 
       setPayments(paymentList);
-      setDre(data.dre || dre);
+      setDre(data.dre || DEFAULT_DRE);
       setServicesHighlight(data.servicesHighlight || []);
       setExpensesByCategory(data.expensesByCategory || []);
       setMethodBreakdown(data.methodBreakdown || []);
@@ -721,7 +891,7 @@ export default function AdminFinanceiroPage() {
       // Salva snapshot no Instant Cache (0ms no próximo carregamento)
       setInstantCache('admin_financial_data', {
         payments: paymentList,
-        dre: data.dre || dre,
+        dre: data.dre || DEFAULT_DRE,
         servicesHighlight: data.servicesHighlight || [],
         expensesByCategory: data.expensesByCategory || [],
         methodBreakdown: data.methodBreakdown || [],
@@ -733,7 +903,7 @@ export default function AdminFinanceiroPage() {
     } finally {
       setLoading(false);
     }
-  }, [periodPreset, customFrom, customTo, search, entryTypeFilter, categoryFilter, statusFilter, methodFilter]);
+  }, [periodPreset, customFrom, customTo]);
 
   useEffect(() => {
     Promise.all([
@@ -794,9 +964,9 @@ export default function AdminFinanceiroPage() {
     try {
       let resolvedClientId = newModalMode === 'cliente' ? formClientId : '';
       if (newModalMode === 'cliente' && !resolvedClientId) {
-        const q = clientQuery.trim().toLowerCase();
+        const q = normalizeSearchText(clientQuery);
         if (q) {
-          const exact = clients.find((c) => (c.name || '').toLowerCase() === q);
+          const exact = clients.find((c) => normalizeSearchText(c.name) === q);
           if (exact) resolvedClientId = exact.id;
           else if (filteredClientOptions.length === 1) resolvedClientId = filteredClientOptions[0].id;
         }
@@ -1157,21 +1327,18 @@ export default function AdminFinanceiroPage() {
   }, [managePaymentModal, renegoInstallmentsCount, renegoIntervalDays, renegoFirstDueDate, renegoFirstPaid]);
 
   const filteredPayments = useMemo(() => {
+    const q = normalizeSearchText(search);
     return payments.filter((p) => {
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const client = (p.clientName || '').toLowerCase();
-        const desc = (p.description || '').toLowerCase();
-        const serv = (p.serviceName || '').toLowerCase();
-        const cat = (p.category || '').toLowerCase();
-        if (!client.includes(q) && !desc.includes(q) && !serv.includes(q) && !cat.includes(q)) return false;
+      if (q) {
+        const client = normalizeSearchText(p.clientName);
+        const desc = normalizeSearchText(p.description);
+        const serv = normalizeSearchText(p.serviceName);
+        const cat = normalizeSearchText(p.category);
+        const notes = normalizeSearchText(p.notes);
+        if (!client.includes(q) && !desc.includes(q) && !serv.includes(q) && !cat.includes(q) && !notes.includes(q)) return false;
       }
       if (entryTypeFilter !== 'todos' && p.entryType !== entryTypeFilter) return false;
-      if (statusFilter === 'pago' && p.status !== 'pago') return false;
-      if (statusFilter === 'pendente' && p.status !== 'pendente') return false;
-      if (statusFilter === 'parcial' && p.status !== 'parcial') return false;
-      if (statusFilter === 'vencido' && !p.isOverdue) return false;
-      if (statusFilter === 'parcelado' && p.chargeType !== 'parcelado' && p.status !== 'parcelado') return false;
+      if (!matchesPaymentStatusFilter(p, statusFilter)) return false;
       if (categoryFilter !== 'todos' && p.category !== categoryFilter) return false;
       if (methodFilter !== 'todos') {
         if (methodFilter === 'cartao') {
@@ -1694,27 +1861,7 @@ export default function AdminFinanceiroPage() {
 
                           {/* Status */}
                           <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
-                            {p.status === 'pago' ? (
-                              <span style={{ background: '#d1fae5', color: '#065f46', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <CheckCircle2 size={12} /> Pago
-                              </span>
-                            ) : p.status === 'parcial' ? (
-                              <span style={{ background: '#fef3c7', color: '#92400e', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} /> Parcial
-                              </span>
-                            ) : p.isOverdue ? (
-                              <span style={{ background: '#fee2e2', color: '#991b1b', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <AlertCircle size={12} /> Vencido
-                              </span>
-                            ) : p.status === 'parcelado' ? (
-                              <span style={{ background: '#f3e8ff', color: '#7e22ce', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Layers size={12} /> Parcelado
-                              </span>
-                            ) : (
-                              <span style={{ background: '#e0f2fe', color: '#0369a1', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} /> Pendente
-                              </span>
-                            )}
+                            {renderPaymentStatusBadge(p)}
                           </td>
 
                           {/* Data / Vencimento */}
@@ -1911,27 +2058,7 @@ export default function AdminFinanceiroPage() {
                           </span>
                         </div>
 
-                        {p.status === 'pago' ? (
-                          <span style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <CheckCircle2 size={12} /> Pago
-                          </span>
-                        ) : p.status === 'parcial' ? (
-                          <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={12} /> Parcial
-                          </span>
-                        ) : p.isOverdue ? (
-                          <span style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <AlertCircle size={12} /> Vencido
-                          </span>
-                        ) : p.status === 'parcelado' ? (
-                          <span style={{ background: '#f3e8ff', color: '#7e22ce', border: '1px solid #d8b4fe', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Layers size={12} /> Parcelado
-                          </span>
-                        ) : (
-                          <span style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={12} /> Pendente
-                          </span>
-                        )}
+                        {renderPaymentStatusBadge(p, true)}
                       </div>
 
                       {/* Pessoa / Descrição */}
@@ -4121,13 +4248,82 @@ export default function AdminFinanceiroPage() {
       {/* ABA 3: PAGAMENTOS DE CLIENTES (AGENDAMENTOS ONLINE + REGISTROS MANUAIS)   */}
       {/* ========================================================================= */}
       {activeMainTab === 'pagamentos' && (() => {
-        const clientPayments = payments.filter(
-          (p) => p.entryType === 'entrada' && p.clientId && (!paymentsClientFilter || p.clientId === paymentsClientFilter)
+        const matchedClientIdsFromQuery = (() => {
+          if (paymentsClientFilter || !paymentsClientQuery.trim()) return null;
+          const ids = new Set<string>();
+          for (const c of allPaymentClients) {
+            if (matchesClientQuery(c, paymentsClientQuery)) ids.add(c.id);
+          }
+          return ids;
+        })();
+
+        const clientPaymentsByClient = payments.filter((p) => {
+          if (p.entryType !== 'entrada' || !p.clientId) return false;
+          if (paymentsClientFilter) return p.clientId === paymentsClientFilter;
+          const q = normalizeSearchText(paymentsClientQuery);
+          if (!q) return true;
+          const qDigits = q.replace(/\D/g, '');
+          const nameMatch = normalizeSearchText(p.clientName).includes(q);
+          const phoneMatch =
+            normalizeSearchText(p.clientPhone).includes(q) ||
+            (qDigits.length >= 2 && (p.clientPhone || '').replace(/\D/g, '').includes(qDigits));
+          const emailMatch = normalizeSearchText(p.clientEmail).includes(q);
+          const clientTableMatch = matchedClientIdsFromQuery ? matchedClientIdsFromQuery.has(p.clientId) : false;
+          return nameMatch || phoneMatch || emailMatch || clientTableMatch;
+        });
+
+        const statusCounts = {
+          todos: clientPaymentsByClient.length,
+          pago: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'pago')).length,
+          pendente: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'pendente')).length,
+          parcial: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'parcial')).length,
+          vencido: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'vencido')).length,
+          parcelado: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'parcelado')).length,
+          cancelado: clientPaymentsByClient.filter((p) => matchesPaymentStatusFilter(p, 'cancelado')).length,
+        };
+
+        const clientPayments = clientPaymentsByClient.filter((p) =>
+          matchesPaymentStatusFilter(p, paymentsStatusFilter)
         );
-        const totalCobrado = clientPayments.reduce((a, p) => a + p.amountCents, 0);
-        const totalRecebido = clientPayments.reduce((a, p) => a + p.paidAmountCents, 0);
-        const totalAberto = clientPayments.reduce((a, p) => a + (p.status !== 'cancelado' ? p.remainingAmountCents : 0), 0);
+        const totalCobrado = clientPayments.reduce(
+          (a, p) => a + (paymentsStatusFilter === 'cancelado' || p.status !== 'cancelado' ? p.amountCents : 0),
+          0
+        );
+        const totalRecebido = clientPayments.reduce(
+          (a, p) => a + (p.status !== 'cancelado' ? p.paidAmountCents : 0),
+          0
+        );
+        const totalAberto = clientPayments.reduce(
+          (a, p) => a + (p.status !== 'cancelado' ? p.remainingAmountCents : 0),
+          0
+        );
         const qtdOnline = clientPayments.filter((p) => p.appointmentId).length;
+        const hasActiveClientFilters = Boolean(paymentsClientFilter || paymentsClientQuery.trim() || paymentsStatusFilter !== 'todos');
+        const visibleClientDropdownOptions = filteredPaymentsClientOptions.slice(0, 80);
+
+        const clearPagamentosFilters = () => {
+          setPaymentsClientFilter('');
+          setPaymentsClientQuery('');
+          setPaymentsClientOpen(false);
+          setPaymentsStatusFilter('todos');
+        };
+
+        const statusFilterOptions: Array<{
+          key: PaymentStatusFilterKey;
+          label: string;
+          count: number;
+          activeBg: string;
+        }> = [
+          { key: 'todos', label: 'Todos Status', count: statusCounts.todos, activeBg: '#1a3a4a' },
+          { key: 'pago', label: 'Pagos', count: statusCounts.pago, activeBg: '#059669' },
+          { key: 'pendente', label: 'Pendentes', count: statusCounts.pendente, activeBg: '#0284c7' },
+          { key: 'parcial', label: 'Parciais', count: statusCounts.parcial, activeBg: '#d97706' },
+          { key: 'vencido', label: 'Vencidos', count: statusCounts.vencido, activeBg: '#dc2626' },
+          { key: 'parcelado', label: 'Parcelados', count: statusCounts.parcelado, activeBg: '#7c3aed' },
+          ...(statusCounts.cancelado > 0
+            ? [{ key: 'cancelado' as PaymentStatusFilterKey, label: 'Cancelados', count: statusCounts.cancelado, activeBg: '#475569' }]
+            : []),
+        ];
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -4151,7 +4347,7 @@ export default function AdminFinanceiroPage() {
                   setCategoryQuery(allCategoriesEntrada['sessao_avulsa'] || 'Sessão Avulsa de Hipnose');
                   if (paymentsClientFilter) {
                     setFormClientId(paymentsClientFilter);
-                    const cli = clients.find((c) => c.id === paymentsClientFilter);
+                    const cli = allPaymentClients.find((c) => c.id === paymentsClientFilter);
                     if (cli) setClientQuery(cli.name);
                   }
                   setNewModalOpen(true);
@@ -4193,31 +4389,317 @@ export default function AdminFinanceiroPage() {
               ))}
             </div>
 
-            {/* Filtro por cliente */}
-            <div style={{ background: '#ffffff', border: '2px solid #cbd5e1', borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <User size={16} style={{ color: '#64748b', flexShrink: 0 }} />
-              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>Cliente:</span>
-              <select
-                value={paymentsClientFilter}
-                onChange={(e) => setPaymentsClientFilter(e.target.value)}
+            {/* Barra de filtros: Status + Cliente (com busca por nome) */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '2px solid #cbd5e1',
+                borderRadius: '18px',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                boxShadow: '0 4px 14px rgba(15, 23, 42, 0.04)',
+              }}
+            >
+              {/* Linha 1: Filtro por Status */}
+              <div
                 style={{
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  border: '1.5px solid #cbd5e1',
-                  fontSize: '0.84rem',
-                  flex: '1 1 200px',
-                  minWidth: 0,
-                  maxWidth: '100%',
-                  color: '#1a3a4a',
-                  fontWeight: 700,
-                  background: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  borderBottom: '1.5px solid #e2e8f0',
+                  paddingBottom: '12px',
                 }}
               >
-                <option value="">Todos os clientes</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', display: 'inline-flex', alignItems: 'center', gap: '5px', marginRight: '4px' }}>
+                  <Filter size={14} style={{ color: '#64748b' }} /> Status:
+                </span>
+                {statusFilterOptions.map((st) => {
+                  const active = paymentsStatusFilter === st.key;
+                  return (
+                    <button
+                      key={st.key}
+                      type="button"
+                      onClick={() => setPaymentsStatusFilter(st.key)}
+                      style={{
+                        background: active ? st.activeBg : '#f8fafc',
+                        color: active ? '#ffffff' : '#475569',
+                        border: active ? `1.5px solid ${st.activeBg}` : '1.5px solid #cbd5e1',
+                        padding: '6px 11px',
+                        borderRadius: '10px',
+                        fontSize: '0.77rem',
+                        fontWeight: active ? 700 : 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{st.label}</span>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: '999px',
+                          background: active ? 'rgba(255,255,255,0.22)' : '#e2e8f0',
+                          color: active ? '#ffffff' : '#334155',
+                        }}
+                      >
+                        {st.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Linha 2: Seletor de Cliente com digitação e lista compacta */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <User size={16} style={{ color: '#64748b' }} />
+                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>Cliente:</span>
+                </div>
+
+                <div ref={paymentsClientBoxRef} style={{ position: 'relative', flex: '1 1 260px', minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: paymentsClientFilter ? '#ecfdf5' : '#f8fafc',
+                      border: paymentsClientFilter ? '1.5px solid #059669' : '1.5px solid #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '8px 12px',
+                      minHeight: '42px',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <Search size={16} strokeWidth={2.4} style={{ color: paymentsClientFilter ? '#059669' : '#0f172a', flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      placeholder="Todos os clientes — digite o nome, telefone ou CPF..."
+                      value={paymentsClientQuery}
+                      onChange={(e) => {
+                        setPaymentsClientQuery(e.target.value);
+                        setPaymentsClientOpen(true);
+                        if (paymentsClientFilter) setPaymentsClientFilter('');
+                      }}
+                      onFocus={() => setPaymentsClientOpen(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setPaymentsClientOpen(false);
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (filteredPaymentsClientOptions.length === 1) {
+                            const chosen = filteredPaymentsClientOptions[0];
+                            setPaymentsClientFilter(chosen.id);
+                            setPaymentsClientQuery(chosen.name);
+                          }
+                          setPaymentsClientOpen(false);
+                        }
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        outline: 'none',
+                        width: '100%',
+                        minWidth: 0,
+                        fontSize: '0.86rem',
+                        color: '#0f172a',
+                        fontWeight: 600,
+                      }}
+                    />
+                    {paymentsClientFilter && (
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          color: '#065f46',
+                          background: '#d1fae5',
+                          border: '1px solid #6ee7b7',
+                          borderRadius: '999px',
+                          padding: '2px 8px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        ✓ Selecionado
+                      </span>
+                    )}
+                    {(paymentsClientQuery || paymentsClientFilter) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentsClientFilter('');
+                          setPaymentsClientQuery('');
+                          setPaymentsClientOpen(true);
+                        }}
+                        title="Limpar cliente"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'inline-flex', alignItems: 'center', padding: 0, flexShrink: 0 }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentsClientOpen((o) => !o)}
+                      title="Abrir lista de clientes"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'inline-flex', alignItems: 'center', padding: 0, flexShrink: 0 }}
+                    >
+                      <ChevronDown size={17} style={{ transform: paymentsClientOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                    </button>
+                  </div>
+
+                  {paymentsClientOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        left: 0,
+                        right: 0,
+                        background: '#ffffff',
+                        border: '1.5px solid #94a3b8',
+                        borderRadius: '14px',
+                        boxShadow: '0 16px 36px rgba(15, 23, 42, 0.2)',
+                        maxHeight: '280px',
+                        overflowY: 'auto',
+                        zIndex: 45,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentsClientFilter('');
+                          setPaymentsClientQuery('');
+                          setPaymentsClientOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: '1.5px solid #e2e8f0',
+                          background: !paymentsClientFilter && !paymentsClientQuery.trim() ? '#f0fdf4' : '#f8fafc',
+                          cursor: 'pointer',
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 2,
+                        }}
+                      >
+                        <strong style={{ fontSize: '0.84rem', color: '#1a3a4a' }}>Todos os clientes</strong>
+                        {!paymentsClientFilter && <Check size={15} style={{ color: '#059669' }} />}
+                      </button>
+
+                      {visibleClientDropdownOptions.length === 0 ? (
+                        <div style={{ padding: '14px', fontSize: '0.82rem', color: '#64748b', textAlign: 'center' }}>
+                          Nenhum cliente cadastrado encontrado com &quot;{paymentsClientQuery}&quot;.
+                        </div>
+                      ) : (
+                        <>
+                          {visibleClientDropdownOptions.map((c) => {
+                            const counts = paymentsClientCounts.get(c.id);
+                            const isSelected = paymentsClientFilter === c.id;
+                            const secondaryInfo = [
+                              c.phone && `📱 ${formatPhone(c.phone)}`,
+                              c.cpf && `CPF ${maskCpf(c.cpf)}`,
+                              c.email,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ');
+
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  setPaymentsClientFilter(c.id);
+                                  setPaymentsClientQuery(c.name);
+                                  setPaymentsClientOpen(false);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  gap: '10px',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  padding: '10px 14px',
+                                  border: 'none',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  background: isSelected ? '#ecfdf5' : '#ffffff',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <div style={{ minWidth: 0 }}>
+                                  <strong style={{ display: 'block', fontSize: '0.86rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {c.name}
+                                  </strong>
+                                  {secondaryInfo && (
+                                    <span style={{ display: 'block', fontSize: '0.73rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {secondaryInfo}
+                                    </span>
+                                  )}
+                                </div>
+                                {counts && counts.total > 0 && (
+                                  <span
+                                    style={{
+                                      flexShrink: 0,
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      padding: '2px 8px',
+                                      borderRadius: '999px',
+                                      background: counts.open > 0 ? '#fef3c7' : '#d1fae5',
+                                      color: counts.open > 0 ? '#92400e' : '#065f46',
+                                    }}
+                                  >
+                                    {counts.open > 0
+                                      ? `${counts.open} em aberto`
+                                      : `${counts.total} ${counts.total === 1 ? 'pagamento' : 'pagamentos'}`}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {filteredPaymentsClientOptions.length > visibleClientDropdownOptions.length && (
+                            <div style={{ padding: '8px 14px', fontSize: '0.74rem', color: '#64748b', background: '#f8fafc', textAlign: 'center' }}>
+                              Mostrando {visibleClientDropdownOptions.length} de {filteredPaymentsClientOptions.length} clientes — digite o nome para refinar.
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {hasActiveClientFilters && (
+                  <button
+                    type="button"
+                    onClick={clearPagamentosFilters}
+                    style={{
+                      background: '#f1f5f9',
+                      color: '#334155',
+                      border: '1.5px solid #cbd5e1',
+                      borderRadius: '10px',
+                      padding: '8px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <X size={14} /> Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Tabela (Desktop) + Cards Destacados (Mobile) */}
@@ -4234,8 +4716,35 @@ export default function AdminFinanceiroPage() {
               {clientPayments.length === 0 ? (
                 <div style={{ padding: '50px 20px', textAlign: 'center', color: '#64748b', background: '#ffffff', borderRadius: '20px' }}>
                   <CreditCard size={42} style={{ color: '#cbd5e1', margin: '0 auto 10px' }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1a3a4a' }}>Nenhum pagamento de cliente no período</h4>
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8' }}>Use &quot;Registrar Pagamento de Cliente&quot; para lançar um pagamento manual.</p>
+                  <h4 style={{ margin: '0 0 4px', color: '#1a3a4a' }}>
+                    {hasActiveClientFilters
+                      ? 'Nenhum pagamento encontrado com esses filtros'
+                      : 'Nenhum pagamento de cliente no período'}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8' }}>
+                    {hasActiveClientFilters
+                      ? 'Ajuste o status ou o cliente pesquisado, ou limpe os filtros.'
+                      : 'Use "Registrar Pagamento de Cliente" para lançar um pagamento manual.'}
+                  </p>
+                  {hasActiveClientFilters && (
+                    <button
+                      type="button"
+                      onClick={clearPagamentosFilters}
+                      style={{
+                        marginTop: '14px',
+                        background: '#1a3a4a',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 16px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
@@ -4251,6 +4760,7 @@ export default function AdminFinanceiroPage() {
                           <th style={{ padding: '14px 18px' }}>Pago</th>
                           <th style={{ padding: '14px 18px' }}>Em Aberto</th>
                           <th style={{ padding: '14px 18px' }}>Forma</th>
+                          <th style={{ padding: '14px 18px' }}>Status</th>
                           <th style={{ padding: '14px 18px' }}>Data / Hora</th>
                           <th style={{ padding: '14px 18px', textAlign: 'right' }}>Ações</th>
                         </tr>
@@ -4309,6 +4819,9 @@ export default function AdminFinanceiroPage() {
                                 <span style={{ background: mConf.bg, color: mConf.color, borderRadius: '8px', padding: '3px 8px', fontSize: '0.74rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                                   <MIcon size={13} /> {mConf.label}
                                 </span>
+                              </td>
+                              <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
+                                {renderPaymentStatusBadge(p)}
                               </td>
                               <td style={{ padding: '14px 18px', whiteSpace: 'nowrap', fontSize: '0.78rem', color: '#64748b' }}>
                                 {formatDateTime(p.paidAt || p.createdAt)}
@@ -4393,15 +4906,7 @@ export default function AdminFinanceiroPage() {
                               </span>
                             )}
 
-                            {open ? (
-                              <span style={{ background: p.isOverdue ? '#fee2e2' : '#fef3c7', color: p.isOverdue ? '#991b1b' : '#92400e', border: `1px solid ${p.isOverdue ? '#fca5a5' : '#fcd34d'}`, borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} /> {p.isOverdue ? 'Vencido' : 'Saldo em Aberto'}
-                              </span>
-                            ) : (
-                              <span style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', borderRadius: '50px', padding: '3px 10px', fontSize: '0.72rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <CheckCircle2 size={12} /> Quitado
-                              </span>
-                            )}
+                            {renderPaymentStatusBadge(p, true)}
                           </div>
 
                           {/* Cliente & Serviço */}
@@ -5007,6 +5512,7 @@ export default function AdminFinanceiroPage() {
               {/* FLUXO 1 (PAGAMENTO DE CLIENTE): 1º PRIORIDADE ABSOLUTA = SELECIONAR CLIENTE OBRIGATÓRIO */}
               {newModalMode === 'cliente' && (
                 <div
+                  ref={modalClientBoxRef}
                   className="form-group"
                   style={{
                     margin: 0,
@@ -5046,7 +5552,9 @@ export default function AdminFinanceiroPage() {
                       value={clientQuery}
                       onChange={(e) => { setClientQuery(e.target.value); setClientOpen(true); if (formClientId) setFormClientId(''); }}
                       onFocus={() => setClientOpen(true)}
-                      onBlur={() => setTimeout(() => setClientOpen(false), 160)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setClientOpen(false);
+                      }}
                       required
                     />
                     {clientQuery && (
@@ -5060,10 +5568,10 @@ export default function AdminFinanceiroPage() {
                     )}
                     <button
                       type="button"
-                      onMouseDown={(e) => { e.preventDefault(); setClientOpen((o) => !o); }}
+                      onClick={() => setClientOpen((o) => !o)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0f172a', display: 'inline-flex', alignItems: 'center', padding: 0 }}
                     >
-                      <ChevronDown size={18} strokeWidth={2.5} />
+                      <ChevronDown size={18} strokeWidth={2.5} style={{ transform: clientOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
                     </button>
                   </div>
 
@@ -5072,19 +5580,26 @@ export default function AdminFinanceiroPage() {
                       {filteredClientOptions.length === 0 ? (
                         <div style={{ padding: '12px 14px', fontSize: '0.84rem', color: '#64748b', fontWeight: 600 }}>Nenhum cliente encontrado com esse termo</div>
                       ) : (
-                        filteredClientOptions.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onMouseDown={() => { setFormClientId(c.id); setClientQuery(c.name); setClientOpen(false); }}
-                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid #f1f5f9', background: formClientId === c.id ? '#ecfdf5' : '#fff', cursor: 'pointer' }}
-                          >
-                            <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>{c.name}</strong>
-                            <span style={{ fontSize: '0.74rem', color: '#475569' }}>
-                              {[c.phone && `📱 ${formatPhone(c.phone)}`, c.cpf && `CPF ${maskCpf(c.cpf)}`, c.rg && `RG ${c.rg}`, c.email].filter(Boolean).join(' · ')}
-                            </span>
-                          </button>
-                        ))
+                        <>
+                          {filteredClientOptions.slice(0, 80).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => { setFormClientId(c.id); setClientQuery(c.name); setClientOpen(false); }}
+                              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid #f1f5f9', background: formClientId === c.id ? '#ecfdf5' : '#fff', cursor: 'pointer' }}
+                            >
+                              <strong style={{ display: 'block', fontSize: '0.88rem', color: '#0f172a' }}>{c.name}</strong>
+                              <span style={{ fontSize: '0.74rem', color: '#475569' }}>
+                                {[c.phone && `📱 ${formatPhone(c.phone)}`, c.cpf && `CPF ${maskCpf(c.cpf)}`, c.rg && `RG ${c.rg}`, c.email].filter(Boolean).join(' · ')}
+                              </span>
+                            </button>
+                          ))}
+                          {filteredClientOptions.length > 80 && (
+                            <div style={{ padding: '8px 14px', fontSize: '0.74rem', color: '#64748b', background: '#f8fafc', textAlign: 'center' }}>
+                              Mostrando 80 de {filteredClientOptions.length} clientes — digite o nome para refinar.
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
